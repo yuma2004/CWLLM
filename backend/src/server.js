@@ -267,6 +267,9 @@ app.get('/api/companies/:id', requireAuthApi, (req, res) => {
 // Regenerate Summary
 app.post('/api/companies/:id/regenerate', requireAuthApi, async (req, res) => {
   const companyId = parseId(req.params.id);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:regenerate',message:'Regenerate summary API called',data:{companyId,body:req.body},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+  // #endregion
   if (!companyId) {
     return res.status(400).json({ error: 'Invalid company id' });
   }
@@ -275,6 +278,9 @@ app.post('/api/companies/:id/regenerate', requireAuthApi, async (req, res) => {
   try {
     result = await generateSummaryForCompany(companyId, getSummaryOptions(req));
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:regenerate:error',message:'generateSummaryForCompany threw error',data:{companyId,errorMessage:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+    // #endregion
     return res.status(500).json({ error: 'Failed to generate summary' });
   }
 
@@ -381,6 +387,9 @@ app.post('/api/admin/rooms/:id/chatwork', requireAdminApi, (req, res) => {
 
 app.post('/api/admin/rooms/:id/sync', requireAdminApi, async (req, res) => {
   const roomId = parseId(req.params.id);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:sync',message:'Room sync API called',data:{roomId,force:Boolean(req.body?.force)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   if (!roomId) {
     return res.status(400).json({ error: 'Invalid room id' });
   }

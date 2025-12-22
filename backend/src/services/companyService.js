@@ -46,6 +46,9 @@ function getCompanyMessages(companyId, { limit = 100, since } = {}) {
 
 function getCompanyDetail(companyId) {
   const company = db.prepare('SELECT * FROM companies WHERE id = ?').get(companyId);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'companyService.js:getCompanyDetail',message:'Entry: getCompanyDetail',data:{companyId,companyFound:!!company,companyName:company?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
+  // #endregion
   if (!company) {
     return null;
   }
@@ -74,6 +77,10 @@ function getCompanyDetail(companyId) {
     .get(companyId);
 
   const messages = getCompanyMessages(companyId, { limit: 50 });
+
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'companyService.js:getCompanyDetail:end',message:'CompanyDetail data assembled',data:{companyId,roomsCount:rooms.length,hasSummary:!!summary,summaryContent:summary?.content?.substring(0,100),messagesCount:messages.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
+  // #endregion
 
   return { company, rooms, summary, messages };
 }
@@ -109,6 +116,9 @@ function getLatestSummaryTimestamp(companyId) {
 
 async function generateSummaryForCompany(companyId, options = {}) {
   const company = db.prepare('SELECT * FROM companies WHERE id = ?').get(companyId);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'companyService.js:generateSummaryForCompany',message:'Entry: generateSummaryForCompany',data:{companyId,companyFound:!!company,companyName:company?.name,options},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
   if (!company) return null;
 
   const lookbackDays =
@@ -129,6 +139,10 @@ async function generateSummaryForCompany(companyId, options = {}) {
     limit: maxMessages || 120,
     since
   });
+
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'companyService.js:beforeSummarize',message:'Messages retrieved for company',data:{companyId,messageCount:messages.length,sinceDate:since,lookbackDays,maxMessages:maxMessages||120},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
 
   const { content, stats } = await summarizeMessages({
     companyName: company.name,

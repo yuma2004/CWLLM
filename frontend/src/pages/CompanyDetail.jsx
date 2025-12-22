@@ -6,8 +6,10 @@ export default function CompanyDetail({ user }) {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [regenerating, setRegenerating] = useState(false);
   const [lookbackDays, setLookbackDays] = useState(30);
   const [maxMessages, setMaxMessages] = useState(120);
+  const [timelineLimit, setTimelineLimit] = useState(20); // タイムライン表示件数の制限
 
   const fetchData = async () => {
     try {
@@ -27,6 +29,10 @@ export default function CompanyDetail({ user }) {
 
   const handleRegenerate = async () => {
     try {
+      setRegenerating(true);
+      // Clear previous summary immediately
+      setData(prev => ({ ...prev, summary: null }));
+      
       const days = Number.isFinite(lookbackDays) ? lookbackDays : 30;
       const max = Number.isFinite(maxMessages) ? maxMessages : 120;
       const res = await axios.post(`/api/companies/${id}/regenerate`, {
@@ -38,6 +44,8 @@ export default function CompanyDetail({ user }) {
     } catch (error) {
       console.error(error);
       alert('生成に失敗しました');
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -48,8 +56,8 @@ export default function CompanyDetail({ user }) {
 
   // messages sort logic: server returns DESC (newest first).
   // Timeline shows oldest first (top to bottom).
-  // So we reverse it.
-  const sortedMessages = [...messages].reverse();
+  // So we reverse it and limit the display count.
+  const sortedMessages = [...messages].reverse().slice(0, timelineLimit);
 
   return (
     <div className="dashboard-grid">
@@ -104,11 +112,19 @@ export default function CompanyDetail({ user }) {
                   title="最大メッセージ件数"
                 />
                 <span className="text-muted" style={{ fontSize: '0.85rem' }}>件</span>
-                <button onClick={handleRegenerate} className="btn-sm-outline">再生成</button>
+                <button 
+                  onClick={handleRegenerate} 
+                  className="btn-sm-outline"
+                  disabled={regenerating}
+                >
+                  {regenerating ? '生成中...' : '再生成'}
+                </button>
               </div>
             </div>
 
-            {summary ? (
+            {regenerating ? (
+              <p className="text-muted">要約を生成しています...</p>
+            ) : summary ? (
               <>
                 <div className="label-sm" style={{ marginBottom: '8px' }}>
                   生成日時: {new Date(summary.generated_at).toLocaleString('ja-JP')}
@@ -132,8 +148,22 @@ export default function CompanyDetail({ user }) {
             <span>📅 主要チャット履歴 (タイムライン)</span>
           </div>
         </div>
-        <div className="card-body">
-          <div className="timeline-container">
+        <div className="card-body" style={{ padding: 0 }}>
+          <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              表示中: {sortedMessages.length}件 / 全{messages.length}件
+            </span>
+            {messages.length > timelineLimit && (
+              <button 
+                onClick={() => setTimelineLimit(prev => prev + 20)} 
+                className="btn-sm-outline"
+                style={{ fontSize: '0.8rem' }}
+              >
+                さらに表示 (+20件)
+              </button>
+            )}
+          </div>
+          <div className="timeline-container" style={{ maxHeight: '600px', overflowY: 'auto', padding: '24px' }}>
             <div className="timeline-line"></div>
             
             {messages.length === 0 && (

@@ -36,6 +36,9 @@ function createChatworkService(options = {}) {
   }
 
   function ensureToken() {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatworkService.js:ensureToken',message:'Checking Chatwork token',data:{hasToken:!!apiToken,tokenLength:apiToken?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     if (!apiToken) {
       throw createChatworkError('CHATWORK_API_TOKEN is not set', 500);
     }
@@ -102,13 +105,20 @@ function createChatworkService(options = {}) {
     return request('/rooms');
   }
 
-  function listRoomMessages(roomId, { force } = {}) {
+  async function listRoomMessages(roomId, { force } = {}) {
     if (!roomId) {
       throw createChatworkError('roomId is required', 400);
     }
-    return request(`/rooms/${roomId}/messages`, {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatworkService.js:listRoomMessages',message:'Fetching messages from Chatwork',data:{roomId,force},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    const result = await request(`/rooms/${roomId}/messages`, {
       query: force !== undefined ? { force: force ? 1 : 0 } : undefined
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/fc082490-ed80-4dc2-b62d-3ceb5c5aed1b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatworkService.js:listRoomMessages:result',message:'Chatwork messages fetched',data:{roomId,messageCount:Array.isArray(result)?result.length:'notArray'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    return result;
   }
 
   return {
