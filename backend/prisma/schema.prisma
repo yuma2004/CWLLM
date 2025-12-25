@@ -1,0 +1,232 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Seed設定
+// npm run seed で実行
+
+// ユーザー（認証用）
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // ハッシュ化済み
+  role      String   @default("readonly") // admin, sales, ops, readonly
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  companies  Company[]
+  projects   Project[]
+  wholesales Wholesale[]
+  tasks      Task[]
+
+  @@map("users")
+}
+
+// 企業
+model Company {
+  id            String   @id @default(cuid())
+  name          String
+  normalizedName String  // 重複検知用（正規化済み名称）
+  category      String?  // 広告主、メディア、ASP、その他
+  status        String   @default("active")
+  tags          String[] // タグ配列
+  profile       String?  // プロフィール（メモ）
+  ownerId       String?  // 自社担当者（User.id）
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // リレーション
+  owner         User?    @relation(fields: [ownerId], references: [id])
+  contacts      Contact[]
+  projects      Project[]
+  wholesales    Wholesale[]
+  messages      Message[]
+  summaries     Summary[]
+  roomLinks     CompanyRoomLink[]
+
+  @@unique([normalizedName])
+  @@map("companies")
+}
+
+// 担当者
+model Contact {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  role      String?  // 役割
+  email     String?
+  phone     String?
+  memo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("contacts")
+}
+
+// 案件
+model Project {
+  id          String   @id @default(cuid())
+  companyId   String   // 広告主企業
+  name        String
+  conditions  String?  // 条件・単価（自由記述）
+  unitPrice   Float?   // 単価（数値）
+  periodStart DateTime?
+  periodEnd   DateTime?
+  status      String   @default("active")
+  ownerId     String?  // 担当者（User.id）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner       User?      @relation(fields: [ownerId], references: [id])
+  wholesales  Wholesale[]
+  messages    Message[]
+
+  @@map("projects")
+}
+
+// 卸
+model Wholesale {
+  id          String   @id @default(cuid())
+  projectId   String   // 必ず案件に紐づく
+  companyId   String   // 卸先企業
+  conditions  String?  // 条件・単価（自由記述）
+  unitPrice   Float?   // 単価（数値）
+  margin      Float?    // マージン
+  status      String   @default("active")
+  agreedDate DateTime?
+  ownerId     String?  // 担当者（User.id）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner       User?    @relation(fields: [ownerId], references: [id])
+  messages    Message[]
+
+  @@map("wholesales")
+}
+
+// Chatworkルーム
+model ChatworkRoom {
+  id            String   @id @default(cuid())
+  roomId        String   @unique // Chatworkのroom_id
+  name          String
+  description   String?
+  lastSyncAt    DateTime? // 最終同期日時
+  lastMessageId String?  // 最後に取り込んだメッセージID
+  lastErrorAt   DateTime?
+  lastErrorMessage String?
+  lastErrorStatus Int?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  messages      Message[]
+  roomLinks     CompanyRoomLink[]
+
+  @@map("chatwork_rooms")
+}
+
+// 企業とルームの紐づけ
+model CompanyRoomLink {
+  id        String   @id @default(cuid())
+  companyId String
+  chatworkRoomId String
+  createdAt DateTime @default(now())
+
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  room      ChatworkRoom @relation(fields: [chatworkRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, chatworkRoomId])
+  @@map("company_room_links")
+}
+
+// メッセージ（Chatworkから取り込み）
+model Message {
+  id          String   @id @default(cuid())
+  chatworkRoomId String   // ChatworkRoom.id
+  roomId      String   // Chatworkのroom_id（検索用）
+  messageId   String   // Chatworkのmessage_id
+  sender      String   // 投稿者名
+  body        String   // 本文
+  sentAt      DateTime // 投稿日時
+  labels      String[] @default([])
+  companyId   String?  // 紐づけ企業（手動/自動）
+  projectId   String?  // 紐づけ案件（任意）
+  wholesaleId String?  // 紐づけ卸（任意）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  chatworkRoom ChatworkRoom @relation(fields: [chatworkRoomId], references: [id], onDelete: Cascade)
+  company     Company?     @relation(fields: [companyId], references: [id])
+  project     Project?     @relation(fields: [projectId], references: [id])
+  wholesale   Wholesale?   @relation(fields: [wholesaleId], references: [id])
+
+  @@unique([roomId, messageId])
+  @@index([companyId])
+  @@index([companyId, sentAt])
+  @@map("messages")
+}
+
+// 要約（AI生成）
+model Summary {
+  id          String   @id @default(cuid())
+  companyId   String
+  periodStart DateTime
+  periodEnd   DateTime
+  content     String   // 要約本文
+  type        String   @default("manual") // manual, auto
+  sourceLinks String[] // 根拠リンク（メッセージID等）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("summaries")
+}
+
+// タスク
+model Task {
+  id          String   @id @default(cuid())
+  targetType  String   // company, project, wholesale
+  targetId    String   // 対象ID（targetTypeに応じてCompany/Project/WholesaleのID）
+  assigneeId  String?  // 担当者（User.id）
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      String   @default("todo") // todo, in_progress, done, cancelled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignee    User?    @relation(fields: [assigneeId], references: [id])
+  // Note: targetTypeとtargetIdの組み合わせで動的に解決（Prismaリレーションでは表現不可）
+
+  @@index([targetType, targetId])
+  @@index([assigneeId])
+  @@map("tasks")
+}
+
+// 監査ログ
+model AuditLog {
+  id          String   @id @default(cuid())
+  entityType  String   // Company, Project, Wholesale, Task, User等
+  entityId    String
+  action      String   // create, update, delete
+  userId      String?  // 変更者（User.id）
+  changes     String   // JSON形式の変更差分
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
