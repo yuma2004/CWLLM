@@ -40,10 +40,10 @@ describe('MessageSearch page', () => {
       </MemoryRouter>
     )
 
-    fireEvent.change(screen.getByPlaceholderText('キーワード'), {
+    fireEvent.change(screen.getByPlaceholderText('Keyword'), {
       target: { value: 'alpha' },
     })
-    fireEvent.click(screen.getByRole('button', { name: '検索' }))
+    fireEvent.click(screen.getByRole('button', { name: 'search-submit' }))
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled()

@@ -9,6 +9,13 @@ import CompanyDetail from './pages/CompanyDetail'
 import ChatworkSettings from './pages/ChatworkSettings'
 import UnassignedMessages from './pages/UnassignedMessages'
 import MessageSearch from './pages/MessageSearch'
+import Tasks from './pages/Tasks'
+import Projects from './pages/Projects'
+import ProjectDetail from './pages/ProjectDetail'
+import Wholesales from './pages/Wholesales'
+import WholesaleDetail from './pages/WholesaleDetail'
+import Settings from './pages/Settings'
+import Exports from './pages/Exports'
 
 function App() {
   return (
@@ -51,6 +58,76 @@ function App() {
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
                 <ChatworkSettings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tasks"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Tasks />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Projects />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ProjectDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/wholesales"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Wholesales />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/wholesales/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <WholesaleDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/exports"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <Exports />
               </Layout>
             </ProtectedRoute>
           }

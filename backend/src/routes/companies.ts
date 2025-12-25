@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma, PrismaClient } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { normalizeCompanyName } from '../utils/normalize'
+import { logAudit } from '../services/audit'
 
 const prisma = new PrismaClient()
 
@@ -75,6 +76,11 @@ interface ContactUpdateBody {
   email?: string | null
   phone?: string | null
   memo?: string | null
+}
+
+interface JWTUser {
+  userId: string
+  role: string
 }
 
 export async function companyRoutes(fastify: FastifyInstance) {
@@ -156,6 +162,14 @@ export async function companyRoutes(fastify: FastifyInstance) {
             tags: tags ?? [],
           },
         })
+        const userId = (request.user as JWTUser | undefined)?.userId
+        await logAudit(prisma, {
+          entityType: 'Company',
+          entityId: company.id,
+          action: 'create',
+          userId,
+          after: company,
+        })
         return reply.code(201).send({ company })
       } catch (error) {
         return handlePrismaError(reply, error)
@@ -233,10 +247,26 @@ export async function companyRoutes(fastify: FastifyInstance) {
               }
       }
 
+      const existing = await prisma.company.findUnique({
+        where: { id: request.params.id },
+      })
+      if (!existing) {
+        return reply.code(404).send({ error: 'Company not found' })
+      }
+
       try {
         const company = await prisma.company.update({
           where: { id: request.params.id },
           data,
+        })
+        const userId = (request.user as JWTUser | undefined)?.userId
+        await logAudit(prisma, {
+          entityType: 'Company',
+          entityId: company.id,
+          action: 'update',
+          userId,
+          before: existing,
+          after: company,
         })
         return { company }
       } catch (error) {
@@ -249,9 +279,24 @@ export async function companyRoutes(fastify: FastifyInstance) {
     '/companies/:id',
     { preHandler: requireWriteAccess() },
     async (request, reply) => {
+      const existing = await prisma.company.findUnique({
+        where: { id: request.params.id },
+      })
+      if (!existing) {
+        return reply.code(404).send({ error: 'Company not found' })
+      }
+
       try {
         await prisma.company.delete({
           where: { id: request.params.id },
+        })
+        const userId = (request.user as JWTUser | undefined)?.userId
+        await logAudit(prisma, {
+          entityType: 'Company',
+          entityId: existing.id,
+          action: 'delete',
+          userId,
+          before: existing,
         })
         return reply.code(204).send()
       } catch (error) {

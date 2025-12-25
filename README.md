@@ -92,3 +92,41 @@ npm run format
 ## ドキュメント
 
 詳細な実装プランは `Docs/実装プラン.md` を参照してください。
+
+## Production (Docker)
+
+1. Copy `.env` from `env.example` and set secrets (DATABASE_URL, JWT_SECRET, CHATWORK_API_TOKEN, OPENAI_API_KEY).
+2. Build and start containers:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+- Backend health check: `http://localhost:3000/healthz`
+- Frontend: `http://localhost:8080`
+
+## Backup / Restore (PostgreSQL)
+
+### Backup
+
+```bash
+pg_dump "${DATABASE_URL}" -Fc -f backup.dump
+```
+
+PowerShell helper:
+
+```powershell
+pwsh infra/scripts/backup.ps1 -DatabaseUrl $env:DATABASE_URL -OutputPath backup.dump
+```
+
+### Restore
+
+```bash
+pg_restore --clean --if-exists -d "${DATABASE_URL}" backup.dump
+```
+
+PowerShell helper:
+
+```powershell
+pwsh infra/scripts/restore.ps1 -DatabaseUrl $env:DATABASE_URL -BackupPath backup.dump
+```

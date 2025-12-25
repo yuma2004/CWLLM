@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import CompanyTasksSection from '../components/CompanyTasksSection'
+import CompanySummarySection from '../components/CompanySummarySection'
+import CompanyRelationsSection from '../components/CompanyRelationsSection'
+import CompanyAuditSection from '../components/CompanyAuditSection'
 
 interface Company {
   id: string
@@ -669,6 +673,18 @@ function CompanyDetail() {
           )}
         </div>
       </div>
+
+      {id && (
+        <CompanyTasksSection companyId={id} canWrite={canWrite} />
+      )}
+
+      {id && (
+        <CompanySummarySection companyId={id} canWrite={canWrite} />
+      )}
+
+      {id && <CompanyRelationsSection companyId={id} />}
+
+      {id && <CompanyAuditSection companyId={id} />}
     </div>
   )
 }

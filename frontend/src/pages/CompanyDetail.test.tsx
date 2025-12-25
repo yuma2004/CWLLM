@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+﻿import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import CompanyDetail from './CompanyDetail'
@@ -12,13 +12,15 @@ const mockUseAuth = vi.mocked(useAuth)
 
 const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
 
-const queueResponse = (payload: unknown) =>
-  mockFetch.mockResolvedValueOnce({
+const buildResponse = (payload: unknown) =>
+  Promise.resolve({
     ok: true,
     json: async () => payload,
   } as Response)
 
 describe('CompanyDetail page', () => {
+  const companyId = 'c1'
+
   beforeEach(() => {
     mockUseAuth.mockReturnValue({
       user: { id: '1', email: 'admin@example.com', role: 'admin' },
@@ -27,26 +29,91 @@ describe('CompanyDetail page', () => {
       isLoading: false,
       isAuthenticated: true,
     })
-    mockFetch.mockReset()
+
+    const baseCompany = {
+      id: companyId,
+      name: 'Acme',
+      status: 'active',
+      tags: [],
+    }
+
+    mockFetch.mockImplementation((input, init) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
+
+      if (url === `/api/companies/${companyId}`) {
+        return buildResponse({ company: baseCompany })
+      }
+      if (url === `/api/companies/${companyId}/contacts`) {
+        return buildResponse({ contacts: [] })
+      }
+      if (url.startsWith(`/api/companies/${companyId}/messages`)) {
+        return buildResponse({
+          items: [
+            {
+              id: 'm1',
+              roomId: 'room-1',
+              messageId: '10',
+              sender: 'sender',
+              body: 'label target',
+              sentAt: new Date().toISOString(),
+              labels: [],
+            },
+          ],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        })
+      }
+      if (url.startsWith('/api/messages/search')) {
+        return buildResponse({
+          items: [
+            {
+              id: 'm1',
+              roomId: 'room-1',
+              messageId: '10',
+              sender: 'sender',
+              body: 'search hit',
+              sentAt: new Date().toISOString(),
+              labels: [],
+            },
+          ],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        })
+      }
+      if (url === `/api/companies/${companyId}/chatwork-rooms`) {
+        return buildResponse({ rooms: [] })
+      }
+      if (url.startsWith(`/api/companies/${companyId}/tasks`)) {
+        return buildResponse({
+          items: [],
+          pagination: { page: 1, pageSize: 20, total: 0 },
+        })
+      }
+      if (url === `/api/companies/${companyId}/summaries`) {
+        return buildResponse({ summaries: [] })
+      }
+      if (url === `/api/companies/${companyId}/projects`) {
+        return buildResponse({ projects: [] })
+      }
+      if (url === `/api/companies/${companyId}/wholesales`) {
+        return buildResponse({ wholesales: [] })
+      }
+      if (url.startsWith('/api/audit-logs')) {
+        return buildResponse({
+          items: [],
+          pagination: { page: 1, pageSize: 10, total: 0 },
+        })
+      }
+      if (url === '/api/messages/m1/labels' && init?.method === 'POST') {
+        return buildResponse({ message: { id: 'm1', labels: ['VIP'] } })
+      }
+
+      return buildResponse({})
+    })
+
     globalThis.fetch = mockFetch as unknown as typeof fetch
   })
 
   it('shows validation error when contact name is empty', async () => {
-    queueResponse({
-      company: {
-        id: 'c1',
-        name: 'Acme',
-        status: 'active',
-        tags: [],
-      },
-    })
-    queueResponse({ contacts: [] })
-    queueResponse({
-      items: [],
-      pagination: { page: 1, pageSize: 20, total: 0 },
-    })
-    queueResponse({ rooms: [] })
-
     render(
       <MemoryRouter initialEntries={['/companies/c1']}>
         <Routes>
@@ -68,38 +135,9 @@ describe('CompanyDetail page', () => {
     fireEvent.click(submitButton)
 
     expect(await screen.findByText('担当者名は必須です')).toBeInTheDocument()
-    expect(mockFetch).toHaveBeenCalledTimes(4)
   })
 
   it('calls search endpoint when query is set', async () => {
-    queueResponse({
-      company: {
-        id: 'c1',
-        name: 'Acme',
-        status: 'active',
-        tags: [],
-      },
-    })
-    queueResponse({ contacts: [] })
-    queueResponse({
-      items: [],
-      pagination: { page: 1, pageSize: 20, total: 0 },
-    })
-    queueResponse({ rooms: [] })
-    queueResponse({
-      items: [
-        {
-          id: 'm1',
-          roomId: 'room-1',
-          messageId: '10',
-          sender: 'sender',
-          body: 'search hit',
-          sentAt: new Date().toISOString(),
-        },
-      ],
-      pagination: { page: 1, pageSize: 20, total: 1 },
-    })
-
     render(
       <MemoryRouter initialEntries={['/companies/c1']}>
         <Routes>
@@ -112,54 +150,14 @@ describe('CompanyDetail page', () => {
     fireEvent.change(searchInput, { target: { value: 'search' } })
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(5)
+      const hasSearchCall = mockFetch.mock.calls.some(([url]) =>
+        typeof url === 'string' ? url.includes('/api/messages/search') : false
+      )
+      expect(hasSearchCall).toBe(true)
     })
-
-    const lastCall = mockFetch.mock.calls[4][0] as string
-    expect(lastCall).toContain('/api/messages/search')
   })
 
   it('posts label assignment for a message', async () => {
-    queueResponse({
-      company: {
-        id: 'c1',
-        name: 'Acme',
-        status: 'active',
-        tags: [],
-      },
-    })
-    queueResponse({ contacts: [] })
-    queueResponse({
-      items: [
-        {
-          id: 'm1',
-          roomId: 'room-1',
-          messageId: '10',
-          sender: 'sender',
-          body: 'label target',
-          sentAt: new Date().toISOString(),
-          labels: [],
-        },
-      ],
-      pagination: { page: 1, pageSize: 20, total: 1 },
-    })
-    queueResponse({ rooms: [] })
-    queueResponse({ message: { id: 'm1', labels: ['VIP'] } })
-    queueResponse({
-      items: [
-        {
-          id: 'm1',
-          roomId: 'room-1',
-          messageId: '10',
-          sender: 'sender',
-          body: 'label target',
-          sentAt: new Date().toISOString(),
-          labels: ['VIP'],
-        },
-      ],
-      pagination: { page: 1, pageSize: 20, total: 1 },
-    })
-
     render(
       <MemoryRouter initialEntries={['/companies/c1']}>
         <Routes>
@@ -169,7 +167,8 @@ describe('CompanyDetail page', () => {
     )
 
     const labelInputs = await screen.findAllByPlaceholderText('ラベル')
-    fireEvent.change(labelInputs[labelInputs.length - 1], { target: { value: 'VIP' } })
+    const labelInput = labelInputs[labelInputs.length - 1]
+    fireEvent.change(labelInput, { target: { value: 'VIP' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'ラベル追加' }))
 

@@ -13,11 +13,16 @@ function Layout({ children }: LayoutProps) {
   const isAdmin = role === 'admin'
 
   const navItems = [
-    { to: '/', label: 'ダッシュボード', show: true },
-    { to: '/companies', label: '企業', show: true },
-    { to: '/messages/search', label: '検索', show: true },
-    { to: '/messages/unassigned', label: '未紐づけ箱', show: !!canWrite },
-    { to: '/settings/chatwork', label: '設定', show: !!isAdmin },
+    { to: '/', label: 'Dashboard', show: true },
+    { to: '/companies', label: 'Companies', show: true },
+    { to: '/tasks', label: 'Tasks', show: true },
+    { to: '/projects', label: 'Projects', show: true },
+    { to: '/wholesales', label: 'Wholesales', show: true },
+    { to: '/messages/search', label: 'Search', show: true },
+    { to: '/messages/unassigned', label: 'Unassigned', show: !!canWrite },
+    { to: '/settings', label: 'Settings', show: !!isAdmin },
+    { to: '/exports', label: 'Export', show: !!isAdmin },
+    { to: '/settings/chatwork', label: 'Chatwork', show: !!isAdmin },
   ]
 
   return (
@@ -27,29 +32,29 @@ function Layout({ children }: LayoutProps) {
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">CWLLM</p>
             <h1 className="text-xl font-semibold text-slate-900">
-              Chatwork連携 企業/案件/対応管理システム
+              Chatwork CRM / Summary / Task Hub
             </h1>
           </div>
           <nav className="flex gap-2 text-sm">
             {navItems
               .filter((item) => item.show)
               .map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                className={({ isActive }) =>
-                  [
-                    'rounded-full px-4 py-2 transition',
-                    isActive
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-white hover:text-slate-900',
-                  ].join(' ')
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  className={({ isActive }) =>
+                    [
+                      'rounded-full px-4 py-2 transition',
+                      isActive
+                        ? 'bg-slate-900 text-white'
+                        : 'text-slate-600 hover:bg-white hover:text-slate-900',
+                    ].join(' ')
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))}
           </nav>
         </div>
       </header>

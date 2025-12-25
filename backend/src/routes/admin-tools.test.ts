@@ -1,0 +1,142 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import Fastify, { FastifyInstance } from 'fastify'
+import cors from '@fastify/cors'
+import jwt from '@fastify/jwt'
+import cookie from '@fastify/cookie'
+import { PrismaClient } from '@prisma/client'
+import { settingRoutes } from './settings'
+import { exportRoutes } from './export'
+import { dashboardRoutes } from './dashboard'
+
+const prisma = new PrismaClient()
+
+const buildTestServer = async () => {
+  const app = Fastify()
+  await app.register(cors)
+  await app.register(cookie)
+  await app.register(jwt, {
+    secret: process.env.JWT_SECRET || 'test-secret',
+    cookie: {
+      cookieName: 'token',
+      signed: false,
+    },
+  })
+  await app.register(settingRoutes, { prefix: '/api' })
+  await app.register(exportRoutes, { prefix: '/api' })
+  await app.register(dashboardRoutes, { prefix: '/api' })
+  return app
+}
+
+describe('Admin tools endpoints', () => {
+  let fastify: FastifyInstance
+
+  beforeEach(async () => {
+    fastify = await buildTestServer()
+  })
+
+  afterEach(async () => {
+    await prisma.task.deleteMany()
+    await prisma.summary.deleteMany()
+    await prisma.appSetting.deleteMany()
+    await prisma.company.deleteMany()
+    await fastify.close()
+  })
+
+  it('updates settings, exports csv, and returns dashboard data', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+
+    const settingsResponse = await fastify.inject({
+      method: 'GET',
+      url: '/api/settings',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(settingsResponse.statusCode).toBe(200)
+    const settingsBody = JSON.parse(settingsResponse.body)
+    expect(settingsBody.settings.summaryDefaultPeriodDays).toBe(30)
+
+    const patchResponse = await fastify.inject({
+      method: 'PATCH',
+      url: '/api/settings',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        summaryDefaultPeriodDays: 14,
+        tagOptions: ['vip', 'focus'],
+      },
+    })
+
+    expect(patchResponse.statusCode).toBe(200)
+    const patchBody = JSON.parse(patchResponse.body)
+    expect(patchBody.settings.summaryDefaultPeriodDays).toBe(14)
+
+    const company = await prisma.company.create({
+      data: {
+        name: 'Export Co',
+        normalizedName: 'exportco',
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    await prisma.task.create({
+      data: {
+        targetType: 'company',
+        targetId: company.id,
+        title: 'Overdue',
+        status: 'todo',
+        dueDate: new Date(Date.now() - 86400000),
+      },
+    })
+
+    await prisma.summary.create({
+      data: {
+        companyId: company.id,
+        periodStart: new Date(Date.now() - 86400000 * 7),
+        periodEnd: new Date(),
+        content: 'Summary content',
+        type: 'manual',
+        sourceLinks: [],
+      },
+    })
+
+    const dashboardResponse = await fastify.inject({
+      method: 'GET',
+      url: '/api/dashboard',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(dashboardResponse.statusCode).toBe(200)
+    const dashboardBody = JSON.parse(dashboardResponse.body)
+    expect(dashboardBody.dueTasks.length).toBeGreaterThan(0)
+    expect(dashboardBody.latestSummaries.length).toBeGreaterThan(0)
+    expect(dashboardBody.recentCompanies.length).toBeGreaterThan(0)
+
+    const exportCompanies = await fastify.inject({
+      method: 'GET',
+      url: '/api/export/companies.csv',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(exportCompanies.statusCode).toBe(200)
+    expect(exportCompanies.body).toContain('Export Co')
+
+    const exportTasks = await fastify.inject({
+      method: 'GET',
+      url: '/api/export/tasks.csv',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(exportTasks.statusCode).toBe(200)
+    expect(exportTasks.body).toContain('Overdue')
+  })
+})

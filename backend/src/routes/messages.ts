@@ -14,6 +14,7 @@ interface MessageListQuery {
 
 interface MessageSearchQuery {
   q?: string
+  messageId?: string
   companyId?: string
   page?: string
   pageSize?: string
@@ -132,13 +133,14 @@ export async function messageRoutes(fastify: FastifyInstance) {
     '/messages/search',
     { preHandler: requireAuth() },
     async (request, reply) => {
-      const { q, companyId, from, to } = request.query
+      const { q, messageId, companyId, from, to } = request.query
       const label = normalizeLabel(request.query.label)
       if (request.query.label !== undefined && label === null) {
         return reply.code(400).send({ error: 'Invalid label' })
       }
-      if (!q || q.trim() === '') {
-        return reply.code(400).send({ error: 'q is required' })
+      const trimmedQuery = q?.trim()
+      if ((!trimmedQuery || trimmedQuery === '') && !messageId) {
+        return reply.code(400).send({ error: 'q or messageId is required' })
       }
 
       const fromDate = parseDate(from)
@@ -155,8 +157,12 @@ export async function messageRoutes(fastify: FastifyInstance) {
         request.query.pageSize
       )
 
-      const where: Prisma.MessageWhereInput = {
-        body: { contains: q, mode: 'insensitive' },
+      const where: Prisma.MessageWhereInput = {}
+      if (trimmedQuery) {
+        where.body = { contains: trimmedQuery, mode: 'insensitive' }
+      }
+      if (messageId) {
+        where.messageId = messageId
       }
       if (companyId) {
         where.companyId = companyId
