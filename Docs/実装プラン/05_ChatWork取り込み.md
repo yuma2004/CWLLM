@@ -125,6 +125,6 @@
 
 ### 10) Git（AI）
 
-- [ ] `git add -A`
-- [ ] `git commit -m "feat: chatwork sync and company mapping"`
+- [x] `git add -A`
+- [x] `git commit -m "feat: chatwork sync errors and message search"`
 - [ ] `git push`
