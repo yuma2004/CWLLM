@@ -33,11 +33,11 @@ function Projects() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to load projects')
+        throw new Error(data.error || '案件の読み込みに失敗しました')
       }
       setProjects(data.items)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'ネットワークエラー')
     } finally {
       setIsLoading(false)
     }
@@ -51,7 +51,7 @@ function Projects() {
     event.preventDefault()
     setFormError('')
     if (!form.companyId.trim() || !form.name.trim()) {
-      setFormError('companyId and name are required')
+      setFormError('企業IDと案件名は必須です')
       return
     }
     try {
@@ -66,12 +66,12 @@ function Projects() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create project')
+        throw new Error(data.error || '案件の作成に失敗しました')
       }
       setForm({ companyId: '', name: '' })
       fetchProjects()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Network error')
+      setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
@@ -79,14 +79,14 @@ function Projects() {
     <div className="space-y-6 animate-fade-up">
       <div>
         <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Projects</p>
-        <h2 className="text-3xl font-bold text-slate-900">Projects</h2>
+        <h2 className="text-3xl font-bold text-slate-900">案件管理</h2>
       </div>
 
       <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
         <div className="flex flex-wrap gap-2 text-xs">
           <input
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="Search by name"
+            placeholder="案件名で検索"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -95,7 +95,7 @@ function Projects() {
             onClick={fetchProjects}
             className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white"
           >
-            Search
+            検索
           </button>
         </div>
       </div>
@@ -106,9 +106,9 @@ function Projects() {
 
       <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
         {isLoading ? (
-          <div className="text-sm text-slate-500">Loading projects...</div>
+          <div className="text-sm text-slate-500">案件を読み込み中...</div>
         ) : projects.length === 0 ? (
-          <div className="text-sm text-slate-500">No projects.</div>
+          <div className="text-sm text-slate-500">案件はありません。</div>
         ) : (
           <div className="space-y-3">
             {projects.map((project) => (
@@ -124,7 +124,7 @@ function Projects() {
                   to={`/projects/${project.id}`}
                   className="text-xs font-semibold text-slate-600 hover:text-slate-900"
                 >
-                  Open
+                  詳細へ
                 </Link>
               </div>
             ))}
@@ -137,17 +137,17 @@ function Projects() {
           onSubmit={handleCreate}
           className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur"
         >
-          <h3 className="text-lg font-semibold text-slate-900">Create project</h3>
+          <h3 className="text-lg font-semibold text-slate-900">案件を作成</h3>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <input
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Company ID"
+              placeholder="企業ID"
               value={form.companyId}
               onChange={(event) => setForm({ ...form, companyId: event.target.value })}
             />
             <input
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Project name"
+              placeholder="案件名"
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
@@ -162,13 +162,13 @@ function Projects() {
               type="submit"
               className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white"
             >
-              Create
+              作成
             </button>
           </div>
         </form>
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-          Write access required to create projects.
+          案件を作成するには書き込み権限が必要です。
         </div>
       )}
     </div>

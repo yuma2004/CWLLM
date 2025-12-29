@@ -10,12 +10,37 @@ interface MessageItem {
   sentAt: string
 }
 
+interface Company {
+  id: string
+  name: string
+}
+
 function UnassignedMessages() {
   const { user } = useAuth()
   const [messages, setMessages] = useState<MessageItem[]>([])
+  const [companies, setCompanies] = useState<Company[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false)
   const [error, setError] = useState('')
   const [assignTarget, setAssignTarget] = useState<Record<string, string>>({})
+
+  const fetchCompanies = useCallback(async () => {
+    setIsLoadingCompanies(true)
+    try {
+      const response = await fetch('/api/companies?page=1&pageSize=1000', {
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        throw new Error('企業一覧の取得に失敗しました')
+      }
+      const data = await response.json()
+      setCompanies(data.items || [])
+    } catch (err) {
+      console.error('企業一覧の取得エラー:', err)
+    } finally {
+      setIsLoadingCompanies(false)
+    }
+  }, [])
 
   const fetchMessages = useCallback(async () => {
     setIsLoading(true)
@@ -36,14 +61,16 @@ function UnassignedMessages() {
 
   useEffect(() => {
     fetchMessages()
-  }, [fetchMessages])
+    fetchCompanies()
+  }, [fetchMessages, fetchCompanies])
 
   const handleAssign = async (messageId: string) => {
     const companyId = assignTarget[messageId]
     if (!companyId) {
-      setError('companyIdを入力してください')
+      setError('企業を選択してください')
       return
     }
+    setError('')
     try {
       const response = await fetch(`/api/messages/${messageId}/assign-company`, {
         method: 'PATCH',
@@ -55,6 +82,12 @@ function UnassignedMessages() {
       if (!response.ok) {
         throw new Error(data.error || '割当てに失敗しました')
       }
+      // 割り当て成功後、該当メッセージの選択をクリア
+      setAssignTarget((prev) => {
+        const next = { ...prev }
+        delete next[messageId]
+        return next
+      })
       fetchMessages()
     } catch (err) {
       setError(err instanceof Error ? err.message : '通信エラーが発生しました')
@@ -89,10 +122,9 @@ function UnassignedMessages() {
                 <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">{message.body}</p>
                 <div className="mt-2 text-xs text-slate-400">Room: {message.roomId}</div>
                 {canWrite ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <input
-                      className="rounded-xl border border-slate-200 px-3 py-1 text-xs"
-                      placeholder="companyId"
+                  <div className="mt-3 flex flex-wrap gap-2 items-center">
+                    <select
+                      className="flex-1 min-w-[200px] rounded-xl border border-slate-200 px-3 py-1.5 text-sm bg-white"
                       value={assignTarget[message.id] || ''}
                       onChange={(event) =>
                         setAssignTarget((prev) => ({
@@ -100,11 +132,23 @@ function UnassignedMessages() {
                           [message.id]: event.target.value,
                         }))
                       }
-                    />
+                    >
+                      <option value="">企業を選択...</option>
+                      {isLoadingCompanies ? (
+                        <option disabled>読み込み中...</option>
+                      ) : (
+                        companies.map((company) => (
+                          <option key={company.id} value={company.id}>
+                            {company.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
                     <button
                       type="button"
                       onClick={() => handleAssign(message.id)}
-                      className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white"
+                      disabled={!assignTarget[message.id]}
+                      className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
                     >
                       割当て
                     </button>

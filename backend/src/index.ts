@@ -4,6 +4,8 @@ import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
 import dotenv from 'dotenv'
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { authRoutes } from './routes/auth'
 import { userRoutes } from './routes/users'
 import { companyRoutes } from './routes/companies'
@@ -18,7 +20,13 @@ import { dashboardRoutes } from './routes/dashboard'
 import { settingRoutes } from './routes/settings'
 import { exportRoutes } from './routes/export'
 
-dotenv.config()
+// .envファイルを読み込む（backend/.envを優先、なければルートの.env）
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+// まずbackend/.envを読み込む
+dotenv.config({ path: path.resolve(__dirname, '../.env') })
+// ルートの.envも読み込む（未設定の変数のみ）
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 interface JWTUser {
   userId: string

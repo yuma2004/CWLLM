@@ -1,16 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: 'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'Meiryo',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: #0f172a;
+@layer base {
+  body {
+    @apply font-sans antialiased text-slate-800 bg-slate-50;
+    font-feature-settings: "palt" 1;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-lg 
+    shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 
+    hover:-translate-y-0.5 transition-all duration-200 ease-in-out;
+  }
+
+  .card-glass {
+    @apply bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .input-sparkle {
+    @apply block w-full px-4 py-2 rounded-lg border border-slate-200 bg-white
+    focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none transition-all duration-200;
+  }
 }
 
 @keyframes fadeUp {

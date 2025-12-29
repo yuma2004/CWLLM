@@ -12,6 +12,12 @@ interface Task {
 }
 
 const statusOptions = ['todo', 'in_progress', 'done', 'cancelled']
+const statusLabels: Record<string, string> = {
+  todo: '未対応',
+  in_progress: '対応中',
+  done: '完了',
+  cancelled: 'キャンセル',
+}
 
 function Tasks() {
   const { user } = useAuth()
@@ -39,11 +45,11 @@ function Tasks() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to load tasks')
+        throw new Error(data.error || 'タスクの読み込みに失敗しました')
       }
       setTasks(data.items)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'ネットワークエラー')
     } finally {
       setIsLoading(false)
     }
@@ -67,11 +73,11 @@ function Tasks() {
       )
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update task')
+        throw new Error(data.error || 'タスクの更新に失敗しました')
       }
       fetchTasks()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
@@ -81,11 +87,18 @@ function Tasks() {
     return `/wholesales/${task.targetId}`
   }
 
+  const targetTypeLabel = (type: string) => {
+    if (type === 'company') return '企業'
+    if (type === 'project') return '案件'
+    if (type === 'wholesale') return '卸'
+    return type
+  }
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div>
         <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Tasks</p>
-        <h2 className="text-3xl font-bold text-slate-900">My Tasks</h2>
+        <h2 className="text-3xl font-bold text-slate-900">マイタスク</h2>
       </div>
 
       <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
@@ -95,10 +108,10 @@ function Tasks() {
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
           >
-            <option value="">All statuses</option>
+            <option value="">全てのステータス</option>
             {statusOptions.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {statusLabels[status]}
               </option>
             ))}
           </select>
@@ -119,7 +132,7 @@ function Tasks() {
             onClick={fetchTasks}
             className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white"
           >
-            Refresh
+            更新
           </button>
         </div>
       </div>
@@ -130,9 +143,9 @@ function Tasks() {
 
       <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
         {isLoading ? (
-          <div className="text-sm text-slate-500">Loading tasks...</div>
+          <div className="text-sm text-slate-500">タスクを読み込み中...</div>
         ) : tasks.length === 0 ? (
-          <div className="text-sm text-slate-500">No tasks assigned.</div>
+          <div className="text-sm text-slate-500">割り当てられたタスクはありません</div>
         ) : (
           <div className="space-y-3">
             {tasks.map((task) => (
@@ -143,8 +156,8 @@ function Tasks() {
                 <div>
                   <div className="font-semibold text-slate-900">{task.title}</div>
                   <div className="text-xs text-slate-500">
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'} �E{' '}
-                    {task.targetType}
+                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'} ・{' '}
+                    {targetTypeLabel(task.targetType)}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -152,7 +165,7 @@ function Tasks() {
                     to={targetLink(task)}
                     className="text-xs font-semibold text-slate-600 hover:text-slate-900"
                   >
-                    Open
+                    詳細へ
                   </Link>
                   {canWrite ? (
                     <select
@@ -162,13 +175,13 @@ function Tasks() {
                     >
                       {statusOptions.map((status) => (
                         <option key={status} value={status}>
-                          {status}
+                          {statusLabels[status]}
                         </option>
                       ))}
                     </select>
                   ) : (
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                      {task.status}
+                      {statusLabels[task.status] || task.status}
                     </span>
                   )}
                 </div>

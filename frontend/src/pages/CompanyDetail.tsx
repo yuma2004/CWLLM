@@ -42,6 +42,14 @@ interface LinkedRoom {
   isActive: boolean
 }
 
+interface AvailableRoom {
+  id: string
+  roomId: string
+  name: string
+  description?: string | null
+  isActive: boolean
+}
+
 function CompanyDetail() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
@@ -60,8 +68,10 @@ function CompanyDetail() {
   const [messageError, setMessageError] = useState('')
   const [labelInputs, setLabelInputs] = useState<Record<string, string>>({})
   const [linkedRooms, setLinkedRooms] = useState<LinkedRoom[]>([])
+  const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([])
   const [roomInput, setRoomInput] = useState('')
   const [roomError, setRoomError] = useState('')
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false)
   const [form, setForm] = useState({
     name: '',
     role: '',
@@ -155,6 +165,26 @@ function CompanyDetail() {
     }
   }, [id])
 
+  const fetchAvailableRooms = useCallback(async () => {
+    setIsLoadingRooms(true)
+    try {
+      const response = await fetch('/api/chatwork/rooms', { credentials: 'include' })
+      if (!response.ok) {
+        throw new Error('利用可能なルーム一覧の取得に失敗しました')
+      }
+      const data = await response.json()
+      // 既に紐づけられているルームIDを取得
+      const linkedRoomIds = new Set(linkedRooms.map((r) => r.roomId))
+      // 未紐づけのルームのみをフィルタリング
+      const available = data.rooms.filter((room: AvailableRoom) => !linkedRoomIds.has(room.roomId))
+      setAvailableRooms(available)
+    } catch (err) {
+      console.error('利用可能なルーム一覧の取得エラー:', err)
+    } finally {
+      setIsLoadingRooms(false)
+    }
+  }, [linkedRooms])
+
   useEffect(() => {
     fetchData()
   }, [fetchData])
@@ -166,6 +196,12 @@ function CompanyDetail() {
   useEffect(() => {
     fetchRooms()
   }, [fetchRooms])
+
+  useEffect(() => {
+    if (linkedRooms.length >= 0 && canWrite) {
+      fetchAvailableRooms()
+    }
+  }, [linkedRooms, canWrite, fetchAvailableRooms])
 
   const handleAddContact = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -238,7 +274,7 @@ function CompanyDetail() {
     event.preventDefault()
     setRoomError('')
     if (!roomInput.trim() || !id) {
-      setRoomError('roomIdを入力してください')
+      setRoomError('ルームを選択してください')
       return
     }
     try {
@@ -280,7 +316,7 @@ function CompanyDetail() {
   const handleAddLabel = async (messageId: string) => {
     const label = (labelInputs[messageId] || '').trim()
     if (!label) {
-      setMessageError('Label is required')
+      setMessageError('ラベルを入力してください')
       return
     }
     setMessageError('')
@@ -293,12 +329,12 @@ function CompanyDetail() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to add label')
+        throw new Error(data.error || 'ラベルの追加に失敗しました')
       }
       setLabelInputs((prev) => ({ ...prev, [messageId]: '' }))
       fetchMessages()
     } catch (err) {
-      setMessageError(err instanceof Error ? err.message : 'Network error')
+      setMessageError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
@@ -314,11 +350,11 @@ function CompanyDetail() {
       )
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to remove label')
+        throw new Error(data.error || 'ラベルの削除に失敗しました')
       }
       fetchMessages()
     } catch (err) {
-      setMessageError(err instanceof Error ? err.message : 'Network error')
+      setMessageError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
@@ -552,15 +588,28 @@ function CompanyDetail() {
         </div>
         {canWrite && (
           <form onSubmit={handleAddRoom} className="mt-4 flex flex-wrap gap-2">
-            <input
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="roomId（ChatworkのID）"
+            <select
+              className="flex-1 min-w-[200px] rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
               value={roomInput}
               onChange={(event) => setRoomInput(event.target.value)}
-            />
+            >
+              <option value="">ルームを選択...</option>
+              {isLoadingRooms ? (
+                <option disabled>読み込み中...</option>
+              ) : availableRooms.length === 0 ? (
+                <option disabled>利用可能なルームがありません</option>
+              ) : (
+                availableRooms.map((room) => (
+                  <option key={room.id} value={room.roomId}>
+                    {room.name} ({room.roomId})
+                  </option>
+                ))
+              )}
+            </select>
             <button
               type="submit"
-              className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
+              disabled={!roomInput}
+              className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
             >
               追加
             </button>

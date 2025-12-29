@@ -9,6 +9,12 @@ interface Wholesale {
   companyId: string
 }
 
+const statusLabels: Record<string, string> = {
+  active: '有効',
+  paused: '停止中',
+  closed: '終了',
+}
+
 function Wholesales() {
   const { user } = useAuth()
   const canWrite = user?.role !== 'readonly'
@@ -27,11 +33,11 @@ function Wholesales() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to load wholesales')
+        throw new Error(data.error || '卸情報の読み込みに失敗しました')
       }
       setWholesales(data.items)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'ネットワークエラー')
     } finally {
       setIsLoading(false)
     }
@@ -45,7 +51,7 @@ function Wholesales() {
     event.preventDefault()
     setFormError('')
     if (!form.projectId.trim() || !form.companyId.trim()) {
-      setFormError('projectId and companyId are required')
+      setFormError('案件IDと企業IDは必須です')
       return
     }
 
@@ -62,12 +68,12 @@ function Wholesales() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create wholesale')
+        throw new Error(data.error || '卸情報の作成に失敗しました')
       }
       setForm({ projectId: '', companyId: '', status: 'active' })
       fetchWholesales()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Network error')
+      setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
@@ -75,7 +81,7 @@ function Wholesales() {
     <div className="space-y-6 animate-fade-up">
       <div>
         <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Wholesales</p>
-        <h2 className="text-3xl font-bold text-slate-900">Wholesales</h2>
+        <h2 className="text-3xl font-bold text-slate-900">卸管理</h2>
       </div>
 
       {error && (
@@ -84,9 +90,9 @@ function Wholesales() {
 
       <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
         {isLoading ? (
-          <div className="text-sm text-slate-500">Loading wholesales...</div>
+          <div className="text-sm text-slate-500">卸情報を読み込み中...</div>
         ) : wholesales.length === 0 ? (
-          <div className="text-sm text-slate-500">No wholesales.</div>
+          <div className="text-sm text-slate-500">卸情報はありません。</div>
         ) : (
           <div className="space-y-3">
             {wholesales.map((wholesale) => (
@@ -96,13 +102,13 @@ function Wholesales() {
               >
                 <div>
                   <div className="font-semibold text-slate-900">{wholesale.id}</div>
-                  <div className="text-xs text-slate-500">{wholesale.status}</div>
+                  <div className="text-xs text-slate-500">{statusLabels[wholesale.status] || wholesale.status}</div>
                 </div>
                 <Link
                   to={`/wholesales/${wholesale.id}`}
                   className="text-xs font-semibold text-slate-600 hover:text-slate-900"
                 >
-                  Open
+                  詳細へ
                 </Link>
               </div>
             ))}
@@ -115,17 +121,17 @@ function Wholesales() {
           onSubmit={handleCreate}
           className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur"
         >
-          <h3 className="text-lg font-semibold text-slate-900">Create wholesale</h3>
+          <h3 className="text-lg font-semibold text-slate-900">卸情報を作成</h3>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <input
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Project ID"
+              placeholder="案件ID"
               value={form.projectId}
               onChange={(event) => setForm({ ...form, projectId: event.target.value })}
             />
             <input
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Company ID"
+              placeholder="企業ID"
               value={form.companyId}
               onChange={(event) => setForm({ ...form, companyId: event.target.value })}
             />
@@ -134,9 +140,9 @@ function Wholesales() {
               value={form.status}
               onChange={(event) => setForm({ ...form, status: event.target.value })}
             >
-              <option value="active">active</option>
-              <option value="paused">paused</option>
-              <option value="closed">closed</option>
+              <option value="active">有効</option>
+              <option value="paused">停止中</option>
+              <option value="closed">終了</option>
             </select>
           </div>
           {formError && (
@@ -149,13 +155,13 @@ function Wholesales() {
               type="submit"
               className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white"
             >
-              Create
+              作成
             </button>
           </div>
         </form>
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-          Write access required to create wholesales.
+          卸情報を作成するには書き込み権限が必要です。
         </div>
       )}
     </div>

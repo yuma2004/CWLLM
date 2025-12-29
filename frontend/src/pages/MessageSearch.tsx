@@ -12,6 +12,11 @@ interface MessageResult {
   labels?: string[]
 }
 
+interface Company {
+  id: string
+  name: string
+}
+
 const formatDate = (value: Date) => value.toISOString().slice(0, 10)
 
 function MessageSearch() {
@@ -28,8 +33,33 @@ function MessageSearch() {
   const [to, setTo] = useState('')
   const [preset, setPreset] = useState<'all' | '7' | '30' | 'custom'>('all')
   const [results, setResults] = useState<MessageResult[]>([])
+  const [companies, setCompanies] = useState<Company[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false)
   const [error, setError] = useState('')
+  const [assignTarget, setAssignTarget] = useState<Record<string, string>>({})
+
+  const fetchCompanies = useCallback(async () => {
+    setIsLoadingCompanies(true)
+    try {
+      const response = await fetch('/api/companies?page=1&pageSize=1000', {
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        throw new Error('企業一覧の取得に失敗しました')
+      }
+      const data = await response.json()
+      setCompanies(data.items || [])
+    } catch (err) {
+      console.error('企業一覧の取得エラー:', err)
+    } finally {
+      setIsLoadingCompanies(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCompanies()
+  }, [fetchCompanies])
 
   const applyPreset = (days?: number) => {
     if (!days) {
@@ -48,8 +78,8 @@ function MessageSearch() {
 
   const handleSearch = useCallback(async () => {
     const trimmed = query.trim()
-    if (!trimmed && !messageId.trim()) {
-      setError('Enter a keyword or messageId')
+    if (!trimmed && !messageId.trim() && !companyId.trim()) {
+      setError('キーワード、メッセージID、または企業を入力してください')
       return
     }
 
@@ -71,11 +101,11 @@ function MessageSearch() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Search failed')
+        throw new Error(data.error || '検索に失敗しました')
       }
       setResults(data.items)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'ネットワークエラー')
     } finally {
       setIsLoading(false)
     }
@@ -92,11 +122,41 @@ function MessageSearch() {
     handleSearch()
   }
 
+  const handleAssign = async (messageId: string) => {
+    const targetCompanyId = assignTarget[messageId]
+    if (!targetCompanyId) {
+      setError('企業を選択してください')
+      return
+    }
+    setError('')
+    try {
+      const response = await fetch(`/api/messages/${messageId}/assign-company`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ companyId: targetCompanyId }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || '割当てに失敗しました')
+      }
+      // 割り当て成功後、該当メッセージの選択をクリアして再検索
+      setAssignTarget((prev) => {
+        const next = { ...prev }
+        delete next[messageId]
+        return next
+      })
+      handleSearch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div>
         <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Search</p>
-        <h2 className="text-3xl font-bold text-slate-900">Message Search</h2>
+        <h2 className="text-3xl font-bold text-slate-900">メッセージ検索</h2>
       </div>
 
       <form
@@ -111,7 +171,7 @@ function MessageSearch() {
               preset === '7' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
             }`}
           >
-            Last 7 days
+            過去7日
           </button>
           <button
             type="button"
@@ -120,7 +180,7 @@ function MessageSearch() {
               preset === '30' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
             }`}
           >
-            Last 30 days
+            過去30日
           </button>
           <button
             type="button"
@@ -129,14 +189,14 @@ function MessageSearch() {
               preset === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
             }`}
           >
-            All time
+            全て
           </button>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
           <input
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="Keyword"
+            placeholder="キーワード"
             aria-label="search-query"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -164,22 +224,32 @@ function MessageSearch() {
             aria-label="search-submit"
             className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
           >
-            Search
+            検索
           </button>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr]">
           <input
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="messageId"
+            placeholder="メッセージID"
             value={messageId}
             onChange={(event) => setMessageId(event.target.value)}
           />
-          <input
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="companyId"
+          <select
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
             value={companyId}
             onChange={(event) => setCompanyId(event.target.value)}
-          />
+          >
+            <option value="">全ての企業</option>
+            {isLoadingCompanies ? (
+              <option disabled>読み込み中...</option>
+            ) : (
+              companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))
+            )}
+          </select>
         </div>
       </form>
 
@@ -187,9 +257,9 @@ function MessageSearch() {
 
       <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
         {isLoading ? (
-          <div className="text-sm text-slate-500">Searching...</div>
+          <div className="text-sm text-slate-500">検索中...</div>
         ) : results.length === 0 ? (
-          <div className="text-sm text-slate-500">No results.</div>
+          <div className="text-sm text-slate-500">検索結果がありません。</div>
         ) : (
           <div className="space-y-4">
             {results.map((message) => (
@@ -214,17 +284,48 @@ function MessageSearch() {
                     ))}
                   </div>
                 )}
-                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-                  <span>Room: {message.roomId}</span>
-                  {message.companyId ? (
-                    <Link
-                      to={`/companies/${message.companyId}`}
-                      className="font-semibold text-slate-700 hover:text-slate-900"
-                    >
-                      Open company
-                    </Link>
-                  ) : (
-                    <span className="text-slate-400">Unassigned</span>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                    <span>Room: {message.roomId}</span>
+                    {message.companyId ? (
+                      <Link
+                        to={`/companies/${message.companyId}`}
+                        className="font-semibold text-slate-700 hover:text-slate-900"
+                      >
+                        企業を表示
+                      </Link>
+                    ) : (
+                      <span className="text-slate-400">未割当</span>
+                    )}
+                  </div>
+                  {!message.companyId && (
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <select
+                        className="rounded-xl border border-slate-200 px-3 py-1 text-xs bg-white"
+                        value={assignTarget[message.id] || ''}
+                        onChange={(event) =>
+                          setAssignTarget((prev) => ({
+                            ...prev,
+                            [message.id]: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">企業を選択...</option>
+                        {companies.map((company) => (
+                          <option key={company.id} value={company.id}>
+                            {company.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleAssign(message.id)}
+                        disabled={!assignTarget[message.id]}
+                        className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
+                      >
+                        割当て
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

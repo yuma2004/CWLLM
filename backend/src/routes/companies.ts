@@ -416,4 +416,35 @@ export async function companyRoutes(fastify: FastifyInstance) {
       }
     }
   )
+
+  // 企業の区分、ステータス、タグの候補を取得
+  fastify.get('/companies/options', { preHandler: requireAuth() }, async () => {
+    const companies = await prisma.company.findMany({
+      select: {
+        category: true,
+        status: true,
+        tags: true,
+      },
+    })
+
+    const categories = new Set<string>()
+    const statuses = new Set<string>()
+    const tags = new Set<string>()
+
+    companies.forEach((company) => {
+      if (company.category) {
+        categories.add(company.category)
+      }
+      if (company.status) {
+        statuses.add(company.status)
+      }
+      company.tags.forEach((tag) => tags.add(tag))
+    })
+
+    return {
+      categories: Array.from(categories).sort(),
+      statuses: Array.from(statuses).sort(),
+      tags: Array.from(tags).sort(),
+    }
+  })
 }
