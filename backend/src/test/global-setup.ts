@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const loadEnv = () => {
+  // Prefer backend/.env, but also fall back to repo root .env so tests work without duplication
   dotenv.config({ path: path.resolve(__dirname, '../../.env') })
+  dotenv.config({ path: path.resolve(__dirname, '../../../.env') })
 }
 
 const ensureTestDatabase = async (databaseUrl: string) => {

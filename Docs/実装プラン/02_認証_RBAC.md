@@ -1,78 +1,79 @@
 # 02 認証 / RBAC
 
-対応要件：
-- `NFR-SEC-01（Must）` 認証（ログイン）必須
-- `NFR-SEC-02（Must）` ロールに基づくアクセス制御
-- `要件定義書 5章` 想定ロール（Admin / 営業 / 運用 / 閲覧のみ）
+対応要件�E�E
+- `NFR-SEC-01�E�Eust�E�` 認証�E�ログイン�E�忁E��E
+- `NFR-SEC-02�E�Eust�E�` ロールに基づくアクセス制御
+- `要件定義書 5章` 想定ロール�E�Edmin / 営業 / 運用 / 閲覧のみ�E�E
 
 ---
 
-## 方針（MVP）
+## 方針！EVP�E�E
 
-- アプリ内ユーザーをDBで管理（初期adminはシード）
-- 認証は「ログイン→セッション（JWT or サーバーセッション）」のどちらでも可
-- 権限は **API側で強制**（フロントは表示制御のみで、権限の最終判断はバックエンド）
-
----
-
-## 完了条件（DoD）
-
-- AI：Cookie/Authorizationの両方で認証できる（少なくともCookieが動く）
-- AI：RBACが「APIで」強制される（readonlyは更新系403）
-- AI：`frontend` から `backend` の認証APIに到達できる（`/api` プレフィックス整合）
-- AI：自動テストが「実装（routes/middleware）」を直接検証している（テスト内にルートをコピペしない）
-- AI：`backend`/`frontend` の `lint`/`test`/`build` が成功し、`git push` 済み
+- アプリ冁E��ーザーをDBで管琁E���E期adminはシード！E
+- 認証は「ログイン→セチE��ョン�E�EWT or サーバ�EセチE��ョン�E�」�Eどちらでも可
+- 権限�E **API側で強制**�E�フロント�E表示制御のみで、権限�E最終判断はバックエンド！E
 
 ---
 
-## TODO（TDD）
+## 完亁E��件�E�EoD�E�E
 
-### Backend（AI）
+- AI�E�Cookie/Authorizationの両方で認証できる�E�少なくとめEookieが動く！E
+- AI�E�RBACが「APIで」強制される！Eeadonlyは更新系403�E�E
+- AI�E�`frontend` から `backend` の認証APIに到達できる�E�E/api` プレフィチE��ス整合！E
+- AI�E��E動テストが「実裁E��Eoutes/middleware�E�」を直接検証してぁE���E�テスト�Eにルートをコピ�EしなぁE��E
+- AI�E�`backend`/`frontend` の `lint`/`test`/`build` が�E功し、`git push` 済み
 
-- [x] `POST /auth/login`（成功/失敗）
+---
+
+## TODO�E�EDD�E�E
+
+### Backend�E�EI�E�E
+
+- [x] `POST /auth/login`�E��E劁E失敗！E
 - [x] `POST /auth/logout`
 - [x] `GET /auth/me`
-- [x] ロール：`admin`, `sales`, `ops`, `readonly`（仮）
-- [x] ガード/ミドルウェアで RBAC を実装（ルート単位）
-- [x] Adminのみ：ユーザー作成/ロール変更（最小でOK）
-- [x] APIのベースパスを統一する（推奨：`/api/*` をbackendに寄せる or frontendの`/api`を外す）
-- [x] Cookieからも `jwtVerify` できるよう `@fastify/jwt` を設定（例：`cookie: { cookieName: 'token', signed: false }`）
-- [x] `requireAuth()` が Cookie/Authorization の両方で動くことを確認（コメントと実装を一致させる）
+- [x] ロール�E�`admin`, `sales`, `ops`, `readonly`�E�仮�E�E
+- [x] ガーチEミドルウェアで RBAC を実裁E��ルート単位！E
+- [x] Adminのみ�E�ユーザー作�E/ロール変更�E�最小でOK�E�E
+- [x] APIのベ�Eスパスを統一する�E�推奨�E�`/api/*` をbackendに寁E��めEor frontendの`/api`を外す�E�E
+- [x] CookieからめE`jwtVerify` できるよう `@fastify/jwt` を設定（例：`cookie: { cookieName: 'token', signed: false }`�E�E
+- [x] `requireAuth()` ぁECookie/Authorization の両方で動くことを確認（コメントと実裁E��一致させる！E
 
-### Backend tests（AI）
+### Backend tests�E�EI�E�E
 
-- [x] パスワードハッシュ検証（bcrypt等）
+- [x] パスワードハチE��ュ検証�E�Ecrypt等！E
 - [x] 未ログインは 401
 - [x] ロール不足は 403
 - [x] readonly は更新系を拒否
-- [x] `authRoutes`/`rbac` の「実ファイル」を登録してテストする（テスト内でルート実装を複製しない）
-- [x] Cookieログイン→Cookie付きリクエストで保護ルートに通るテストを追加
-- [x] `/api` プレフィックスの疎通テスト（フロント想定のパスで404にならない）
+- [x] `authRoutes`/`rbac` の「実ファイル」を登録してチE��トする（テスト�Eでルート実裁E��褁E��しなぁE��E
+- [x] Cookieログイン→Cookie付きリクエストで保護ルートに通るチE��トを追加
+- [x] `/api` プレフィチE��スの疎通テスト（フロント想定�Eパスで404にならなぁE��E
 
-### Frontend（AI）
+### Frontend�E�EI�E�E
 
 - [x] ログイン画面
-- [x] ログイン状態の保持（cookie/ヘッダ）
-- [x] 画面のガード（未ログインはログインへ）
-- [x] ロールに応じたメニュー表示（ただしAPIが本体）
-- [x] `fetch` のパスをbackendと一致させる（`/api` を含めるならbackend側も対応）
-- [x] `ProtectedRoute` の挙動をテストで担保（未ログイン→/login、ロール不足→拒否表示）
+- [x] ログイン状態�E保持�E�Eookie/ヘッダ�E�E
+- [x] 画面のガード（未ログインはログインへ�E�E
+- [x] ロールに応じたメニュー表示�E�ただしAPIが本体！E
+- [x] `fetch` のパスをbackendと一致させる！E/api` を含めるならbackend側も対応！E
+- [x] `ProtectedRoute` の挙動をテストで拁E��（未ログインↁElogin、ロール不足→拒否表示�E�E
 
-### AI検証（AIが実行）
+### AI検証�E�EIが実行！E
 
-- [ ] `cd infra; docker compose up -d`
-- [ ] `cd backend; npm ci; npm run prisma:generate; npm run migrate:dev; npm run seed`
-- [ ] `cd backend; npm run test; npm run lint; npm run build`
-- [ ] `cd frontend; npm ci; npm run test; npm run lint; npm run build`
-- [ ] `backend`/`frontend` を起動し、ログイン→トップ画面遷移ができる（E2E or 最小スモーク）
+- [x] `cd infra; docker compose up -d`
+- [x] `cd backend; npm ci; npm run prisma:generate; npm run migrate:dev; npm run seed`
+- [x] `cd backend; npm run test; npm run lint; npm run build`
+- [x] `cd frontend; npm ci; npm run test; npm run lint; npm run build`
+- [ ] `backend`/`frontend` を起動し、ログイン→トチE�E画面遷移ができる�E�E2E or 最小スモーク�E�E
 
-### 人間作業（必須のみ）
+### 人間作業�E�忁E���Eみ�E�E
 
-- [ ] 初期ユーザー（admin/sales/ops/readonly）のメール/パスワードを運用に合わせて変更する（`backend/prisma/seed.ts`）
-- [ ] 本番用の `JWT_SECRET` を決めて安全に管理する
+- [ ] 初期ユーザー�E�Edmin/sales/ops/readonly�E��Eメール/パスワードを運用に合わせて変更する�E�Ebackend/prisma/seed.ts`�E�E
+- [ ] 本番用の `JWT_SECRET` を決めて安�Eに管琁E��めE
 
-### Git（AI）
+### Git�E�EI�E�E
 
 - [ ] `git add -A`
 - [ ] `git commit -m "feat: auth and rbac"`
 - [ ] `git push`
+

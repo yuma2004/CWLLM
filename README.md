@@ -130,3 +130,15 @@ PowerShell helper:
 ```powershell
 pwsh infra/scripts/restore.ps1 -DatabaseUrl $env:DATABASE_URL -BackupPath backup.dump
 ```
+
+## E2E（実API）
+
+```bash
+cd frontend
+npm run test:e2e
+```
+
+- `.env` の `CHATWORK_API_TOKEN` / `CHATWORK_API_BASE_URL` を使用
+- `DATABASE_URL_TEST`（未設定なら `DATABASE_URL`）で migrate/seed を実行
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` を使ってログイン
+- 外部API依存のため、レート制限や通信エラーで失敗することあり

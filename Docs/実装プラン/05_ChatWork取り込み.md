@@ -1,130 +1,131 @@
-﻿# 05 ChatWork取り込み（ルーム/メッセージ同期 → 企業に紐づけ）
+# 05 ChatWork��荞�݁i���[��/���b�Z�[�W���� �� ��ƂɕR�Â��j
 
-対応要件：
-- `FR-CW-01（Must）` メッセージ（本文/投稿者/日時/ルーム情報）を取得して保存
-- `FR-CW-02（Must）` メッセージを企業に紐づけ（手動含む）
-- `FR-CW-03（Must）` 1企業に複数ルームを紐づけ
-- `FR-CW-05（Should）` 取り込み対象ルームの追加/除外
-- `FR-CW-06（Should）` 取り込み失敗の検知（ログ）
-- `IF-01（Must）` Chatworkからデータ取得
-- 画面：`SCR-07 設定（管理者）` / `SCR-03 企業詳細`
+�Ή��v���F
+- `FR-CW-01�iMust�j` ���b�Z�[�W�i�{��/���e��/����/���[�����j���擾���ĕۑ�
+- `FR-CW-02�iMust�j` ���b�Z�[�W����ƂɕR�Â��i�蓮�܂ށj
+- `FR-CW-03�iMust�j` 1��Ƃɕ������[����R�Â�
+- `FR-CW-05�iShould�j` ��荞�ݑΏۃ��[���̒ǉ�/���O
+- `FR-CW-06�iShould�j` ��荞�ݎ��s�̌��m�i���O�j
+- `IF-01�iMust�j` Chatwork����f�[�^�擾
+- ��ʁF`SCR-07 �ݒ�i�Ǘ��ҁj` / `SCR-03 ��Əڍ�`
 
-参照：
-- `Docs/ChatWork_API仕様.md`
-
----
-
-## 実装方針（MVP）
-
-- 認証：Chatwork **APIトークン**（`x-chatworktoken`）で開始（OAuth/Webhookは後）
-- 同期方式：**ポーリング**（手動実行 + 定期実行）
-- ルーム紐づけ：Companyに複数ルームをリンク（CompanyRoomLink）
-- 企業紐づけ：紐づけ済みルームのメッセージには `companyId` を自動付与
-- 未紐づけ：`companyId = null` のメッセージは「未紐づけ箱」で手動割当できる
-- テスト：Chatwork APIはモックし、**トークン無しでもテストが通る**（人間作業を最小化）
+�Q�ƁF
+- `Docs/ChatWork_API�d�l.md`
 
 ---
 
-## 完了条件（DoD）
+## �������j�iMVP�j
 
-- AI：ルーム/メッセージがDBに取り込まれ、重複なく差分同期できる
-- AI：ルーム↔企業の紐づけで `message.companyId` が自動で付く
-- AI：未紐づけメッセージを企業に割り当てられる（API+UI）
-- AI：レート制限（429）や一時失敗が起きても、ログに残り再実行可能
-- AI：自動テスト（Chatworkモック）で主要ケースを担保し、`git push` 済み
-- 人間（必須）：Chatworkトークン投入と、取り込み対象ルームの選定（運用判断）
+- �F�؁FChatwork **API�g�[�N��**�i`x-chatworktoken`�j�ŊJ�n�iOAuth/Webhook�͌�j
+- ���������F**�|�[�����O**�i�蓮���s + ������s�j
+- ���[���R�Â��FCompany�ɕ������[���������N�iCompanyRoomLink�j
+- ��ƕR�Â��F�R�Â��ς݃��[���̃��b�Z�[�W�ɂ� `companyId` �������t�^
+- ���R�Â��F`companyId = null` �̃��b�Z�[�W�́u���R�Â����v�Ŏ蓮�����ł���
+- �e�X�g�FChatwork API�̓��b�N���A**�g�[�N�������ł��e�X�g���ʂ�**�i�l�ԍ�Ƃ��ŏ����j
 
 ---
 
-## API一覧（案 / AIが確定）
+## ���������iDoD�j
 
-管理者向け（設定/同期）：
-- `GET /chatwork/rooms`（DB上のルーム一覧）
-- `POST /chatwork/rooms/sync`（Chatworkからルーム一覧を同期）
-- `POST /chatwork/messages/sync`（対象ルームのメッセージを差分同期）
-- `PATCH /chatwork/rooms/:id`（include/exclude 等）
+- AI�F���[��/���b�Z�[�W��DB�Ɏ�荞�܂�A�d���Ȃ����������ł���
+- AI�F���[��?��Ƃ̕R�Â��� `message.companyId` �������ŕt��
+- AI�F���R�Â����b�Z�[�W����ƂɊ��蓖�Ă���iAPI+UI�j
+- AI�F���[�g�����i429�j��ꎞ���s���N���Ă��A���O�Ɏc��Ď��s�\
+- AI�F�����e�X�g�iChatwork���b�N�j�Ŏ�v�P�[�X��S�ۂ��A`git push` �ς�
+- �l�ԁi�K�{�j�FChatwork�g�[�N�������ƁA��荞�ݑΏۃ��[���̑I��i�^�p���f�j
 
-企業紐づけ：
+---
+
+## API�ꗗ�i�� / AI���m��j
+
+�Ǘ��Ҍ����i�ݒ�/�����j�F
+- `GET /chatwork/rooms`�iDB��̃��[���ꗗ�j
+- `POST /chatwork/rooms/sync`�iChatwork���烋�[���ꗗ�𓯊��j
+- `POST /chatwork/messages/sync`�i�Ώۃ��[���̃��b�Z�[�W�����������j
+- `PATCH /chatwork/rooms/:id`�iinclude/exclude ���j
+
+��ƕR�Â��F
 - `GET /companies/:id/chatwork-rooms`
-- `POST /companies/:id/chatwork-rooms`（リンク追加）
-- `DELETE /companies/:id/chatwork-rooms/:roomId`（リンク削除）
+- `POST /companies/:id/chatwork-rooms`�i�����N�ǉ��j
+- `DELETE /companies/:id/chatwork-rooms/:roomId`�i�����N�폜�j
 
-未紐づけメッセージ：
-- `GET /messages/unassigned`（ページング/検索）
-- `PATCH /messages/:id/assign-company`（companyId付与/付け替え）
+���R�Â����b�Z�[�W�F
+- `GET /messages/unassigned`�i�y�[�W���O/�����j
+- `PATCH /messages/:id/assign-company`�icompanyId�t�^/�t���ւ��j
 
 ---
 
-## TODO（TDD）
+## TODO�iTDD�j
 
-### 1) Backend：Chatwork APIクライアント（AI）
+### 1) Backend�FChatwork API�N���C�A���g�iAI�j
 
-- [x] `x-chatworktoken` 付きでHTTPリクエストできる薄いクライアントを作る
-- [x] 共通：タイムアウト、リトライ（429/一時エラー）、ログ（request_id/room_id）
-- [x] レート制限：`429` 時に `x-ratelimit-reset` を見て待機/リトライ（簡易でOK）
+- [x] `x-chatworktoken` �t����HTTP���N�G�X�g�ł��锖���N���C�A���g�����
+- [x] ���ʁF�^�C���A�E�g�A���g���C�i429/�ꎞ�G���[�j�A���O�irequest_id/room_id�j
+- [x] ���[�g�����F`429` ���� `x-ratelimit-reset` �����đҋ@/���g���C�i�ȈՂ�OK�j
 
-### 2) Backend：ルーム同期（AI）
+### 2) Backend�F���[�������iAI�j
 
-- [x] `GET /rooms`（Chatwork）→ `ChatworkRoom` に upsert（roomIdユニーク）
-- [x] include/exclude：`ChatworkRoom.isActive` をトグルできる
-- [x] 取り込み対象の条件を統一（isActive=true + 企業に紐づいている、など）
+- [x] `GET /rooms`�iChatwork�j�� `ChatworkRoom` �� upsert�iroomId���j�[�N�j
+- [x] include/exclude�F`ChatworkRoom.isActive` ���g�O���ł���
+- [x] ��荞�ݑΏۂ̏����𓝈�iisActive=true + ��ƂɕR�Â��Ă���A�Ȃǁj
 
-### 3) Backend：メッセージ差分同期（AI）
+### 3) Backend�F���b�Z�[�W���������iAI�j
 
-- [x] ルームごとに「同期位置」（lastMessageId/lastSyncAt）を持ち、差分で取得する
-- [x] upsert：`(roomId,messageId)` をキーに重複取り込みしない
-- [x] 保存項目：sender/body/sentAt/roomId/messageId（要件Must）
-- [x] 紐づけ：CompanyRoomLinkが存在するルームのメッセージは `companyId` を自動付与
-- [x] 取り込み失敗：失敗ルーム/エラー内容を保存（最低限：ログ + 管理画面表示）
+- [x] ���[�����ƂɁu�����ʒu�v�ilastMessageId/lastSyncAt�j�������A�����Ŏ擾����
+- [x] upsert�F`(roomId,messageId)` ���L�[�ɏd����荞�݂��Ȃ�
+- [x] �ۑ����ځFsender/body/sentAt/roomId/messageId�i�v��Must�j
+- [x] �R�Â��FCompanyRoomLink�����݂��郋�[���̃��b�Z�[�W�� `companyId` �������t�^
+- [x] ��荞�ݎ��s�F���s���[��/�G���[���e��ۑ��i�Œ���F���O + �Ǘ���ʕ\���j
 
-### 4) Backend：紐づけ管理（AI）
+### 4) Backend�F�R�Â��Ǘ��iAI�j
 
-- [x] CompanyRoomLink CRUD（重複リンク防止）
-- [x] 既存メッセージへの反映（リンク追加後に「そのルームの既存メッセージへ companyId を付与」するか方針決定）
-  - [x] MVP案：リンク追加時に過去メッセージも一括で companyId 付与（バッチ）
+- [x] CompanyRoomLink CRUD�i�d�������N�h�~�j
+- [x] �������b�Z�[�W�ւ̔��f�i�����N�ǉ���Ɂu���̃��[���̊������b�Z�[�W�� companyId ��t�^�v���邩���j����j
+  - [x] MVP�āF�����N�ǉ����ɉߋ����b�Z�[�W���ꊇ�� companyId �t�^�i�o�b�`�j
 
-### 5) Backend：未紐づけの手動割当（AI）
+### 5) Backend�F���R�Â��̎蓮�����iAI�j
 
-- [x] `GET /messages/unassigned`（検索/ページング）
-- [x] `PATCH /messages/:id/assign-company`（companyId付与/付け替え）
-- [x] RBAC：管理系はadmin、割当はwrite権限（admin/sales/ops）
+- [x] `GET /messages/unassigned`�i����/�y�[�W���O�j
+- [x] `PATCH /messages/:id/assign-company`�icompanyId�t�^/�t���ւ��j
+- [x] RBAC�F�Ǘ��n��admin�A������write�����iadmin/sales/ops�j
 
-### 6) Backend tests（AI）
+### 6) Backend tests�iAI�j
 
-- [x] Chatwork APIをモックして「ルーム同期→メッセージ同期」が完走する
-- [x] 同じメッセージを2回同期しても重複しない（upsert）
-- [x] 企業↔ルームの紐づけで message.companyId が付与される
-- [x] include/exclude が効く（除外ルームは同期されない）
-- [x] 失敗時にエラーが記録され、再実行で回復できる（最低1ケース）
+- [x] Chatwork API�����b�N���āu���[�����������b�Z�[�W�����v����������
+- [x] �������b�Z�[�W��2�񓯊����Ă��d�����Ȃ��iupsert�j
+- [x] ���?���[���̕R�Â��� message.companyId ���t�^�����
+- [x] include/exclude �������i���O���[���͓�������Ȃ��j
+- [x] ���s���ɃG���[���L�^����A�Ď��s�ŉ񕜂ł���i�Œ�1�P�[�X�j
 
-### 7) Frontend（AI）
+### 7) Frontend�iAI�j
 
-設定（管理者）：
-- [x] ルーム一覧（include/exclude 切替）
-- [x] 「ルーム同期」「メッセージ同期」ボタン（進捗/結果表示）
+�ݒ�i�Ǘ��ҁj�F
+- [x] ���[���ꗗ�iinclude/exclude �ؑցj
+- [x] �u���[�������v�u���b�Z�[�W�����v�{�^���i�i��/���ʕ\���j
 
-企業詳細：
-- [x] 企業に紐づくルームの一覧＋追加/削除
+��ƏڍׁF
+- [x] ��ƂɕR�Â����[���̈ꗗ�{�ǉ�/�폜
 
-未紐づけ箱：
-- [x] 未紐づけメッセージ一覧（検索/ページング）
-- [x] 企業を選んで割当（最小UI）
+���R�Â����F
+- [x] ���R�Â����b�Z�[�W�ꗗ�i����/�y�[�W���O�j
+- [x] ��Ƃ�I��Ŋ����i�ŏ�UI�j
 
-### 8) AI検証（AIが実行）
+### 8) AI���؁iAI�����s�j
 
-- [ ] `cd infra; docker compose up -d`
-- [ ] `cd backend; npm ci; npm run prisma:generate; npm run migrate:dev; npm run seed`
+- [x] `cd infra; docker compose up -d`
+- [x] `cd backend; npm ci; npm run prisma:generate; npm run migrate:dev; npm run seed`
 - [x] `cd backend; npm run test; npm run lint; npm run build`
-- [x] モックで同期のAPIテストが通る（トークンなし）
-- [ ] （トークンが投入されている場合）実ルームで `ルーム同期→メッセージ同期` を1回実行し、DBに入ることを確認
+- [x] ���b�N�œ�����API�e�X�g���ʂ�i�g�[�N���Ȃ��j
+- [ ] �i�g�[�N������������Ă���ꍇ�j�����[���� `���[�����������b�Z�[�W����` ��1����s���ADB�ɓ��邱�Ƃ��m�F
 
-### 9) 人間作業（必須のみ / 外部連携）
+### 9) �l�ԍ�Ɓi�K�{�̂� / �O���A�g�j
 
-- [ ] Chatwork APIトークンを用意し、`.env`（`CHATWORK_API_TOKEN`）に投入
-- [ ] 取り込み対象ルーム（会社運用としてどのルームを見るか）を決める
+- [ ] Chatwork API�g�[�N����p�ӂ��A`.env`�i`CHATWORK_API_TOKEN`�j�ɓ���
+- [ ] ��荞�ݑΏۃ��[���i��Љ^�p�Ƃ��Ăǂ̃��[�������邩�j�����߂�
 
-### 10) Git（AI）
+### 10) Git�iAI�j
 
 - [x] `git add -A`
 - [x] `git commit -m "feat: chatwork sync errors and message search"`
 - [ ] `git push`
+

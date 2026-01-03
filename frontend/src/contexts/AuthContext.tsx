@@ -16,11 +16,22 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// モックモード: デザイン確認用（バックエンド不要で全ページアクセス可能）
+// TODO: 本番では false に戻すこと
+const MOCK_AUTH = (import.meta.env.VITE_MOCK_AUTH ?? 'false') === 'true'
+const MOCK_USER: User = {
+  id: 'mock-user-1',
+  email: 'admin@example.com',
+  role: 'admin', // admin権限で全ページアクセス可能
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(MOCK_AUTH ? MOCK_USER : null)
+  const [isLoading, setIsLoading] = useState(!MOCK_AUTH)
 
   useEffect(() => {
+    // モックモードの場合は認証チェックをスキップ
+    if (MOCK_AUTH) return
     // 初期化時に認証状態を確認
     checkAuth()
   }, [])

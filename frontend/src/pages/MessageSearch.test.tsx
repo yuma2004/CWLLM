@@ -19,6 +19,10 @@ describe('MessageSearch page', () => {
 
   it('searches messages with query', async () => {
     queueResponse({
+      items: [{ id: 'c1', name: 'Acme' }],
+      pagination: { page: 1, pageSize: 1000, total: 1 },
+    })
+    queueResponse({
       items: [
         {
           id: 'm1',
@@ -40,17 +44,21 @@ describe('MessageSearch page', () => {
       </MemoryRouter>
     )
 
-    fireEvent.change(screen.getByPlaceholderText('Keyword'), {
+    fireEvent.change(screen.getByPlaceholderText('キーワード'), {
       target: { value: 'alpha' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'search-submit' }))
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalled()
+      const searchCall = mockFetch.mock.calls.find(
+        ([url]) => typeof url === 'string' && (url as string).includes('/api/messages/search')
+      )
+      expect(searchCall).toBeTruthy()
     })
 
-    const url = mockFetch.mock.calls[0][0] as string
-    expect(url).toContain('/api/messages/search')
+    const url = mockFetch.mock.calls
+      .map(([callUrl]) => callUrl as string)
+      .find((callUrl) => callUrl.includes('/api/messages/search'))
     expect(url).toContain('q=alpha')
 
     expect(await screen.findByText('alpha message')).toBeInTheDocument()

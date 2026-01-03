@@ -91,7 +91,7 @@ function Companies() {
       const response = await fetch(`/api/companies?${queryString}`, {
         credentials: 'include',
       })
-      if (!response.ok) {
+      if (!response?.ok) {
         throw new Error('企業一覧の取得に失敗しました')
       }
       const data = await response.json()
@@ -108,7 +108,7 @@ function Companies() {
     setIsLoadingRooms(true)
     try {
       const response = await fetch('/api/chatwork/rooms', { credentials: 'include' })
-      if (!response.ok) {
+      if (!response?.ok) {
         throw new Error('Chatworkルーム一覧の取得に失敗しました')
       }
       const data = await response.json()
@@ -124,9 +124,13 @@ function Companies() {
   const fetchOptions = useCallback(async () => {
     try {
       const response = await fetch('/api/companies/options', { credentials: 'include' })
-      if (response.ok) {
+      if (response?.ok) {
         const data = await response.json()
-        setOptions(data)
+        setOptions({
+          categories: data?.categories ?? [],
+          statuses: data?.statuses ?? [],
+          tags: data?.tags ?? [],
+        })
       }
     } catch (err) {
       console.error('候補の取得エラー:', err)

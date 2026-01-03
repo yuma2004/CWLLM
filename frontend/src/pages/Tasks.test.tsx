@@ -69,7 +69,7 @@ describe('Tasks page', () => {
       expect(screen.getByText('Follow up')).toBeInTheDocument()
     })
 
-    fireEvent.change(screen.getByDisplayValue('todo'), { target: { value: 'done' } })
+    fireEvent.change(screen.getByDisplayValue('未対応'), { target: { value: 'done' } })
 
     await waitFor(() => {
       const hasPatch = mockFetch.mock.calls.some(

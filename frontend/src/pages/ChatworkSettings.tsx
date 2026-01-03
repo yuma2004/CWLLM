@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+﻿import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
 interface ChatworkRoom {
@@ -27,11 +27,15 @@ function ChatworkSettings() {
       const response = await fetch('/api/chatwork/rooms', { credentials: 'include' })
       if (!response.ok) {
         throw new Error('ルーム一覧の取得に失敗しました')
+
+
       }
       const data = await response.json()
       setRooms(data.rooms)
     } catch (err) {
       setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+
+
     } finally {
       setIsLoading(false)
     }
@@ -53,11 +57,17 @@ function ChatworkSettings() {
       const data = await response.json()
       if (!response.ok) {
         throw new Error(data.error || 'ルーム同期に失敗しました')
+
+
       }
       setSyncMessage(`ルーム同期完了: ${data.total}件`)
+
+
       fetchRooms()
     } catch (err) {
       setSyncMessage(err instanceof Error ? err.message : '通信エラーが発生しました')
+
+
     }
   }
 
@@ -71,11 +81,17 @@ function ChatworkSettings() {
       const data = await response.json()
       if (!response.ok) {
         throw new Error(data.error || 'メッセージ同期に失敗しました')
+
+
       }
       setSyncMessage(`メッセージ同期完了: ${data.rooms.length}ルーム`)
+
+
       fetchRooms()
     } catch (err) {
       setSyncMessage(err instanceof Error ? err.message : '通信エラーが発生しました')
+
+
     }
   }
 
@@ -89,10 +105,14 @@ function ChatworkSettings() {
       })
       if (!response.ok) {
         throw new Error('更新に失敗しました')
+
+
       }
       fetchRooms()
     } catch (err) {
       setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+
+
     }
   }
 
@@ -100,6 +120,8 @@ function ChatworkSettings() {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
         管理者のみがChatwork設定を操作できます。
+
+
       </div>
     )
   }
@@ -115,9 +137,12 @@ function ChatworkSettings() {
         <button
           type="button"
           onClick={handleRoomSync}
+          data-testid="chatwork-room-sync"
           className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
         >
           ルーム同期
+
+
         </button>
         <button
           type="button"
@@ -125,10 +150,15 @@ function ChatworkSettings() {
           className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white"
         >
           メッセージ同期
+
+
         </button>
       </div>
       {syncMessage && (
-        <div className="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-600">
+        <div
+          className="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-600"
+          data-testid="chatwork-sync-message"
+        >
           {syncMessage}
         </div>
       )}
@@ -136,16 +166,19 @@ function ChatworkSettings() {
 
       <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
         <h3 className="text-lg font-semibold text-slate-900">ルーム一覧</h3>
+
+
         <div className="mt-4">
           {isLoading ? (
-            <div className="text-sm text-slate-500">読み込み中...</div>
+            <div className="text-sm text-slate-500" data-testid="chatwork-room-loading">読み込み中...</div>
           ) : rooms.length === 0 ? (
-            <div className="text-sm text-slate-500">ルームがまだ登録されていません。</div>
+            <div className="text-sm text-slate-500" data-testid="chatwork-room-empty">ルームがまだ登録されていません。</div>
           ) : (
             <div className="space-y-3">
               {rooms.map((room) => (
                 <div
                   key={room.id}
+                  data-testid="chatwork-room-item"
                   className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm"
                 >
                   <div>
@@ -177,6 +210,8 @@ function ChatworkSettings() {
                     }`}
                   >
                     {room.isActive ? '取り込み中' : '除外中'}
+
+
                   </button>
                 </div>
               ))}
@@ -189,3 +224,4 @@ function ChatworkSettings() {
 }
 
 export default ChatworkSettings
+

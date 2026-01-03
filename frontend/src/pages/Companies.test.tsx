@@ -54,6 +54,11 @@ describe('Companies page', () => {
       pagination: { page: 1, pageSize: 20, total: 0 },
     })
     queueResponse({
+      categories: ['カテゴリA'],
+      statuses: ['active'],
+      tags: ['VIP'],
+    })
+    queueResponse({
       items: [],
       pagination: { page: 1, pageSize: 20, total: 0 },
     })
@@ -68,10 +73,16 @@ describe('Companies page', () => {
     fireEvent.change(searchInput, { target: { value: 'Acme' } })
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(2)
+      const companyCalls = mockFetch.mock.calls.filter(
+        ([url]) => typeof url === 'string' && (url as string).startsWith('/api/companies')
+      )
+      expect(companyCalls.length).toBeGreaterThanOrEqual(2)
     })
 
-    const secondCall = mockFetch.mock.calls[1][0] as string
-    expect(secondCall).toContain('q=Acme')
+    const searchCall = mockFetch.mock.calls
+      .map(([url]) => url as string)
+      .find((url) => url.includes('/api/companies') && url.includes('q=Acme'))
+
+    expect(searchCall).toBeTruthy()
   })
 })

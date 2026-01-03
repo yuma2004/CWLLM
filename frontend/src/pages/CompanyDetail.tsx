@@ -169,14 +169,16 @@ function CompanyDetail() {
     setIsLoadingRooms(true)
     try {
       const response = await fetch('/api/chatwork/rooms', { credentials: 'include' })
-      if (!response.ok) {
+      if (!response?.ok) {
         throw new Error('利用可能なルーム一覧の取得に失敗しました')
       }
       const data = await response.json()
       // 既に紐づけられているルームIDを取得
       const linkedRoomIds = new Set(linkedRooms.map((r) => r.roomId))
       // 未紐づけのルームのみをフィルタリング
-      const available = data.rooms.filter((room: AvailableRoom) => !linkedRoomIds.has(room.roomId))
+      const available = (data?.rooms ?? []).filter(
+        (room: AvailableRoom) => !linkedRoomIds.has(room.roomId)
+      )
       setAvailableRooms(available)
     } catch (err) {
       console.error('利用可能なルーム一覧の取得エラー:', err)
