@@ -1,26 +1,8 @@
 import { FastifyInstance } from 'fastify'
-import { PrismaClient } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { createLLMClient } from '../services/llm'
-
-const prisma = new PrismaClient()
-
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === 'string' && value.trim().length > 0
-
-const parseDate = (value?: string) => {
-  if (!value) return undefined
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed
-}
-
-const parseStringArray = (value: unknown): string[] | null | undefined => {
-  if (value === undefined) return undefined
-  if (!Array.isArray(value)) return null
-  if (value.some((item) => typeof item !== 'string')) return null
-  return value
-}
+import { prisma } from '../utils/prisma'
+import { isNonEmptyString, parseDate, parseStringArray } from '../utils/validation'
 
 const MAX_MESSAGES = 200
 

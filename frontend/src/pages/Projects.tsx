@@ -82,7 +82,7 @@ function Projects() {
         <h2 className="text-3xl font-bold text-slate-900">案件管理</h2>
       </div>
 
-      <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap gap-2 text-xs">
           <input
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
@@ -104,7 +104,7 @@ function Projects() {
         <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>
       )}
 
-      <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         {isLoading ? (
           <div className="text-sm text-slate-500">案件を読み込み中...</div>
         ) : projects.length === 0 ? (
@@ -135,7 +135,7 @@ function Projects() {
       {canWrite ? (
         <form
           onSubmit={handleCreate}
-          className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur"
+          className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         >
           <h3 className="text-lg font-semibold text-slate-900">案件を作成</h3>
           <div className="mt-4 grid gap-3 md:grid-cols-2">

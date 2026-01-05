@@ -1,17 +1,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-
-const prisma = new PrismaClient()
+import { JWTUser } from '../types/auth'
+import { prisma } from '../utils/prisma'
 
 interface LoginBody {
   email: string
   password: string
-}
-
-interface JWTUser {
-  userId: string
-  role: string
 }
 
 export async function authRoutes(fastify: FastifyInstance) {

@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-
-interface Task {
-  id: string
-  title: string
-  description?: string | null
-  dueDate?: string | null
-  status: string
-}
-
-const statusOptions = ['todo', 'in_progress', 'done', 'cancelled']
+import StatusBadge from './ui/StatusBadge'
+import { Task } from '../types'
+import { TASK_STATUS_OPTIONS, TASK_STATUS_LABELS } from '../constants'
 
 const formatDate = (value?: string | null) => {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
-  return date.toLocaleDateString()
+  return date.toLocaleDateString('ja-JP')
 }
 
 function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWrite: boolean }) {
@@ -42,11 +35,11 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
       )
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to load tasks')
+        throw new Error(data.error || 'タスクの読み込みに失敗しました')
       }
       setTasks(data.items)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'ネットワークエラー')
     } finally {
       setIsLoading(false)
     }
@@ -60,7 +53,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
     event.preventDefault()
     setFormError('')
     if (!form.title.trim()) {
-      setFormError('Title is required')
+      setFormError('タイトルは必須です')
       return
     }
 
@@ -79,12 +72,12 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create task')
+        throw new Error(data.error || 'タスクの作成に失敗しました')
       }
       setForm({ title: '', description: '', dueDate: '' })
       fetchTasks()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Network error')
+      setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
@@ -100,27 +93,27 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
       )
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update task')
+        throw new Error(data.error || 'タスクの更新に失敗しました')
       }
       fetchTasks()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
   return (
-    <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold text-slate-900">Tasks</h3>
+        <h3 className="text-lg font-semibold text-slate-900">タスク</h3>
         <select
           className="rounded-xl border border-slate-200 px-3 py-1 text-xs"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
         >
-          <option value="">All statuses</option>
-          {statusOptions.map((status) => (
+          <option value="">全てのステータス</option>
+          {TASK_STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
-              {status}
+              {TASK_STATUS_LABELS[status]}
             </option>
           ))}
         </select>
@@ -134,9 +127,9 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
 
       <div className="mt-4 space-y-3">
         {isLoading ? (
-          <div className="text-sm text-slate-500">Loading tasks...</div>
+          <div className="text-sm text-slate-500">タスクを読み込み中...</div>
         ) : tasks.length === 0 ? (
-          <div className="text-sm text-slate-500">No tasks yet.</div>
+          <div className="text-sm text-slate-500">タスクはまだありません</div>
         ) : (
           tasks.map((task) => (
             <div
@@ -145,8 +138,13 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
             >
               <div>
                 <div className="font-semibold text-slate-900">{task.title}</div>
-                <div className="text-xs text-slate-500">
-                  Due: {formatDate(task.dueDate)}
+                {task.description && (
+                  <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                    {task.description}
+                  </div>
+                )}
+                <div className="mt-1 text-xs text-slate-400">
+                  期日: {formatDate(task.dueDate)}
                 </div>
               </div>
               {canWrite ? (
@@ -155,16 +153,17 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
                   value={task.status}
                   onChange={(event) => handleStatusChange(task.id, event.target.value)}
                 >
-                  {statusOptions.map((status) => (
+                  {TASK_STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
-                      {status}
+                      {TASK_STATUS_LABELS[status]}
                     </option>
                   ))}
                 </select>
               ) : (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                  {task.status}
-                </span>
+                <StatusBadge
+                  status={TASK_STATUS_LABELS[task.status] || task.status}
+                  size="sm"
+                />
               )}
             </div>
           ))
@@ -175,22 +174,22 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
         <form onSubmit={handleCreate} className="mt-4 space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
             <input
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Task title"
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              placeholder="タスクタイトル"
               value={form.title}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
             />
             <input
               type="date"
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               value={form.dueDate}
               onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
             />
           </div>
           <textarea
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             rows={3}
-            placeholder="Notes"
+            placeholder="メモ・備考"
             value={form.description}
             onChange={(event) => setForm({ ...form, description: event.target.value })}
           />
@@ -202,14 +201,14 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
           <div className="flex justify-end">
             <button
               type="submit"
-              className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
+              className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
             >
-              Add task
+              タスクを追加
             </button>
           </div>
         </form>
       ) : (
-        <div className="mt-4 text-sm text-slate-500">You do not have write access.</div>
+        <div className="mt-4 text-sm text-slate-500">書き込み権限がありません</div>
       )}
     </div>
   )

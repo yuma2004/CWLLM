@@ -1,19 +1,11 @@
 import { FastifyInstance } from 'fastify'
-import { PrismaClient } from '@prisma/client'
 import { requireAdmin } from '../middleware/rbac'
-
-const prisma = new PrismaClient()
+import { prisma } from '../utils/prisma'
+import { parseStringArray } from '../utils/validation'
 
 const DEFAULT_SETTINGS = {
   summaryDefaultPeriodDays: 30,
   tagOptions: [] as string[],
-}
-
-const parseStringArray = (value: unknown): string[] | null | undefined => {
-  if (value === undefined) return undefined
-  if (!Array.isArray(value)) return null
-  if (value.some((item) => typeof item !== 'string')) return null
-  return value
 }
 
 interface SettingsUpdateBody {

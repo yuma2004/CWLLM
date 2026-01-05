@@ -103,7 +103,7 @@ function UnassignedMessages() {
         <h2 className="text-3xl font-bold text-slate-900">未紐づけメッセージ</h2>
       </div>
       {error && <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>}
-      <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         {isLoading ? (
           <div className="text-sm text-slate-500">読み込み中...</div>
         ) : messages.length === 0 ? (

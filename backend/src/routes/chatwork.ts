@@ -1,9 +1,7 @@
-import { FastifyInstance, FastifyReply } from 'fastify'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { FastifyInstance } from 'fastify'
 import { requireAdmin, requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { ChatworkApiError, createChatworkClient } from '../services/chatwork'
-
-const prisma = new PrismaClient()
+import { handlePrismaError, prisma } from '../utils/prisma'
 
 interface RoomToggleBody {
   isActive: boolean
@@ -55,16 +53,8 @@ const pickLatestMessageId = (current: string | null, messageIds: string[]) => {
   return latest
 }
 
-const parsePrismaError = (reply: FastifyReply, error: unknown) => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2002') {
-      return reply.code(409).send({ error: 'Duplicate record' })
-    }
-    if (error.code === 'P2025') {
-      return reply.code(404).send({ error: 'Not found' })
-    }
-  }
-  return reply.code(500).send({ error: 'Internal server error' })
+const prismaErrorOverrides = {
+  P2002: { status: 409, message: 'Duplicate record' },
 }
 
 const truncateError = (message: string) =>
@@ -145,7 +135,7 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
         })
         return { room }
       } catch (error) {
-        return parsePrismaError(reply, error)
+        return handlePrismaError(reply, error, prismaErrorOverrides)
       }
     }
   )
@@ -317,7 +307,7 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
 
         return reply.code(201).send({ link })
       } catch (error) {
-        return parsePrismaError(reply, error)
+        return handlePrismaError(reply, error, prismaErrorOverrides)
       }
     }
   )
@@ -344,7 +334,7 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
         })
         return reply.code(204).send()
       } catch (error) {
-        return parsePrismaError(reply, error)
+        return handlePrismaError(reply, error, prismaErrorOverrides)
       }
     }
   )

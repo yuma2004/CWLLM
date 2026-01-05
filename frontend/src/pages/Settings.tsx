@@ -78,7 +78,7 @@ function Settings() {
 
       <form
         onSubmit={handleSave}
-        className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur"
+        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div>

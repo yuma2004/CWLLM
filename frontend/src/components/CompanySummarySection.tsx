@@ -181,7 +181,7 @@ function CompanySummarySection({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-slate-900">AI Summary</h3>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -263,7 +263,7 @@ function CompanySummarySection({
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-slate-900">Summary history</h4>
           <button

@@ -46,7 +46,7 @@ function Exports() {
         <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>
       )}
 
-      <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="space-y-3 text-sm">
           <button
             type="button"

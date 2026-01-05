@@ -6,19 +6,8 @@ import dotenv from 'dotenv'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { authRoutes } from './routes/auth'
-import { userRoutes } from './routes/users'
-import { companyRoutes } from './routes/companies'
-import { chatworkRoutes } from './routes/chatwork'
-import { messageRoutes } from './routes/messages'
-import { taskRoutes } from './routes/tasks'
-import { projectRoutes } from './routes/projects'
-import { wholesaleRoutes } from './routes/wholesales'
-import { summaryRoutes } from './routes/summaries'
-import { auditLogRoutes } from './routes/audit-logs'
-import { dashboardRoutes } from './routes/dashboard'
-import { settingRoutes } from './routes/settings'
-import { exportRoutes } from './routes/export'
+import { registerRoutes } from './routes'
+import { JWTUser } from './types/auth'
 
 // .envファイルを読み込む（backend/.envを優先、なければルートの.env）
 const __filename = fileURLToPath(import.meta.url)
@@ -27,11 +16,6 @@ const __dirname = path.dirname(__filename)
 dotenv.config({ path: path.resolve(__dirname, '../.env') })
 // ルートの.envも読み込む（未設定の変数のみ）
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
-
-interface JWTUser {
-  userId: string
-  role: string
-}
 
 const fastify = Fastify({
   logger: true,
@@ -96,19 +80,7 @@ fastify.setErrorHandler((error, request, reply) => {
   reply.code(statusCode).send({ error: 'Internal server error' })
 })
 
-fastify.register(authRoutes, { prefix: '/api' })
-fastify.register(userRoutes, { prefix: '/api' })
-fastify.register(companyRoutes, { prefix: '/api' })
-fastify.register(chatworkRoutes, { prefix: '/api' })
-fastify.register(messageRoutes, { prefix: '/api' })
-fastify.register(taskRoutes, { prefix: '/api' })
-fastify.register(projectRoutes, { prefix: '/api' })
-fastify.register(wholesaleRoutes, { prefix: '/api' })
-fastify.register(summaryRoutes, { prefix: '/api' })
-fastify.register(auditLogRoutes, { prefix: '/api' })
-fastify.register(dashboardRoutes, { prefix: '/api' })
-fastify.register(settingRoutes, { prefix: '/api' })
-fastify.register(exportRoutes, { prefix: '/api' })
+registerRoutes(fastify)
 
 fastify.get('/healthz', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() }

@@ -11,6 +11,14 @@ interface Wholesale {
   id: string
   status: string
   projectId: string
+  unitPrice?: number | null
+  margin?: number | null
+  agreedDate?: string | null
+  project?: {
+    id: string
+    name: string
+    company?: { id: string; name: string }
+  }
 }
 
 function CompanyRelationsSection({ companyId }: { companyId: string }) {
@@ -46,10 +54,38 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
     fetchRelations()
   }, [fetchRelations])
 
+  const getStatusBadge = (status: string) => {
+    const statusStyles: Record<string, string> = {
+      active: 'bg-emerald-50 text-emerald-700',
+      paused: 'bg-amber-50 text-amber-700',
+      closed: 'bg-slate-100 text-slate-600',
+    }
+    const statusLabels: Record<string, string> = {
+      active: '有効',
+      paused: '停止中',
+      closed: '終了',
+    }
+    return (
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[status] || 'bg-slate-100 text-slate-600'}`}>
+        {statusLabels[status] || status}
+      </span>
+    )
+  }
+
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value == null) return null
+    return `¥${value.toLocaleString()}`
+  }
+
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return null
+    return new Date(dateString).toLocaleDateString('ja-JP')
+  }
+
   return (
-    <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">Projects & Wholesales</h3>
+        <h3 className="text-lg font-semibold text-slate-900">案件と卸</h3>
       </div>
 
       {error && (
@@ -58,54 +94,80 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
         </div>
       )}
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-4 grid gap-6 md:grid-cols-2">
+        {/* この企業の案件 */}
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Projects</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-slate-400">この企業の案件</div>
           <div className="mt-3 space-y-2">
             {projects.length === 0 ? (
-              <div className="text-sm text-slate-500">No projects yet.</div>
+              <div className="text-sm text-slate-500">案件がありません</div>
             ) : (
               projects.map((project) => (
                 <div
                   key={project.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-2 text-sm"
+                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm"
                 >
-                  <div>
+                  <div className="flex-1">
                     <div className="font-semibold text-slate-900">{project.name}</div>
-                    <div className="text-xs text-slate-500">{project.status}</div>
+                    <div className="mt-1">{getStatusBadge(project.status)}</div>
                   </div>
                   <Link
                     to={`/projects/${project.id}`}
-                    className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                    className="text-xs font-semibold text-sky-600 hover:text-sky-700"
                   >
-                    View
+                    詳細
                   </Link>
                 </div>
               ))
             )}
           </div>
         </div>
+
+        {/* この企業に卸された案件 */}
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Wholesales</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-slate-400">この企業に卸された案件</div>
           <div className="mt-3 space-y-2">
             {wholesales.length === 0 ? (
-              <div className="text-sm text-slate-500">No wholesales yet.</div>
+              <div className="text-sm text-slate-500">卸された案件がありません</div>
             ) : (
               wholesales.map((wholesale) => (
                 <div
                   key={wholesale.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-2 text-sm"
+                  className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm"
                 >
-                  <div>
-                    <div className="font-semibold text-slate-900">{wholesale.id}</div>
-                    <div className="text-xs text-slate-500">{wholesale.status}</div>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <Link
+                        to={`/projects/${wholesale.projectId}`}
+                        className="font-semibold text-slate-900 hover:text-sky-600"
+                      >
+                        {wholesale.project?.name || wholesale.projectId}
+                      </Link>
+                      {wholesale.project?.company && (
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          元案件企業:{' '}
+                          <Link
+                            to={`/companies/${wholesale.project.company.id}`}
+                            className="hover:text-sky-600"
+                          >
+                            {wholesale.project.company.name}
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                    {getStatusBadge(wholesale.status)}
                   </div>
-                  <Link
-                    to={`/wholesales/${wholesale.id}`}
-                    className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                  >
-                    View
-                  </Link>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                    {formatCurrency(wholesale.unitPrice) && (
+                      <span>単価: {formatCurrency(wholesale.unitPrice)}</span>
+                    )}
+                    {wholesale.margin != null && (
+                      <span>マージン: {wholesale.margin}%</span>
+                    )}
+                    {formatDate(wholesale.agreedDate) && (
+                      <span>合意日: {formatDate(wholesale.agreedDate)}</span>
+                    )}
+                  </div>
                 </div>
               ))
             )}

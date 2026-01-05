@@ -161,7 +161,7 @@ function MessageSearch() {
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur"
+        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
         <div className="flex flex-wrap gap-2 text-xs">
           <button
@@ -255,7 +255,7 @@ function MessageSearch() {
 
       {error && <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>}
 
-      <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         {isLoading ? (
           <div className="text-sm text-slate-500">検索中...</div>
         ) : results.length === 0 ? (

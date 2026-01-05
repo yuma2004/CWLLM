@@ -1,52 +1,16 @@
-import { FastifyInstance, FastifyReply } from 'fastify'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { FastifyInstance } from 'fastify'
+import { Prisma } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
-
-const prisma = new PrismaClient()
-
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === 'string' && value.trim().length > 0
-
-const isNullableString = (value: unknown): value is string | null | undefined =>
-  value === undefined || value === null || typeof value === 'string'
-
-const parseDate = (value?: string | null) => {
-  if (!value) return value === null ? null : undefined
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed
-}
-
-const parseNumber = (value: unknown) => {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  if (typeof value !== 'number' || Number.isNaN(value)) return null
-  return value
-}
-
-const parsePagination = (pageValue?: string, pageSizeValue?: string) => {
-  const page = Math.max(Number(pageValue) || 1, 1)
-  const pageSize = Math.min(Math.max(Number(pageSizeValue) || 20, 1), 100)
-  return { page, pageSize, skip: (page - 1) * pageSize }
-}
-
-const handlePrismaError = (reply: FastifyReply, error: unknown) => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2003') {
-      return reply.code(400).send({ error: 'Invalid relation' })
-    }
-    if (error.code === 'P2025') {
-      return reply.code(404).send({ error: 'Not found' })
-    }
-  }
-  return reply.code(500).send({ error: 'Internal server error' })
-}
-
-interface JWTUser {
-  userId: string
-  role: string
-}
+import { parsePagination } from '../utils/pagination'
+import { handlePrismaError, prisma } from '../utils/prisma'
+import {
+  isNonEmptyString,
+  isNullableString,
+  parseDate,
+  parseNumber,
+} from '../utils/validation'
+import { JWTUser } from '../types/auth'
 
 interface ProjectCreateBody {
   companyId: string
@@ -327,6 +291,10 @@ export async function projectRoutes(fastify: FastifyInstance) {
       const wholesales = await prisma.wholesale.findMany({
         where: { projectId: request.params.id },
         orderBy: { createdAt: 'desc' },
+        include: {
+          company: { select: { id: true, name: true } },
+          owner: { select: { id: true, email: true } },
+        },
       })
 
       return { wholesales }

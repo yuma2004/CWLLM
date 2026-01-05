@@ -1,8 +1,6 @@
 import { FastifyInstance } from 'fastify'
-import { PrismaClient } from '@prisma/client'
 import { requireAuth } from '../middleware/rbac'
-
-const prisma = new PrismaClient()
+import { prisma } from '../utils/prisma'
 
 export async function dashboardRoutes(fastify: FastifyInstance) {
   fastify.get('/dashboard', { preHandler: requireAuth() }, async () => {

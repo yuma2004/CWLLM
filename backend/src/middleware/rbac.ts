@@ -1,9 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-
-interface JWTUser {
-  userId: string
-  role: string
-}
+import { JWTUser } from '../types/auth'
 
 type Role = 'admin' | 'sales' | 'ops' | 'readonly'
 

@@ -1,37 +1,19 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
-import { normalizeCompanyName } from '../utils/normalize'
 import { logAudit } from '../services/audit'
+import { normalizeCompanyName } from '../utils/normalize'
+import { parsePagination } from '../utils/pagination'
+import { handlePrismaError, prisma } from '../utils/prisma'
+import {
+  isNonEmptyString,
+  isNullableString,
+  parseStringArray,
+} from '../utils/validation'
+import { JWTUser } from '../types/auth'
 
-const prisma = new PrismaClient()
-
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === 'string' && value.trim().length > 0
-
-const isNullableString = (value: unknown): value is string | null | undefined =>
-  value === undefined || value === null || typeof value === 'string'
-
-const parseTags = (value: unknown): string[] | undefined | null => {
-  if (value === undefined) return undefined
-  if (!Array.isArray(value)) return null
-  if (value.some((tag) => typeof tag !== 'string')) return null
-  return value
-}
-
-const handlePrismaError = (reply: FastifyReply, error: unknown) => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2002') {
-      return reply.code(409).send({ error: 'Duplicate record' })
-    }
-    if (error.code === 'P2003') {
-      return reply.code(400).send({ error: 'Invalid relation' })
-    }
-    if (error.code === 'P2025') {
-      return reply.code(404).send({ error: 'Not found' })
-    }
-  }
-  return reply.code(500).send({ error: 'Internal server error' })
+const prismaErrorOverrides = {
+  P2002: { status: 409, message: 'Duplicate record' },
 }
 
 interface CompanyCreateBody {
@@ -78,20 +60,16 @@ interface ContactUpdateBody {
   memo?: string | null
 }
 
-interface JWTUser {
-  userId: string
-  role: string
-}
-
 export async function companyRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: CompanyListQuery }>(
     '/companies',
     { preHandler: requireAuth() },
     async (request) => {
       const { q, category, status, tag, ownerId } = request.query
-      const page = Math.max(Number(request.query.page) || 1, 1)
-      const pageSize = Math.min(Math.max(Number(request.query.pageSize) || 20, 1), 100)
-      const skip = (page - 1) * pageSize
+      const { page, pageSize, skip } = parsePagination(
+        request.query.page,
+        request.query.pageSize
+      )
 
       const where: Prisma.CompanyWhereInput = {}
       if (q && q.trim() !== '') {
@@ -140,7 +118,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
     { preHandler: requireWriteAccess() },
     async (request: FastifyRequest<{ Body: CompanyCreateBody }>, reply: FastifyReply) => {
       const { name, category, status, profile, ownerId } = request.body
-      const tags = parseTags(request.body.tags)
+      const tags = parseStringArray(request.body.tags)
 
       if (!isNonEmptyString(name)) {
         return reply.code(400).send({ error: 'Name is required' })
@@ -172,7 +150,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         })
         return reply.code(201).send({ company })
       } catch (error) {
-        return handlePrismaError(reply, error)
+        return handlePrismaError(reply, error, prismaErrorOverrides)
       }
     }
   )
@@ -198,7 +176,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
     { preHandler: requireWriteAccess() },
     async (request, reply) => {
       const { name, category, status, profile, ownerId } = request.body
-      const tags = parseTags(request.body.tags)
+      const tags = parseStringArray(request.body.tags)
 
       if (name !== undefined && !isNonEmptyString(name)) {
         return reply.code(400).send({ error: 'Name is required' })
@@ -270,7 +248,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         })
         return { company }
       } catch (error) {
-        return handlePrismaError(reply, error)
+        return handlePrismaError(reply, error, prismaErrorOverrides)
       }
     }
   )
@@ -300,7 +278,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         })
         return reply.code(204).send()
       } catch (error) {
-        return handlePrismaError(reply, error)
+        return handlePrismaError(reply, error, prismaErrorOverrides)
       }
     }
   )
@@ -397,7 +375,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         })
         return { contact }
       } catch (error) {
-        return handlePrismaError(reply, error)
+        return handlePrismaError(reply, error, prismaErrorOverrides)
       }
     }
   )
@@ -412,7 +390,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         })
         return reply.code(204).send()
       } catch (error) {
-        return handlePrismaError(reply, error)
+        return handlePrismaError(reply, error, prismaErrorOverrides)
       }
     }
   )

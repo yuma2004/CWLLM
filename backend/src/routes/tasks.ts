@@ -1,28 +1,14 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
-
-const prisma = new PrismaClient()
+import { parsePagination } from '../utils/pagination'
+import { handlePrismaError, prisma } from '../utils/prisma'
+import { isNonEmptyString, parseDate } from '../utils/validation'
+import { JWTUser } from '../types/auth'
 
 const TASK_STATUSES = new Set(['todo', 'in_progress', 'done', 'cancelled'])
 const TARGET_TYPES = new Set(['company', 'project', 'wholesale'])
-
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === 'string' && value.trim().length > 0
-
-const parseDate = (value?: string) => {
-  if (!value) return undefined
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed
-}
-
-const parsePagination = (pageValue?: string, pageSizeValue?: string) => {
-  const page = Math.max(Number(pageValue) || 1, 1)
-  const pageSize = Math.min(Math.max(Number(pageSizeValue) || 20, 1), 100)
-  return { page, pageSize, skip: (page - 1) * pageSize }
-}
 
 const normalizeStatus = (value?: string) => {
   if (value === undefined) return undefined
@@ -34,23 +20,6 @@ const normalizeTargetType = (value?: string) => {
   if (value === undefined) return undefined
   if (!TARGET_TYPES.has(value)) return null
   return value
-}
-
-const handlePrismaError = (reply: FastifyReply, error: unknown) => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2003') {
-      return reply.code(400).send({ error: 'Invalid relation' })
-    }
-    if (error.code === 'P2025') {
-      return reply.code(404).send({ error: 'Not found' })
-    }
-  }
-  return reply.code(500).send({ error: 'Internal server error' })
-}
-
-interface JWTUser {
-  userId: string
-  role: string
 }
 
 interface TaskCreateBody {

@@ -42,7 +42,7 @@ function CompanyAuditSection({ companyId }: { companyId: string }) {
   }, [fetchLogs])
 
   return (
-    <div className="rounded-2xl bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-slate-900">Audit Logs</h3>
       </div>
@@ -65,7 +65,7 @@ function CompanyAuditSection({ companyId }: { companyId: string }) {
               <div>
                 <div className="font-semibold text-slate-900">{log.action}</div>
                 <div className="text-xs text-slate-500">
-                  {log.userId || 'system'} ÅE {new Date(log.createdAt).toLocaleString()}
+                  {log.userId || 'system'} ÔøΩE {new Date(log.createdAt).toLocaleString()}
                 </div>
               </div>
             </div>

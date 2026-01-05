@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -11,6 +11,7 @@ function Layout({ children }: LayoutProps) {
   const role = user?.role
   const canWrite = role && role !== 'readonly'
   const isAdmin = role === 'admin'
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   const navItems = [
     { to: '/', label: 'ダッシュボード', icon: (
@@ -31,11 +32,6 @@ function Layout({ children }: LayoutProps) {
     { to: '/projects', label: '案件管理', icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-      </svg>
-    ), show: true },
-    { to: '/wholesales', label: '卸管理', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
     ), show: true },
     { to: '/messages/search', label: 'メッセージ検索', icon: (
@@ -71,19 +67,64 @@ function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex bg-slate-50">
+      {/* Sidebar Toggle Button - Mobile */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="fixed top-4 left-4 z-20 p-2 rounded-lg bg-white border border-slate-200 shadow-md hover:shadow-lg transition-shadow duration-200 lg:hidden"
+        aria-label="サイドバーを開閉"
+      >
+        <svg className="w-6 h-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          {isSidebarOpen ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          )}
+        </svg>
+      </button>
+
+      {/* Sidebar Toggle Button - Desktop */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="hidden lg:block lg:fixed top-4 left-4 z-20 p-2 rounded-lg bg-white border border-slate-200 shadow-md hover:shadow-lg transition-shadow duration-200"
+          aria-label="サイドバーを開く"
+        >
+          <svg className="w-6 h-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-100 flex-shrink-0 flex flex-col fixed h-full z-10">
+      <aside
+        className={`
+          w-64 bg-white border-r border-slate-100 flex-shrink-0 flex flex-col fixed h-full z-10
+          transition-transform duration-300 ease-in-out
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
         <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-500/30">
-              CW
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-500/30">
+                CW
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">
+                  CWLLM
+                </h1>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Task Hub</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-                CWLLM
-              </h1>
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Task Hub</p>
-            </div>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              aria-label="サイドバーを閉じる"
+            >
+              <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
           <nav className="space-y-1">
@@ -138,8 +179,17 @@ function Layout({ children }: LayoutProps) {
         </div>
       </aside>
 
+      {/* Sidebar Overlay (mobile only) */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[5] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Main content */}
-      <div className="flex-1 ml-64 min-w-0">
+      <div className={`flex-1 min-w-0 transition-all duration-300 ${isSidebarOpen ? 'ml-64' : ''}`}>
         <main className="max-w-6xl mx-auto px-8 py-8 animate-fade-up">
           {children}
         </main>

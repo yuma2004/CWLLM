@@ -1,8 +1,9 @@
-import { FastifyInstance, FastifyReply } from 'fastify'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { FastifyInstance } from 'fastify'
+import { Prisma } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
-
-const prisma = new PrismaClient()
+import { parsePagination } from '../utils/pagination'
+import { handlePrismaError, prisma } from '../utils/prisma'
+import { parseDate } from '../utils/validation'
 
 interface MessageListQuery {
   page?: string
@@ -39,13 +40,6 @@ interface LabelBody {
 
 const MAX_LABEL_LENGTH = 30
 
-const parseDate = (value?: string) => {
-  if (!value) return undefined
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed
-}
-
 const normalizeLabel = (value?: string) => {
   if (value === undefined) return undefined
   const trimmed = value.trim()
@@ -53,21 +47,6 @@ const normalizeLabel = (value?: string) => {
   if (trimmed.length > MAX_LABEL_LENGTH) return null
   if (/[\r\n\t]/.test(trimmed)) return null
   return trimmed
-}
-
-const parsePagination = (pageValue?: string, pageSizeValue?: string) => {
-  const page = Math.max(Number(pageValue) || 1, 1)
-  const pageSize = Math.min(Math.max(Number(pageSizeValue) || 20, 1), 100)
-  return { page, pageSize, skip: (page - 1) * pageSize }
-}
-
-const handlePrismaError = (reply: FastifyReply, error: unknown) => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2025') {
-      return reply.code(404).send({ error: 'Not found' })
-    }
-  }
-  return reply.code(500).send({ error: 'Internal server error' })
 }
 
 export async function messageRoutes(fastify: FastifyInstance) {

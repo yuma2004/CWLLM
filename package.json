@@ -1,0 +1,11 @@
+{
+  "name": "cwllm",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:db": "docker compose -f infra/docker-compose.yml up -d",
+    "dev:db:down": "docker compose -f infra/docker-compose.yml down",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  }
+}

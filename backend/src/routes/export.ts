@@ -1,8 +1,6 @@
 import { FastifyInstance } from 'fastify'
-import { PrismaClient } from '@prisma/client'
 import { requireAdmin } from '../middleware/rbac'
-
-const prisma = new PrismaClient()
+import { prisma } from '../utils/prisma'
 
 const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`
 

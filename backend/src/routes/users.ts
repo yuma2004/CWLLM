@@ -1,9 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { requireAdmin } from '../middleware/rbac'
-
-const prisma = new PrismaClient()
+import { prisma } from '../utils/prisma'
 
 interface CreateUserBody {
   email: string

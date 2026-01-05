@@ -1,30 +1,9 @@
-import { FastifyInstance, FastifyReply } from 'fastify'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { FastifyInstance } from 'fastify'
+import { Prisma } from '@prisma/client'
 import { requireAuth } from '../middleware/rbac'
-
-const prisma = new PrismaClient()
-
-const parseDate = (value?: string) => {
-  if (!value) return undefined
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed
-}
-
-const parsePagination = (pageValue?: string, pageSizeValue?: string) => {
-  const page = Math.max(Number(pageValue) || 1, 1)
-  const pageSize = Math.min(Math.max(Number(pageSizeValue) || 20, 1), 100)
-  return { page, pageSize, skip: (page - 1) * pageSize }
-}
-
-const handlePrismaError = (reply: FastifyReply, error: unknown) => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2025') {
-      return reply.code(404).send({ error: 'Not found' })
-    }
-  }
-  return reply.code(500).send({ error: 'Internal server error' })
-}
+import { parsePagination } from '../utils/pagination'
+import { prisma, handlePrismaError } from '../utils/prisma'
+import { parseDate } from '../utils/validation'
 
 interface AuditLogListQuery {
   entityType?: string
