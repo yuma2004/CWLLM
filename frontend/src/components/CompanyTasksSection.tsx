@@ -1,53 +1,55 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
+import ErrorAlert from './ui/ErrorAlert'
+import FormInput from './ui/FormInput'
+import FormSelect from './ui/FormSelect'
+import FormTextarea from './ui/FormTextarea'
 import StatusBadge from './ui/StatusBadge'
-import { Task } from '../types'
+import { useFetch, useMutation } from '../hooks/useApi'
+import { formatDate } from '../utils/date'
+import { ApiListResponse, Task } from '../types'
 import { TASK_STATUS_OPTIONS, TASK_STATUS_LABELS } from '../constants'
 
-const formatDate = (value?: string | null) => {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return date.toLocaleDateString('ja-JP')
-}
-
 function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWrite: boolean }) {
-  const [tasks, setTasks] = useState<Task[]>([])
   const [statusFilter, setStatusFilter] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ title: '', description: '', dueDate: '' })
   const [formError, setFormError] = useState('')
 
-  const fetchTasks = useCallback(async () => {
-    setIsLoading(true)
-    setError('')
-    try {
-      const params = new URLSearchParams()
-      params.set('page', '1')
-      params.set('pageSize', '20')
-      if (statusFilter) params.set('status', statusFilter)
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams()
+    params.set('page', '1')
+    params.set('pageSize', '20')
+    if (statusFilter) params.set('status', statusFilter)
+    return params.toString()
+  }, [statusFilter])
 
-      const response = await fetch(
-        `/api/companies/${companyId}/tasks?${params.toString()}`,
-        {
-          credentials: 'include',
-        }
-      )
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'タスクの読み込みに失敗しました')
-      }
-      setTasks(data.items)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ネットワークエラー')
-    } finally {
-      setIsLoading(false)
+  const {
+    data: tasksData,
+    isLoading,
+    refetch: refetchTasks,
+  } = useFetch<ApiListResponse<Task>>(
+    `/api/companies/${companyId}/tasks?${queryString}`,
+    {
+      errorMessage: 'タスクの読み込みに失敗しました',
+      onStart: () => setError(''),
+      onError: setError,
     }
-  }, [companyId, statusFilter])
+  )
 
-  useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+  const { mutate: createTask } = useMutation<Task, {
+    targetType: string
+    targetId: string
+    title: string
+    description?: string
+    dueDate?: string
+  }>('/api/tasks', 'POST')
+
+  const { mutate: updateTask } = useMutation<Task, { status: string }>(
+    '/api/tasks',
+    'PATCH'
+  )
+
+  const tasks = tasksData?.items ?? []
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -58,24 +60,18 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
     }
 
     try {
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+      await createTask(
+        {
           targetType: 'company',
           targetId: companyId,
           title: form.title.trim(),
           description: form.description || undefined,
           dueDate: form.dueDate || undefined,
-        }),
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'タスクの作成に失敗しました')
-      }
+        },
+        { errorMessage: 'タスクの作成に失敗しました' }
+      )
       setForm({ title: '', description: '', dueDate: '' })
-      fetchTasks()
+      void refetchTasks()
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
@@ -83,19 +79,11 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
 
   const handleStatusChange = async (taskId: string, nextStatus: string) => {
     try {
-      const response = await fetch(`/api/tasks/${taskId}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ status: nextStatus }),
-        }
+      await updateTask(
+        { status: nextStatus },
+        { url: `/api/tasks/${taskId}`, errorMessage: 'タスクの更新に失敗しました' }
       )
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'タスクの更新に失敗しました')
-      }
-      fetchTasks()
+      void refetchTasks()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
@@ -105,8 +93,8 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold text-slate-900">タスク</h3>
-        <select
-          className="rounded-xl border border-slate-200 px-3 py-1 text-xs"
+        <FormSelect
+          className="w-auto px-3 py-1 text-xs"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
         >
@@ -116,14 +104,10 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
               {TASK_STATUS_LABELS[status]}
             </option>
           ))}
-        </select>
+        </FormSelect>
       </div>
 
-      {error && (
-        <div className="mt-3 rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} className="mt-3" onClose={() => setError('')} />
 
       <div className="mt-4 space-y-3">
         {isLoading ? (
@@ -173,31 +157,24 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
       {canWrite ? (
         <form onSubmit={handleCreate} className="mt-4 space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
-            <input
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+            <FormInput
               placeholder="タスクタイトル"
               value={form.title}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
             />
-            <input
+            <FormInput
               type="date"
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               value={form.dueDate}
               onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
             />
           </div>
-          <textarea
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          <FormTextarea
             rows={3}
             placeholder="メモ・備考"
             value={form.description}
             onChange={(event) => setForm({ ...form, description: event.target.value })}
           />
-          {formError && (
-            <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">
-              {formError}
-            </div>
-          )}
+          <ErrorAlert message={formError} onClose={() => setFormError('')} />
           <div className="flex justify-end">
             <button
               type="submit"

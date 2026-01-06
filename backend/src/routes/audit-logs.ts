@@ -59,8 +59,24 @@ export async function auditLogRoutes(fastify: FastifyInstance) {
           prisma.auditLog.count({ where }),
         ])
 
+        const userIds = Array.from(
+          new Set(items.map((item) => item.userId).filter((id): id is string => Boolean(id)))
+        )
+        const users = userIds.length
+          ? await prisma.user.findMany({
+              where: { id: { in: userIds } },
+              select: { id: true, email: true },
+            })
+          : []
+        const userMap = new Map(users.map((user) => [user.id, user.email]))
+
+        const itemsWithUser = items.map((item) => ({
+          ...item,
+          userEmail: item.userId ? userMap.get(item.userId) ?? null : null,
+        }))
+
         return {
-          items,
+          items: itemsWithUser,
           pagination: {
             page,
             pageSize,

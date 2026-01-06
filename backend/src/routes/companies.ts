@@ -2,9 +2,10 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
+import { badRequest, notFound } from '../utils/errors'
 import { normalizeCompanyName } from '../utils/normalize'
 import { parsePagination } from '../utils/pagination'
-import { handlePrismaError, prisma } from '../utils/prisma'
+import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
 import {
   isNonEmptyString,
   isNullableString,
@@ -44,6 +45,11 @@ interface CompanyListQuery {
   pageSize?: string
 }
 
+interface CompanySearchQuery {
+  q?: string
+  limit?: string
+}
+
 interface ContactCreateBody {
   name: string
   role?: string
@@ -58,6 +64,11 @@ interface ContactUpdateBody {
   email?: string | null
   phone?: string | null
   memo?: string | null
+  sortOrder?: number | null
+}
+
+interface ContactReorderBody {
+  orderedIds: string[]
 }
 
 export async function companyRoutes(fastify: FastifyInstance) {
@@ -68,7 +79,8 @@ export async function companyRoutes(fastify: FastifyInstance) {
       const { q, category, status, tag, ownerId } = request.query
       const { page, pageSize, skip } = parsePagination(
         request.query.page,
-        request.query.pageSize
+        request.query.pageSize,
+        1000
       )
 
       const where: Prisma.CompanyWhereInput = {}
@@ -113,6 +125,43 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
+  fastify.get<{ Querystring: CompanySearchQuery }>(
+    '/companies/search',
+    { preHandler: requireAuth() },
+    async (request, reply) => {
+      const rawQuery = request.query.q?.trim() ?? ''
+      if (!rawQuery) {
+        return reply.code(400).send(badRequest('q is required'))
+      }
+
+      const limitValue = Number(request.query.limit)
+      const limit = Number.isFinite(limitValue)
+        ? Math.min(Math.max(Math.floor(limitValue), 1), 50)
+        : 20
+
+      const normalized = normalizeCompanyName(rawQuery)
+      const items = await prisma.company.findMany({
+        where: {
+          OR: [
+            { name: { contains: rawQuery, mode: 'insensitive' } },
+            { normalizedName: { contains: normalized } },
+          ],
+        },
+        orderBy: { name: 'asc' },
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          category: true,
+          tags: true,
+        },
+      })
+
+      return { items }
+    }
+  )
+
   fastify.post<{ Body: CompanyCreateBody }>(
     '/companies',
     { preHandler: requireWriteAccess() },
@@ -121,10 +170,10 @@ export async function companyRoutes(fastify: FastifyInstance) {
       const tags = parseStringArray(request.body.tags)
 
       if (!isNonEmptyString(name)) {
-        return reply.code(400).send({ error: 'Name is required' })
+        return reply.code(400).send(badRequest('Name is required'))
       }
       if (tags === null) {
-        return reply.code(400).send({ error: 'Tags must be string array' })
+        return reply.code(400).send(badRequest('Tags must be string array'))
       }
 
       try {
@@ -164,7 +213,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
       })
 
       if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       return { company }
@@ -179,22 +228,22 @@ export async function companyRoutes(fastify: FastifyInstance) {
       const tags = parseStringArray(request.body.tags)
 
       if (name !== undefined && !isNonEmptyString(name)) {
-        return reply.code(400).send({ error: 'Name is required' })
+        return reply.code(400).send(badRequest('Name is required'))
       }
       if (!isNullableString(category) || !isNullableString(profile)) {
-        return reply.code(400).send({ error: 'Invalid payload' })
+        return reply.code(400).send(badRequest('Invalid payload'))
       }
       if (status !== undefined && !isNonEmptyString(status)) {
-        return reply.code(400).send({ error: 'Status is required' })
+        return reply.code(400).send(badRequest('Status is required'))
       }
       if (!isNullableString(ownerId)) {
-        return reply.code(400).send({ error: 'Invalid payload' })
+        return reply.code(400).send(badRequest('Invalid payload'))
       }
       if (typeof ownerId === 'string' && ownerId.trim() === '') {
-        return reply.code(400).send({ error: 'Invalid payload' })
+        return reply.code(400).send(badRequest('Invalid payload'))
       }
       if (tags === null) {
-        return reply.code(400).send({ error: 'Tags must be string array' })
+        return reply.code(400).send(badRequest('Tags must be string array'))
       }
 
       const data: Prisma.CompanyUpdateInput = {}
@@ -215,21 +264,14 @@ export async function companyRoutes(fastify: FastifyInstance) {
         data.tags = tags
       }
       if (ownerId !== undefined) {
-        data.owner =
-          ownerId === null
-            ? { disconnect: true }
-            : {
-                connect: {
-                  id: ownerId,
-                },
-              }
+        data.owner = connectOrDisconnect(ownerId)
       }
 
       const existing = await prisma.company.findUnique({
         where: { id: request.params.id },
       })
       if (!existing) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       try {
@@ -261,7 +303,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         where: { id: request.params.id },
       })
       if (!existing) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       try {
@@ -291,12 +333,12 @@ export async function companyRoutes(fastify: FastifyInstance) {
         where: { id: request.params.id },
       })
       if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       const contacts = await prisma.contact.findMany({
         where: { companyId: request.params.id },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       })
 
       return { contacts }
@@ -310,15 +352,21 @@ export async function companyRoutes(fastify: FastifyInstance) {
       const { name, role, email, phone, memo } = request.body
 
       if (!isNonEmptyString(name)) {
-        return reply.code(400).send({ error: 'Name is required' })
+        return reply.code(400).send(badRequest('Name is required'))
       }
 
       const company = await prisma.company.findUnique({
         where: { id: request.params.id },
       })
       if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
+
+      const maxOrder = await prisma.contact.aggregate({
+        where: { companyId: request.params.id },
+        _max: { sortOrder: true },
+      })
+      const nextSortOrder = (maxOrder._max.sortOrder ?? 0) + 1
 
       const contact = await prisma.contact.create({
         data: {
@@ -328,6 +376,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
           email,
           phone,
           memo,
+          sortOrder: nextSortOrder,
         },
       })
 
@@ -342,13 +391,18 @@ export async function companyRoutes(fastify: FastifyInstance) {
       const { name, role, email, phone, memo } = request.body
 
       if (name !== undefined && !isNonEmptyString(name)) {
-        return reply.code(400).send({ error: 'Name is required' })
+        return reply.code(400).send(badRequest('Name is required'))
       }
       if (!isNullableString(role) || !isNullableString(email)) {
-        return reply.code(400).send({ error: 'Invalid payload' })
+        return reply.code(400).send(badRequest('Invalid payload'))
       }
       if (!isNullableString(phone) || !isNullableString(memo)) {
-        return reply.code(400).send({ error: 'Invalid payload' })
+        return reply.code(400).send(badRequest('Invalid payload'))
+      }
+      if (request.body.sortOrder !== undefined && request.body.sortOrder !== null) {
+        if (!Number.isInteger(request.body.sortOrder) || request.body.sortOrder < 0) {
+          return reply.code(400).send(badRequest('Invalid sortOrder'))
+        }
       }
 
       const data: Prisma.ContactUpdateInput = {}
@@ -366,6 +420,9 @@ export async function companyRoutes(fastify: FastifyInstance) {
       }
       if (memo !== undefined) {
         data.memo = memo
+      }
+      if (request.body.sortOrder !== undefined) {
+        data.sortOrder = request.body.sortOrder
       }
 
       try {
@@ -395,34 +452,69 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
+  fastify.patch<{ Params: { id: string }; Body: ContactReorderBody }>(
+    '/companies/:id/contacts/reorder',
+    { preHandler: requireWriteAccess() },
+    async (request, reply) => {
+      const { orderedIds } = request.body
+      if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+        return reply.code(400).send(badRequest('orderedIds is required'))
+      }
+      if (orderedIds.some((contactId) => !isNonEmptyString(contactId))) {
+        return reply.code(400).send(badRequest('Invalid orderedIds'))
+      }
+
+      const company = await prisma.company.findUnique({
+        where: { id: request.params.id },
+      })
+      if (!company) {
+        return reply.code(404).send(notFound('Company'))
+      }
+
+      const contacts = await prisma.contact.findMany({
+        where: { id: { in: orderedIds }, companyId: request.params.id },
+        select: { id: true },
+      })
+      if (contacts.length !== orderedIds.length) {
+        return reply.code(400).send(badRequest('Contacts mismatch'))
+      }
+
+      const updates = orderedIds.map((contactId, index) =>
+        prisma.contact.update({
+          where: { id: contactId },
+          data: { sortOrder: index + 1 },
+        })
+      )
+
+      await prisma.$transaction(updates)
+
+      return reply.code(204).send()
+    }
+  )
+
   // 企業の区分、ステータス、タグの候補を取得
   fastify.get('/companies/options', { preHandler: requireAuth() }, async () => {
-    const companies = await prisma.company.findMany({
-      select: {
-        category: true,
-        status: true,
-        tags: true,
-      },
-    })
-
-    const categories = new Set<string>()
-    const statuses = new Set<string>()
-    const tags = new Set<string>()
-
-    companies.forEach((company) => {
-      if (company.category) {
-        categories.add(company.category)
-      }
-      if (company.status) {
-        statuses.add(company.status)
-      }
-      company.tags.forEach((tag) => tags.add(tag))
-    })
+    const [categories, statuses, tagRows] = await prisma.$transaction([
+      prisma.company.findMany({
+        distinct: ['category'],
+        where: { category: { not: null } },
+        select: { category: true },
+      }),
+      prisma.company.findMany({
+        distinct: ['status'],
+        select: { status: true },
+      }),
+      prisma.$queryRaw<{ tag: string }[]>`
+        select distinct unnest("tags") as tag
+        from "companies"
+        where coalesce(array_length("tags", 1), 0) > 0
+      `,
+    ])
 
     return {
-      categories: Array.from(categories).sort(),
-      statuses: Array.from(statuses).sort(),
-      tags: Array.from(tags).sort(),
+      categories: categories.map((item) => item.category).filter(Boolean).sort(),
+      statuses: statuses.map((item) => item.status).filter(Boolean).sort(),
+      tags: tagRows.map((row) => row.tag).filter(Boolean).sort(),
     }
   })
 }

@@ -2,23 +2,19 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
-import dotenv from 'dotenv'
+import rateLimit from '@fastify/rate-limit'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
 import { randomUUID } from 'node:crypto'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { registerRoutes } from './routes'
+import { env } from './config/env'
+import { normalizeErrorPayload } from './utils/errors'
 import { JWTUser } from './types/auth'
-
-// .envファイルを読み込む（backend/.envを優先、なければルートの.env）
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-// まずbackend/.envを読み込む
-dotenv.config({ path: path.resolve(__dirname, '../.env') })
-// ルートの.envも読み込む（未設定の変数のみ）
-dotenv.config({ path: path.resolve(__dirname, '../../.env') })
+import { initJobQueue } from './services/jobQueue'
 
 const fastify = Fastify({
   logger: true,
+  trustProxy: env.trustProxy,
   genReqId: (req) => {
     const headerId = req.headers['x-request-id']
     if (typeof headerId === 'string' && headerId.trim() !== '') {
@@ -29,17 +25,48 @@ const fastify = Fastify({
 })
 
 fastify.register(cors, {
-  origin: true,
+  origin: env.corsOrigins.length
+    ? (origin, callback) => {
+        if (!origin) return callback(null, true)
+        if (env.corsOrigins.includes(origin)) return callback(null, true)
+        return callback(new Error('CORS origin not allowed'), false)
+      }
+    : env.nodeEnv === 'production'
+      ? false
+      : true,
   credentials: true,
 })
 
 fastify.register(cookie)
 
 fastify.register(jwt, {
-  secret: process.env.JWT_SECRET || 'change-this-secret-in-production',
+  secret: env.jwtSecret || 'change-this-secret-in-production',
   cookie: {
     cookieName: 'token',
     signed: false,
+  },
+})
+
+fastify.register(rateLimit, {
+  global: false,
+  max: env.rateLimitMax,
+  timeWindow: env.rateLimitWindowMs,
+})
+
+fastify.register(swagger, {
+  openapi: {
+    info: {
+      title: 'CWLLM API',
+      version: '1.0.0',
+    },
+  },
+})
+
+fastify.register(swaggerUi, {
+  routePrefix: '/api/docs',
+  uiConfig: {
+    docExpansion: 'list',
+    deepLinking: false,
   },
 })
 
@@ -77,10 +104,21 @@ fastify.setErrorHandler((error, request, reply) => {
     },
     'request failed'
   )
-  reply.code(statusCode).send({ error: 'Internal server error' })
+  reply
+    .code(statusCode)
+    .send(
+      normalizeErrorPayload({ error: error.message || 'Internal server error' }, statusCode)
+    )
+})
+
+fastify.addHook('preSerialization', async (request, reply, payload) => {
+  if (!payload || typeof payload !== 'object') return payload
+  return normalizeErrorPayload(payload, reply.statusCode)
 })
 
 registerRoutes(fastify)
+
+initJobQueue(fastify.log)
 
 fastify.get('/healthz', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() }
@@ -88,9 +126,8 @@ fastify.get('/healthz', async () => {
 
 const start = async () => {
   try {
-    const port = Number(process.env.BACKEND_PORT) || 3000
-    await fastify.listen({ port, host: '0.0.0.0' })
-    console.log(`Server listening on http://localhost:${port}`)
+    await fastify.listen({ port: env.port, host: '0.0.0.0' })
+    console.log(`Server listening on http://localhost:${env.port}`)
   } catch (err) {
     fastify.log.error(err)
     process.exit(1)

@@ -152,4 +152,67 @@ describe('Task endpoints', () => {
 
     expect(response.statusCode).toBe(403)
   })
+
+  it('filters my tasks by targetType', async () => {
+    const user = await createUser(`task-filter-${Date.now()}@example.com`, 'sales')
+    const token = fastify.jwt.sign({ userId: user.id, role: 'sales' })
+
+    const company = await prisma.company.create({
+      data: {
+        name: 'Filter Co',
+        normalizedName: 'filterco',
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    const project = await prisma.project.create({
+      data: {
+        companyId: company.id,
+        name: 'Filter Project',
+        status: 'active',
+      },
+    })
+
+    await fastify.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        targetType: 'company',
+        targetId: company.id,
+        title: 'Company task',
+        assigneeId: user.id,
+      },
+    })
+
+    await fastify.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        targetType: 'project',
+        targetId: project.id,
+        title: 'Project task',
+        assigneeId: user.id,
+      },
+    })
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/api/me/tasks?targetType=project',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = JSON.parse(response.body)
+    expect(body.items).toHaveLength(1)
+    expect(body.items[0].title).toBe('Project task')
+  })
 })

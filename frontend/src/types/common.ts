@@ -17,12 +17,6 @@ export interface BaseFilters {
   status?: string
 }
 
-// API レスポンス共通型
-export interface PaginatedResponse<T> {
-  items: T[]
-  pagination: PaginationState
-}
-
 // ユーザー型（担当者選択用）
 export interface UserOption {
   id: string

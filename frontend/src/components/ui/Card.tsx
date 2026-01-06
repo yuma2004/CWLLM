@@ -1,0 +1,27 @@
+type CardProps = {
+  title?: string
+  description?: string
+  children: React.ReactNode
+  className?: string
+}
+
+const Card = ({ title, description, children, className }: CardProps) => (
+  <div
+    className={[
+      'rounded-xl border border-slate-200 bg-white p-6 shadow-sm',
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ')}
+  >
+    {(title || description) && (
+      <div className="mb-4 space-y-1">
+        {title && <h3 className="text-lg font-semibold text-slate-900">{title}</h3>}
+        {description && <p className="text-sm text-slate-500">{description}</p>}
+      </div>
+    )}
+    {children}
+  </div>
+)
+
+export default Card

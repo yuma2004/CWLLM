@@ -155,6 +155,39 @@ describe('Company endpoints', () => {
     expect(ownerBody.items.length).toBe(1)
   })
 
+  it('searches companies with limit', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+
+    await prisma.company.create({
+      data: {
+        name: 'Acme Search One',
+        normalizedName: 'acmesearchone',
+        status: 'active',
+        tags: [],
+      },
+    })
+    await prisma.company.create({
+      data: {
+        name: 'Acme Search Two',
+        normalizedName: 'acmesearchtwo',
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    const searchResponse = await fastify.inject({
+      method: 'GET',
+      url: '/api/companies/search?q=Acme&limit=1',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(searchResponse.statusCode).toBe(200)
+    const searchBody = JSON.parse(searchResponse.body)
+    expect(searchBody.items.length).toBe(1)
+  })
+
   it('rejects duplicate normalizedName', async () => {
     const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
 

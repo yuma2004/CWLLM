@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import Button from './ui/Button'
+import ErrorAlert from './ui/ErrorAlert'
+import { apiRequest } from '../lib/apiClient'
+import { formatDate, formatDateInput } from '../utils/date'
 
 interface Summary {
   id: string
@@ -16,10 +20,33 @@ interface Candidate {
   dueDate?: string
 }
 
-const formatDate = (value: Date) => value.toISOString().slice(0, 10)
+interface JobRecord {
+  id: string
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'canceled'
+  result?: { draft?: SummaryDraft }
+  error?: { message?: string }
+}
 
-const formatPeriod = (start: string, end: string) =>
-  `${new Date(start).toLocaleDateString()} - ${new Date(end).toLocaleDateString()}`
+interface SummaryDraft {
+  id: string
+  content: string
+  periodStart: string
+  periodEnd: string
+  sourceLinks: string[]
+  model?: string | null
+  promptVersion?: string | null
+  sourceMessageCount?: number | null
+  tokenUsage?: unknown
+}
+
+const formatPeriod = (start: string, end: string) => `${formatDate(start)} - ${formatDate(end)}`
+
+const getStartDateFromDays = (days: number) => {
+  const start = new Date()
+  const diff = Math.max(days - 1, 0)
+  start.setDate(start.getDate() - diff)
+  return start
+}
 
 function CompanySummarySection({
   companyId,
@@ -29,72 +56,164 @@ function CompanySummarySection({
   canWrite: boolean
 }) {
   const today = useMemo(() => new Date(), [])
-  const defaultStart = useMemo(() => {
-    const start = new Date()
-    start.setDate(start.getDate() - 29)
-    return start
-  }, [])
-
-  const [periodStart, setPeriodStart] = useState(formatDate(defaultStart))
-  const [periodEnd, setPeriodEnd] = useState(formatDate(today))
+  const [periodStart, setPeriodStart] = useState(formatDateInput(getStartDateFromDays(30)))
+  const [periodEnd, setPeriodEnd] = useState(formatDateInput(today))
+  const [hasCustomPeriod, setHasCustomPeriod] = useState(false)
   const [draftContent, setDraftContent] = useState('')
   const [draftSourceLinks, setDraftSourceLinks] = useState<string[]>([])
   const [draftType, setDraftType] = useState<'manual' | 'auto'>('auto')
   const [draftLoading, setDraftLoading] = useState(false)
   const [draftError, setDraftError] = useState('')
+  const [draftId, setDraftId] = useState<string | null>(null)
+  const [draftMeta, setDraftMeta] = useState<{
+    model?: string | null
+    promptVersion?: string | null
+    sourceMessageCount?: number | null
+    tokenUsage?: unknown
+  } | null>(null)
+  const [draftJobId, setDraftJobId] = useState<string | null>(null)
+  const [isDraftPolling, setIsDraftPolling] = useState(false)
   const [summaries, setSummaries] = useState<Summary[]>([])
   const [summaryError, setSummaryError] = useState('')
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [candidateError, setCandidateError] = useState('')
   const [candidateLoading, setCandidateLoading] = useState(false)
+  const [isCreatingCandidates, setIsCreatingCandidates] = useState(false)
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const data = await apiRequest<{ settings: { summaryDefaultPeriodDays?: number } }>(
+        '/api/settings'
+      )
+      const days = data.settings?.summaryDefaultPeriodDays ?? 30
+      if (!hasCustomPeriod) {
+        setPeriodStart(formatDateInput(getStartDateFromDays(days)))
+        setPeriodEnd(formatDateInput(new Date()))
+      }
+    } catch {
+      if (!hasCustomPeriod) {
+        setPeriodStart(formatDateInput(getStartDateFromDays(30)))
+        setPeriodEnd(formatDateInput(new Date()))
+      }
+    }
+  }, [hasCustomPeriod])
 
   const fetchSummaries = useCallback(async () => {
     setSummaryLoading(true)
     setSummaryError('')
     try {
-      const response = await fetch(`/api/companies/${companyId}/summaries`, {
-        credentials: 'include',
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load summaries')
-      }
-      setSummaries(data.summaries)
+      const data = await apiRequest<{ summaries: Summary[] }>(
+        `/api/companies/${companyId}/summaries`
+      )
+      setSummaries(data.summaries ?? [])
     } catch (err) {
-      setSummaryError(err instanceof Error ? err.message : 'Network error')
+      setSummaryError(err instanceof Error ? err.message : '読み込みに失敗しました')
     } finally {
       setSummaryLoading(false)
     }
   }, [companyId])
 
   useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  useEffect(() => {
     fetchSummaries()
   }, [fetchSummaries])
+
+  useEffect(() => {
+    if (!draftJobId) return
+    let isMounted = true
+    let timer: number | undefined
+
+    const poll = async () => {
+      try {
+        const data = await apiRequest<{ job: JobRecord }>(`/api/jobs/${draftJobId}`)
+        if (!isMounted) return
+        const job = data.job
+        if (job.status === 'completed' && job.result?.draft) {
+          const draft = job.result.draft
+          setDraftContent(draft.content)
+          setDraftSourceLinks(draft.sourceLinks || [])
+          setDraftType('auto')
+          setDraftId(draft.id)
+          setDraftMeta({
+            model: draft.model ?? null,
+            promptVersion: draft.promptVersion ?? null,
+            sourceMessageCount: draft.sourceMessageCount ?? null,
+            tokenUsage: draft.tokenUsage,
+          })
+          setDraftLoading(false)
+          setIsDraftPolling(false)
+          setDraftJobId(null)
+          if (timer) window.clearInterval(timer)
+        }
+        if (job.status === 'failed' || job.status === 'canceled') {
+          setDraftError(job.error?.message || 'Draft generation failed')
+          setDraftLoading(false)
+          setIsDraftPolling(false)
+          setDraftJobId(null)
+          if (timer) window.clearInterval(timer)
+        }
+      } catch (err) {
+        if (!isMounted) return
+        setDraftError(err instanceof Error ? err.message : 'Failed to check draft status')
+        setDraftLoading(false)
+        setIsDraftPolling(false)
+        setDraftJobId(null)
+        if (timer) window.clearInterval(timer)
+      }
+    }
+
+    setDraftLoading(true)
+    setIsDraftPolling(true)
+    void poll()
+    timer = window.setInterval(poll, 2000)
+
+    return () => {
+      isMounted = false
+      if (timer) window.clearInterval(timer)
+      setIsDraftPolling(false)
+    }
+  }, [draftJobId])
 
   const handleGenerateDraft = async () => {
     setDraftLoading(true)
     setDraftError('')
     try {
-      const response = await fetch(`/api/companies/${companyId}/summaries/draft`, {
+      const data = await apiRequest<{
+        cached?: boolean
+        draft?: SummaryDraft
+        jobId?: string
+        status?: string
+      }>(`/api/companies/${companyId}/summaries/draft`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           periodStart: new Date(periodStart).toISOString(),
           periodEnd: new Date(periodEnd).toISOString(),
-        }),
+        },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate draft')
+      if (data.draft) {
+        setDraftContent(data.draft.content)
+        setDraftSourceLinks(data.draft.sourceLinks || [])
+        setDraftType('auto')
+        setDraftId(data.draft.id)
+        setDraftMeta({
+          model: data.draft.model ?? null,
+          promptVersion: data.draft.promptVersion ?? null,
+          sourceMessageCount: data.draft.sourceMessageCount ?? null,
+          tokenUsage: data.draft.tokenUsage,
+        })
+        setDraftLoading(false)
+      } else if (data.jobId) {
+        setDraftJobId(data.jobId)
+      } else {
+        setDraftLoading(false)
+        setDraftError('Draft generation failed')
       }
-      setDraftContent(data.draft.content)
-      setDraftSourceLinks(data.draft.sourceLinks || [])
-      setDraftType('auto')
     } catch (err) {
-      setDraftError(err instanceof Error ? err.message : 'Network error')
-    } finally {
+      setDraftError(err instanceof Error ? err.message : 'Draft generation failed')
       setDraftLoading(false)
     }
   }
@@ -102,55 +221,52 @@ function CompanySummarySection({
   const handleSaveSummary = async () => {
     setDraftError('')
     if (!draftContent.trim()) {
-      setDraftError('Draft content is empty')
+      setDraftError('Summary content is required')
       return
     }
     try {
-      const response = await fetch(`/api/companies/${companyId}/summaries`, {
+      await apiRequest(`/api/companies/${companyId}/summaries`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           content: draftContent.trim(),
           type: draftType,
           periodStart: new Date(periodStart).toISOString(),
           periodEnd: new Date(periodEnd).toISOString(),
           sourceLinks: draftSourceLinks,
-        }),
+          model: draftMeta?.model,
+          promptVersion: draftMeta?.promptVersion,
+          sourceMessageCount: draftMeta?.sourceMessageCount,
+          tokenUsage: draftMeta?.tokenUsage,
+          draftId,
+        },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save summary')
-      }
       setDraftContent('')
       setDraftSourceLinks([])
+      setDraftId(null)
+      setDraftMeta(null)
       setCandidates([])
       fetchSummaries()
     } catch (err) {
-      setDraftError(err instanceof Error ? err.message : 'Network error')
+      setDraftError(err instanceof Error ? err.message : 'Failed to save summary')
     }
   }
 
   const handleLoadCandidates = async () => {
     const latest = summaries[0]
     if (!latest) {
-      setCandidateError('No summary available')
+      setCandidateError('サマリーがまだありません')
       return
     }
     setCandidateLoading(true)
     setCandidateError('')
     try {
-      const response = await fetch(`/api/summaries/${latest.id}/tasks/candidates`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load candidates')
-      }
+      const data = await apiRequest<{ candidates: Candidate[] }>(
+        `/api/summaries/${latest.id}/tasks/candidates`,
+        { method: 'POST' }
+      )
       setCandidates(data.candidates || [])
     } catch (err) {
-      setCandidateError(err instanceof Error ? err.message : 'Network error')
+      setCandidateError(err instanceof Error ? err.message : '候補の取得に失敗しました')
     } finally {
       setCandidateLoading(false)
     }
@@ -159,23 +275,41 @@ function CompanySummarySection({
   const handleCreateTask = async (candidate: Candidate) => {
     setCandidateError('')
     try {
-      const response = await fetch('/api/tasks', {
+      await apiRequest('/api/tasks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           targetType: 'company',
           targetId: companyId,
           title: candidate.title,
           dueDate: candidate.dueDate,
-        }),
+        },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create task')
-      }
     } catch (err) {
-      setCandidateError(err instanceof Error ? err.message : 'Network error')
+      setCandidateError(err instanceof Error ? err.message : 'タスク作成に失敗しました')
+    }
+  }
+
+  const handleCreateAllTasks = async () => {
+    if (candidates.length === 0) return
+    setIsCreatingCandidates(true)
+    setCandidateError('')
+    try {
+      for (const candidate of candidates) {
+        await apiRequest('/api/tasks', {
+          method: 'POST',
+          body: {
+            targetType: 'company',
+            targetId: companyId,
+            title: candidate.title,
+            dueDate: candidate.dueDate,
+          },
+        })
+      }
+      setCandidates([])
+    } catch (err) {
+      setCandidateError(err instanceof Error ? err.message : 'タスク作成に失敗しました')
+    } finally {
+      setIsCreatingCandidates(false)
     }
   }
 
@@ -183,40 +317,46 @@ function CompanySummarySection({
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-900">AI Summary</h3>
+          <h3 className="text-lg font-semibold text-slate-900">AIサマリー</h3>
           <div className="flex flex-wrap gap-2 text-xs">
             <input
               type="date"
               className="rounded-xl border border-slate-200 px-3 py-1"
               value={periodStart}
-              onChange={(event) => setPeriodStart(event.target.value)}
+              onChange={(event) => {
+                setHasCustomPeriod(true)
+                setPeriodStart(event.target.value)
+              }}
             />
             <input
               type="date"
               className="rounded-xl border border-slate-200 px-3 py-1"
               value={periodEnd}
-              onChange={(event) => setPeriodEnd(event.target.value)}
+              onChange={(event) => {
+                setHasCustomPeriod(true)
+                setPeriodEnd(event.target.value)
+              }}
             />
-            <button
+            <Button
               type="button"
               onClick={handleGenerateDraft}
-              className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white"
-              disabled={draftLoading}
+              size="sm"
+              isLoading={draftLoading}
+              loadingLabel="生成中..."
             >
-              Generate
-            </button>
+              要約を生成
+            </Button>
+            {isDraftPolling && (
+              <span className="text-xs text-slate-500">Generating draft...</span>
+            )}
           </div>
         </div>
-        {draftError && (
-          <div className="mt-3 rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">
-            {draftError}
-          </div>
-        )}
+        {draftError && <ErrorAlert message={draftError} className="mt-3" />}
         <div className="mt-4 space-y-3">
           <textarea
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
             rows={6}
-            placeholder="Draft summary"
+            placeholder="要約内容を入力"
             value={draftContent}
             onChange={(event) => setDraftContent(event.target.value)}
             disabled={draftLoading}
@@ -229,24 +369,25 @@ function CompanySummarySection({
                 setDraftType(event.target.value === 'manual' ? 'manual' : 'auto')
               }
             >
-              <option value="auto">auto</option>
-              <option value="manual">manual</option>
+              <option value="auto">自動</option>
+              <option value="manual">手動</option>
             </select>
             {canWrite ? (
-              <button
+              <Button
                 type="button"
                 onClick={handleSaveSummary}
-                className="rounded-full bg-sky-600 px-4 py-1 text-xs font-semibold text-white"
+                size="sm"
+                variant="secondary"
               >
-                Save summary
-              </button>
+                サマリーを保存
+              </Button>
             ) : (
-              <span className="text-slate-400">Write access required to save</span>
+              <span className="text-slate-400">書き込み権限が必要です</span>
             )}
           </div>
           {draftSourceLinks.length > 0 && (
             <div className="text-xs text-slate-500">
-              Sources:{' '}
+              参照元:{' '}
               {draftSourceLinks.map((link) => (
                 <Link
                   key={link}
@@ -265,25 +406,36 @@ function CompanySummarySection({
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-slate-900">Summary history</h4>
-          <button
-            type="button"
-            onClick={handleLoadCandidates}
-            className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
-            disabled={candidateLoading}
-          >
-            Task candidates
-          </button>
-        </div>
-        {summaryError && (
-          <div className="mt-3 rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">
-            {summaryError}
+          <h4 className="text-sm font-semibold text-slate-900">サマリー履歴</h4>
+          <div className="flex items-center gap-2">
+            {candidates.length > 0 && canWrite && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={handleCreateAllTasks}
+                isLoading={isCreatingCandidates}
+                loadingLabel="作成中..."
+              >
+                候補を一括作成
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleLoadCandidates}
+              isLoading={candidateLoading}
+              loadingLabel="取得中..."
+            >
+              タスク候補を取得
+            </Button>
           </div>
-        )}
+        </div>
+        {summaryError && <ErrorAlert message={summaryError} className="mt-3" />}
         {summaryLoading ? (
-          <div className="mt-3 text-sm text-slate-500">Loading summaries...</div>
+          <div className="mt-3 text-sm text-slate-500">サマリーを読み込み中...</div>
         ) : summaries.length === 0 ? (
-          <div className="mt-3 text-sm text-slate-500">No summaries yet.</div>
+          <div className="mt-3 text-sm text-slate-500">サマリーはまだありません。</div>
         ) : (
           <div className="mt-4 space-y-3">
             {summaries.map((summary) => (
@@ -300,7 +452,7 @@ function CompanySummarySection({
                 </p>
                 {summary.sourceLinks.length > 0 && (
                   <div className="mt-2 text-xs text-slate-500">
-                    Sources:{' '}
+                    参照元:{' '}
                     {summary.sourceLinks.map((link) => (
                       <Link
                         key={link}
@@ -319,11 +471,7 @@ function CompanySummarySection({
           </div>
         )}
 
-        {candidateError && (
-          <div className="mt-3 rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">
-            {candidateError}
-          </div>
-        )}
+        {candidateError && <ErrorAlert message={candidateError} className="mt-3" />}
         {candidates.length > 0 && (
           <div className="mt-4 space-y-2 text-sm">
             {candidates.map((candidate, index) => (
@@ -334,17 +482,18 @@ function CompanySummarySection({
                 <div>
                   <div className="font-semibold text-slate-800">{candidate.title}</div>
                   {candidate.dueDate && (
-                    <div className="text-xs text-slate-500">Due: {candidate.dueDate}</div>
+                    <div className="text-xs text-slate-500">期日: {candidate.dueDate}</div>
                   )}
                 </div>
                 {canWrite && (
-                  <button
+                  <Button
                     type="button"
+                    size="sm"
+                    variant="secondary"
                     onClick={() => handleCreateTask(candidate)}
-                    className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white"
                   >
-                    Create task
-                  </button>
+                    タスク作成
+                  </Button>
                 )}
               </div>
             ))}

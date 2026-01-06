@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import CompanySearchSelect from '../components/CompanySearchSelect'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import ErrorAlert from '../components/ui/ErrorAlert'
+import StatusBadge from '../components/ui/StatusBadge'
+import { usePermissions } from '../hooks/usePermissions'
+import { WHOLESALE_STATUS_LABELS } from '../constants'
+import { apiRequest } from '../lib/apiClient'
+import { formatDate } from '../utils/date'
 
 interface Project {
   id: string
@@ -22,18 +29,11 @@ interface Wholesale {
   agreedDate?: string | null
 }
 
-interface Company {
-  id: string
-  name: string
-}
-
 function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
-  const { user } = useAuth()
-  const canWrite = user?.role !== 'readonly'
+  const { canWrite } = usePermissions()
   const [project, setProject] = useState<Project | null>(null)
   const [wholesales, setWholesales] = useState<Wholesale[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -57,32 +57,22 @@ function ProjectDetail() {
     agreedDate: '',
   })
   const [editError, setEditError] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Wholesale | null>(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!id) return
     setIsLoading(true)
     setError('')
     try {
-      const [projectResponse, wholesaleResponse, companiesResponse] = await Promise.all([
-        fetch(`/api/projects/${id}`, { credentials: 'include' }),
-        fetch(`/api/projects/${id}/wholesales`, { credentials: 'include' }),
-        fetch(`/api/companies?pageSize=1000`, { credentials: 'include' }),
+      const [projectData, wholesaleData] = await Promise.all([
+        apiRequest<{ project: Project }>(`/api/projects/${id}`),
+        apiRequest<{ wholesales: Wholesale[] }>(`/api/projects/${id}/wholesales`),
       ])
 
-      const projectData = await projectResponse.json()
-      const wholesaleData = await wholesaleResponse.json()
-      const companiesData = await companiesResponse.json()
-
-      if (!projectResponse.ok) {
-        throw new Error(projectData.error || 'Failed to load project')
-      }
-      if (!wholesaleResponse.ok) {
-        throw new Error(wholesaleData.error || 'Failed to load wholesales')
-      }
-
       setProject(projectData.project)
-      setWholesales(wholesaleData.wholesales)
-      setCompanies(companiesData.items || [])
+      setWholesales(wholesaleData.wholesales ?? [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error')
     } finally {
@@ -104,11 +94,9 @@ function ProjectDetail() {
     }
 
     try {
-      const response = await fetch('/api/wholesales', {
+      await apiRequest('/api/wholesales', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           projectId: id,
           companyId: form.companyId,
           status: form.status,
@@ -116,12 +104,8 @@ function ProjectDetail() {
           margin: form.margin ? parseFloat(form.margin) : undefined,
           conditions: form.conditions || undefined,
           agreedDate: form.agreedDate || undefined,
-        }),
+        },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create wholesale')
-      }
       setForm({ companyId: '', status: 'active', unitPrice: '', margin: '', conditions: '', agreedDate: '' })
       setShowCreateForm(false)
       fetchData()
@@ -148,22 +132,16 @@ function ProjectDetail() {
     setEditError('')
 
     try {
-      const response = await fetch(`/api/wholesales/${editingWholesale.id}`, {
+      await apiRequest(`/api/wholesales/${editingWholesale.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           status: editForm.status,
           unitPrice: editForm.unitPrice ? parseFloat(editForm.unitPrice) : null,
           margin: editForm.margin ? parseFloat(editForm.margin) : null,
           conditions: editForm.conditions || null,
           agreedDate: editForm.agreedDate || null,
-        }),
+        },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update wholesale')
-      }
       setEditingWholesale(null)
       fetchData()
     } catch (err) {
@@ -171,21 +149,24 @@ function ProjectDetail() {
     }
   }
 
-  const handleDeleteWholesale = async (wholesaleId: string) => {
-    if (!confirm('この卸情報を削除しますか？')) return
+  const handleDeleteWholesale = (wholesale: Wholesale) => {
+    setDeleteError('')
+    setDeleteTarget(wholesale)
+  }
+
+  const confirmDeleteWholesale = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError('')
 
     try {
-      const response = await fetch(`/api/wholesales/${wholesaleId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to delete wholesale')
-      }
+      await apiRequest(`/api/wholesales/${deleteTarget.id}`, { method: 'DELETE' })
+      setDeleteTarget(null)
       fetchData()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Network error')
+      setDeleteError(err instanceof Error ? err.message : 'ネットワークエラー')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -194,39 +175,16 @@ function ProjectDetail() {
     return `¥${value.toLocaleString()}`
   }
 
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString('ja-JP')
-  }
-
-  const getStatusBadge = (status: string) => {
-    const statusStyles: Record<string, string> = {
-      active: 'bg-emerald-50 text-emerald-700',
-      paused: 'bg-amber-50 text-amber-700',
-      closed: 'bg-slate-100 text-slate-600',
-    }
-    const statusLabels: Record<string, string> = {
-      active: '有効',
-      paused: '停止中',
-      closed: '終了',
-    }
-    return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[status] || 'bg-slate-100 text-slate-600'}`}>
-        {statusLabels[status] || status}
-      </span>
-    )
-  }
-
   if (isLoading) {
-    return <div className="text-slate-500">Loading...</div>
+    return <div className="text-slate-500">読み込み中...</div>
   }
 
   if (error) {
-    return <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>
+    return <ErrorAlert message={error} />
   }
 
   if (!project) {
-    return <div className="text-slate-500">Project not found.</div>
+    return <div className="text-slate-500">案件が見つかりません。</div>
   }
 
   return (
@@ -241,12 +199,18 @@ function ProjectDetail() {
         </Link>
       </div>
 
+      {deleteError && <ErrorAlert message={deleteError} />}
+
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-slate-900">案件情報</h3>
         <dl className="mt-4 grid gap-4 text-sm text-slate-600 sm:grid-cols-2">
           <div>
             <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">ステータス</dt>
-            <dd className="mt-1">{getStatusBadge(project.status)}</dd>
+            <dd className="mt-1">
+              <StatusBadge
+                status={WHOLESALE_STATUS_LABELS[project.status] || project.status}
+              />
+            </dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">企業</dt>
@@ -290,18 +254,11 @@ function ProjectDetail() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">卸先企業 *</label>
-                <select
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                <CompanySearchSelect
                   value={form.companyId}
-                  onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                >
-                  <option value="">選択してください</option>
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(companyId) => setForm({ ...form, companyId })}
+                  placeholder="企業名で検索"
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">ステータス</label>
@@ -400,7 +357,12 @@ function ProjectDetail() {
                         {wholesale.company?.name || wholesale.companyId}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">{getStatusBadge(wholesale.status)}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge
+                        status={WHOLESALE_STATUS_LABELS[wholesale.status] || wholesale.status}
+                        size="sm"
+                      />
+                    </td>
                     <td className="px-4 py-3 text-right font-mono">{formatCurrency(wholesale.unitPrice)}</td>
                     <td className="px-4 py-3 text-right font-mono">
                       {wholesale.margin != null ? `${wholesale.margin}%` : '-'}
@@ -418,7 +380,7 @@ function ProjectDetail() {
                           編集
                         </button>
                         <button
-                          onClick={() => handleDeleteWholesale(wholesale.id)}
+                          onClick={() => handleDeleteWholesale(wholesale)}
                           className="text-xs font-medium text-rose-600 hover:text-rose-700"
                         >
                           削除
@@ -531,6 +493,17 @@ function ProjectDetail() {
           卸先の追加・編集には書き込み権限が必要です
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title="卸情報の削除"
+        description={deleteTarget ? `${deleteTarget.company?.name || deleteTarget.companyId} の卸情報を削除します。` : undefined}
+        confirmLabel="削除する"
+        cancelLabel="キャンセル"
+        isLoading={isDeleting}
+        onConfirm={confirmDeleteWholesale}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

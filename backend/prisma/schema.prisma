@@ -9,11 +9,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  admin
+  sales
+  ops
+  readonly
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+  cancelled
+}
+
+enum ProjectStatus {
+  active
+  paused
+  closed
+}
+
+enum WholesaleStatus {
+  active
+  paused
+  closed
+}
+
+enum TargetType {
+  company
+  project
+  wholesale
+}
+
+enum SummaryType {
+  manual
+  auto
+}
+
+enum JobStatus {
+  queued
+  processing
+  completed
+  failed
+  canceled
+}
+
+enum JobType {
+  chatwork_rooms_sync
+  chatwork_messages_sync
+  summary_draft
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
-  role      String   @default("readonly")
+  role      UserRole @default(readonly)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -21,6 +72,7 @@ model User {
   projects   Project[]
   wholesales Wholesale[]
   tasks      Task[]
+  jobs       Job[]
 
   @@map("users")
 }
@@ -41,9 +93,10 @@ model Company {
   contacts  Contact[]
   projects  Project[]
   wholesales Wholesale[]
-  messages  Message[]
-  summaries Summary[]
-  roomLinks CompanyRoomLink[]
+  messages      Message[]
+  summaries     Summary[]
+  summaryDrafts SummaryDraft[]
+  roomLinks     CompanyRoomLink[]
 
   @@unique([normalizedName])
   @@map("companies")
@@ -57,11 +110,13 @@ model Contact {
   email     String?
   phone     String?
   memo      String?
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  @@index([companyId, sortOrder])
   @@map("contacts")
 }
 
@@ -73,7 +128,7 @@ model Project {
   unitPrice   Float?
   periodStart DateTime?
   periodEnd   DateTime?
-  status      String   @default("active")
+  status      ProjectStatus   @default(active)
   ownerId     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -83,6 +138,7 @@ model Project {
   wholesales Wholesale[]
   messages   Message[]
 
+  @@index([companyId])
   @@map("projects")
 }
 
@@ -93,7 +149,7 @@ model Wholesale {
   conditions String?
   unitPrice  Float?
   margin     Float?
-  status     String   @default("active")
+  status     WholesaleStatus   @default(active)
   agreedDate DateTime?
   ownerId    String?
   createdAt  DateTime @default(now())
@@ -104,6 +160,7 @@ model Wholesale {
   owner    User?   @relation(fields: [ownerId], references: [id])
   messages Message[]
 
+  @@index([companyId, projectId])
   @@map("wholesales")
 }
 
@@ -172,8 +229,12 @@ model Summary {
   periodStart DateTime
   periodEnd   DateTime
   content     String
-  type        String   @default("manual")
+  type        SummaryType   @default(manual)
   sourceLinks String[]
+  model       String?
+  promptVersion String?
+  sourceMessageCount Int?
+  tokenUsage  Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -184,19 +245,20 @@ model Summary {
 
 model Task {
   id          String   @id @default(cuid())
-  targetType  String
+  targetType  TargetType
   targetId    String
   assigneeId  String?
   title       String
   description String?
   dueDate     DateTime?
-  status      String   @default("todo")
+  status      TaskStatus   @default(todo)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   assignee User? @relation(fields: [assigneeId], references: [id])
 
   @@index([targetType, targetId])
+  @@index([dueDate, status])
   @@index([assigneeId])
   @@map("tasks")
 }
@@ -207,7 +269,7 @@ model AuditLog {
   entityId   String
   action     String
   userId     String?
-  changes    String
+  changes    Json
   createdAt  DateTime @default(now())
 
   @@map("audit_logs")
@@ -221,4 +283,46 @@ model AppSetting {
   updatedAt DateTime @updatedAt
 
   @@map("app_settings")
+}
+
+model SummaryDraft {
+  id                String   @id @default(cuid())
+  companyId         String
+  periodStart       DateTime
+  periodEnd         DateTime
+  content           String
+  sourceLinks       String[]
+  model             String?
+  promptVersion     String?
+  sourceMessageCount Int?
+  tokenUsage        Json?
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, periodStart, periodEnd])
+  @@index([companyId, periodStart, periodEnd])
+  @@map("summary_drafts")
+}
+
+model Job {
+  id         String    @id @default(cuid())
+  type       JobType
+  status     JobStatus @default(queued)
+  payload    Json
+  result     Json?
+  error      Json?
+  userId     String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([type, status])
+  @@index([createdAt])
+  @@map("jobs")
 }

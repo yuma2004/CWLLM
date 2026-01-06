@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import CompanySearchSelect from '../components/CompanySearchSelect'
+import Pagination from '../components/ui/Pagination'
+import FormSelect from '../components/ui/FormSelect'
+import { usePermissions } from '../hooks/usePermissions'
+import { usePagination } from '../hooks/usePagination'
+import { apiRequest } from '../lib/apiClient'
 
 interface Project {
   id: string
@@ -10,38 +15,35 @@ interface Project {
 }
 
 function Projects() {
-  const { user } = useAuth()
-  const canWrite = user?.role !== 'readonly'
+  const { canWrite } = usePermissions()
   const [projects, setProjects] = useState<Project[]>([])
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState('createdAt')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [form, setForm] = useState({ companyId: '', name: '' })
   const [formError, setFormError] = useState('')
+  const { pagination, setPagination, setPage, setPageSize, paginationQuery } = usePagination()
 
   const fetchProjects = useCallback(async () => {
     setIsLoading(true)
     setError('')
     try {
-      const params = new URLSearchParams()
-      params.set('page', '1')
-      params.set('pageSize', '50')
+      const params = new URLSearchParams(paginationQuery)
       if (query.trim()) params.set('q', query.trim())
-
-      const response = await fetch(`/api/projects?${params.toString()}`, {
-        credentials: 'include',
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || '案件の読み込みに失敗しました')
-      }
-      setProjects(data.items)
+      if (sort) params.set('sort', sort)
+      const data = await apiRequest<{
+        items: Project[]
+        pagination: { page: number; pageSize: number; total: number }
+      }>(`/api/projects?${params.toString()}`)
+      setProjects(data.items ?? [])
+      setPagination((prev) => ({ ...prev, ...data.pagination }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ネットワークエラー')
     } finally {
       setIsLoading(false)
     }
-  }, [query])
+  }, [paginationQuery, query, setPagination, sort])
 
   useEffect(() => {
     fetchProjects()
@@ -55,19 +57,13 @@ function Projects() {
       return
     }
     try {
-      const response = await fetch('/api/projects', {
+      await apiRequest('/api/projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           companyId: form.companyId.trim(),
           name: form.name.trim(),
-        }),
+        },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || '案件の作成に失敗しました')
-      }
       setForm({ companyId: '', name: '' })
       fetchProjects()
     } catch (err) {
@@ -90,6 +86,12 @@ function Projects() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
+          <FormSelect value={sort} onChange={(event) => setSort(event.target.value)}>
+            <option value="createdAt">Created</option>
+            <option value="updatedAt">Updated</option>
+            <option value="status">Status</option>
+            <option value="name">Name</option>
+          </FormSelect>
           <button
             type="button"
             onClick={fetchProjects}
@@ -132,6 +134,16 @@ function Projects() {
         )}
       </div>
 
+      {pagination.total > 0 && (
+        <Pagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
+
       {canWrite ? (
         <form
           onSubmit={handleCreate}
@@ -139,11 +151,10 @@ function Projects() {
         >
           <h3 className="text-lg font-semibold text-slate-900">案件を作成</h3>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <input
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="企業ID"
+            <CompanySearchSelect
               value={form.companyId}
-              onChange={(event) => setForm({ ...form, companyId: event.target.value })}
+              onChange={(companyId) => setForm({ ...form, companyId })}
+              placeholder="企業名で検索"
             />
             <input
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"

@@ -1,22 +1,33 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { usePermissions } from '../hooks/usePermissions'
+import ErrorAlert from '../components/ui/ErrorAlert'
+import FilterBadge from '../components/ui/FilterBadge'
+import FormInput from '../components/ui/FormInput'
+import FormSelect from '../components/ui/FormSelect'
 import StatusBadge from '../components/ui/StatusBadge'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
-import { Task, PaginationState, defaultPagination } from '../types'
+import { useFetch, useMutation } from '../hooks/useApi'
+import { useFilters } from '../hooks/useFilters'
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { usePagination } from '../hooks/usePagination'
+import { formatDate, formatDateInput } from '../utils/date'
+import { ApiListResponse, Task } from '../types'
 import {
   TASK_STATUS_OPTIONS,
   TASK_STATUS_LABELS,
   TARGET_TYPE_OPTIONS,
   TARGET_TYPE_LABELS,
 } from '../constants'
+import { apiRequest } from '../lib/apiClient'
 
 interface TaskFilters {
   status: string
   targetType: string
   dueFrom: string
   dueTo: string
+  assigneeId: string
 }
 
 const defaultFilters: TaskFilters = {
@@ -24,122 +35,357 @@ const defaultFilters: TaskFilters = {
   targetType: '',
   dueFrom: '',
   dueTo: '',
+  assigneeId: '',
 }
 
 function Tasks() {
-  const { user } = useAuth()
-  const canWrite = user?.role !== 'readonly'
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [pagination, setPagination] = useState<PaginationState>(defaultPagination)
-  const [filters, setFilters] = useState<TaskFilters>(defaultFilters)
-  const [isLoading, setIsLoading] = useState(false)
+  const { canWrite } = usePermissions()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [error, setError] = useState('')
   const searchInputRef = useRef<HTMLSelectElement>(null)
+  const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const initialScope = initialParams.get('scope') === 'all' ? 'all' : 'me'
+  const initialView = initialParams.get('view') === 'kanban' ? 'kanban' : 'list'
+  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
+  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
 
-  // Check if any filter is active
-  const hasActiveFilters = useMemo(() => {
-    return filters.status || filters.targetType || filters.dueFrom || filters.dueTo
-  }, [filters])
+  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters } =
+    useFilters(defaultFilters)
+  const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
+    usePagination(initialPageSize)
+  const [scope, setScope] = useState<'me' | 'all'>(initialScope)
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(initialView)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [bulkStatus, setBulkStatus] = useState('')
+  const [bulkAssigneeId, setBulkAssigneeId] = useState('')
+  const [bulkDueDate, setBulkDueDate] = useState('')
+  const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
+  const [isBulkWorking, setIsBulkWorking] = useState(false)
+  const [userOptions, setUserOptions] = useState<Array<{ id: string; email: string; role: string }>>([])
 
   const queryString = useMemo(() => {
+    const params = new URLSearchParams(paginationQuery)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.targetType) params.set('targetType', filters.targetType)
+    if (filters.dueFrom) params.set('dueFrom', filters.dueFrom)
+    if (filters.dueTo) params.set('dueTo', filters.dueTo)
+    if (filters.assigneeId) params.set('assigneeId', filters.assigneeId)
+    return params.toString()
+  }, [filters, paginationQuery])
+
+  const tasksUrl = useMemo(
+    () => (scope === 'all' ? `/api/tasks?${queryString}` : `/api/me/tasks?${queryString}`),
+    [queryString, scope]
+  )
+
+  const {
+    data: tasksData,
+    setData: setTasksData,
+    isLoading: isLoadingTasks,
+    refetch: refetchTasks,
+  } = useFetch<ApiListResponse<Task>>(tasksUrl, {
+    errorMessage: 'タスクの読み込みに失敗しました',
+    onStart: () => setError(''),
+    onSuccess: (data) => {
+      setPagination((prev) => ({ ...prev, ...data.pagination }))
+    },
+    onError: setError,
+  })
+
+  const { mutate: updateTaskStatus } = useMutation<Task, { status: string }>(
+    '/api/tasks',
+    'PATCH'
+  )
+
+  const { mutate: updateTask } = useMutation<
+    Task,
+    { status?: string; dueDate?: string | null; assigneeId?: string | null }
+  >('/api/tasks', 'PATCH')
+
+  const tasks = tasksData?.items ?? []
+
+  useEffect(() => {
+    setSelectedIds([])
+  }, [tasksData?.items])
+
+  const shortcuts = useMemo(
+    () => [
+      {
+        key: '/',
+        handler: () => searchInputRef.current?.focus(),
+        preventDefault: true,
+        ctrlKey: false,
+        metaKey: false,
+      },
+    ],
+    []
+  )
+
+  useKeyboardShortcut(shortcuts)
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const nextFilters = {
+      ...defaultFilters,
+      status: params.get('status') ?? '',
+      targetType: params.get('targetType') ?? '',
+      dueFrom: params.get('dueFrom') ?? '',
+      dueTo: params.get('dueTo') ?? '',
+      assigneeId: params.get('assigneeId') ?? '',
+    }
+    setFilters(nextFilters)
+    const nextScope = params.get('scope') === 'all' ? 'all' : 'me'
+    const nextView = params.get('view') === 'kanban' ? 'kanban' : 'list'
+    setScope(nextScope)
+    setViewMode(nextView)
+    const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
+    const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
+    setPagination((prev) => ({
+      ...prev,
+      page: nextPage,
+      pageSize: nextPageSize,
+    }))
+  }, [initialPage, initialPageSize, location.search, setFilters, setPagination])
+
+  useEffect(() => {
     const params = new URLSearchParams()
     if (filters.status) params.set('status', filters.status)
     if (filters.targetType) params.set('targetType', filters.targetType)
     if (filters.dueFrom) params.set('dueFrom', filters.dueFrom)
     if (filters.dueTo) params.set('dueTo', filters.dueTo)
+    if (filters.assigneeId) params.set('assigneeId', filters.assigneeId)
+    if (scope === 'all') params.set('scope', scope)
+    if (viewMode === 'kanban') params.set('view', viewMode)
     params.set('page', String(pagination.page))
     params.set('pageSize', String(pagination.pageSize))
-    return params.toString()
-  }, [filters, pagination.page, pagination.pageSize])
-
-  const fetchTasks = useCallback(async () => {
-    setIsLoading(true)
-    setError('')
-    try {
-      const response = await fetch(`/api/me/tasks?${queryString}`, {
-        credentials: 'include',
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'タスクの読み込みに失敗しました')
-      }
-      setTasks(data.items)
-      if (data.pagination) {
-        setPagination(data.pagination)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ネットワークエラー')
-    } finally {
-      setIsLoading(false)
+    const nextSearch = params.toString()
+    const currentSearch = location.search.replace(/^\?/, '')
+    if (nextSearch !== currentSearch) {
+      navigate({ pathname: '/tasks', search: nextSearch }, { replace: true })
     }
-  }, [queryString])
+  }, [
+    filters.assigneeId,
+    filters.dueFrom,
+    filters.dueTo,
+    filters.status,
+    filters.targetType,
+    location.search,
+    navigate,
+    pagination.page,
+    pagination.pageSize,
+    scope,
+    viewMode,
+  ])
 
   useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
-      ) {
-        return
-      }
-
-      if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault()
-        searchInputRef.current?.focus()
+    let isMounted = true
+    const loadUsers = async () => {
+      try {
+        const data = await apiRequest<{ users: Array<{ id: string; email: string; role: string }> }>(
+          '/api/users/options'
+        )
+        if (isMounted) {
+          setUserOptions(data.users ?? [])
+        }
+      } catch {
+        if (isMounted) {
+          setUserOptions([])
+        }
       }
     }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    loadUsers()
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
-    setPagination((prev) => ({ ...prev, page: 1 }))
+    setPage(1)
   }
 
   const handleStatusChange = async (taskId: string, nextStatus: string) => {
     if (!canWrite) return
     setError('')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: nextStatus }),
+    const previousItems = tasksData?.items ?? []
+    if (previousItems.length > 0) {
+      setTasksData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          items: prev.items.map((task) =>
+            task.id === taskId ? { ...task, status: nextStatus } : task
+          ),
+        }
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'タスクの更新に失敗しました')
-      }
-      fetchTasks()
+    }
+    try {
+      await updateTaskStatus(
+        { status: nextStatus },
+        { url: `/api/tasks/${taskId}`, errorMessage: 'Failed to update task status' }
+      )
+      void refetchTasks()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ネットワークエラー')
+      if (previousItems.length > 0) {
+        setTasksData((prev) => (prev ? { ...prev, items: previousItems } : prev))
+      }
+      setError(err instanceof Error ? err.message : 'Failed to update task')
     }
   }
 
+  const handleAssigneeChange = async (taskId: string, value: string) => {
+    if (!canWrite) return
+    setError('')
+    const assigneeId = value === '__unassigned__' ? null : value
+    const nextAssignee = userOptions.find((option) => option.id === assigneeId)
+    const previousItems = tasksData?.items ?? []
+    if (previousItems.length > 0) {
+      setTasksData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          items: prev.items.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  assigneeId: assigneeId ?? null,
+                  assignee: assigneeId
+                    ? { id: assigneeId, email: nextAssignee?.email ?? assigneeId }
+                    : null,
+                }
+              : task
+          ),
+        }
+      })
+    }
+    try {
+      await updateTask(
+        { assigneeId },
+        { url: `/api/tasks/${taskId}`, errorMessage: 'Failed to update assignee' }
+      )
+      void refetchTasks()
+    } catch (err) {
+      if (previousItems.length > 0) {
+        setTasksData((prev) => (prev ? { ...prev, items: previousItems } : prev))
+      }
+      setError(err instanceof Error ? err.message : 'Failed to update task')
+    }
+  }
+
+  const handleDueDateChange = async (taskId: string, value: string) => {
+    if (!canWrite) return
+    setError('')
+    const dueDate = value ? value : null
+    const previousItems = tasksData?.items ?? []
+    if (previousItems.length > 0) {
+      setTasksData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          items: prev.items.map((task) =>
+            task.id === taskId ? { ...task, dueDate } : task
+          ),
+        }
+      })
+    }
+    try {
+      await updateTask(
+        { dueDate },
+        { url: `/api/tasks/${taskId}`, errorMessage: 'Failed to update due date' }
+      )
+      void refetchTasks()
+    } catch (err) {
+      if (previousItems.length > 0) {
+        setTasksData((prev) => (prev ? { ...prev, items: previousItems } : prev))
+      }
+      setError(err instanceof Error ? err.message : 'Failed to update task')
+    }
+  }
+
+  const handleBulkUpdate = async () => {
+    if (!canWrite) return
+    if (selectedIds.length === 0) {
+      setError('Select tasks to update')
+      return
+    }
+    if (!bulkStatus && !bulkAssigneeId && !bulkDueDate && !clearBulkDueDate) {
+      setError('Choose fields to update')
+      return
+    }
+    setIsBulkWorking(true)
+    setError('')
+    try {
+      const payload: Record<string, unknown> = {
+        taskIds: selectedIds,
+      }
+      if (bulkStatus) payload.status = bulkStatus
+      if (bulkAssigneeId) {
+        payload.assigneeId = bulkAssigneeId === '__unassigned__' ? null : bulkAssigneeId
+      }
+      if (bulkDueDate) {
+        payload.dueDate = bulkDueDate
+      }
+      if (clearBulkDueDate) {
+        payload.dueDate = null
+      }
+      await apiRequest('/api/tasks/bulk', {
+        method: 'PATCH',
+        body: payload,
+      })
+      setSelectedIds([])
+      setBulkStatus('')
+      setBulkAssigneeId('')
+      setBulkDueDate('')
+      setClearBulkDueDate(false)
+      void refetchTasks()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bulk update failed')
+    } finally {
+      setIsBulkWorking(false)
+    }
+  }
+
+  const allSelected = tasks.length > 0 && selectedIds.length === tasks.length
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(tasks.map((task) => task.id))
+    }
+  }
+
+  const toggleSelected = (taskId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    )
+  }
+
+  const handleScopeChange = (nextScope: 'me' | 'all') => {
+    setScope(nextScope)
+    if (nextScope === 'me') {
+      setFilters({ ...filters, assigneeId: '' })
+    }
+    setPage(1)
+  }
+
   const handlePageChange = (nextPage: number) => {
-    setPagination((prev) => ({ ...prev, page: nextPage }))
+    setPage(nextPage)
   }
 
   const handlePageSizeChange = (newPageSize: number) => {
-    setPagination((prev) => ({ ...prev, pageSize: newPageSize, page: 1 }))
+    setPageSize(newPageSize)
   }
 
-  const clearFilter = (key: keyof TaskFilters) => {
-    setFilters((prev) => ({ ...prev, [key]: '' }))
-    setPagination((prev) => ({ ...prev, page: 1 }))
+  const handleClearFilter = (key: keyof TaskFilters) => {
+    clearFilter(key)
+    setPage(1)
   }
 
-  const clearAllFilters = () => {
-    setFilters(defaultFilters)
-    setPagination((prev) => ({ ...prev, page: 1 }))
+  const handleClearAllFilters = () => {
+    clearAllFilters()
+    setPage(1)
   }
 
   const targetLink = (task: Task) => {
@@ -148,10 +394,30 @@ function Tasks() {
     return `/wholesales/${task.targetId}`
   }
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString('ja-JP')
-  }
+  const kanbanColumns = useMemo(
+    () => [
+      { key: 'todo', label: TASK_STATUS_LABELS.todo },
+      { key: 'in_progress', label: TASK_STATUS_LABELS.in_progress },
+      { key: 'done', label: TASK_STATUS_LABELS.done },
+      { key: 'cancelled', label: TASK_STATUS_LABELS.cancelled },
+    ],
+    []
+  )
+
+  const tasksByStatus = useMemo(() => {
+    const groups: Record<string, Task[]> = {
+      todo: [],
+      in_progress: [],
+      done: [],
+      cancelled: [],
+    }
+    tasks.forEach((task) => {
+      if (groups[task.status]) {
+        groups[task.status].push(task)
+      }
+    })
+    return groups
+  }, [tasks])
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -168,15 +434,49 @@ function Tasks() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold text-slate-600 shadow-sm">
+          <button
+            type="button"
+            onClick={() => handleScopeChange('me')}
+            className={`rounded-full px-3 py-1 ${scope === 'me' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
+          >
+            My Tasks
+          </button>
+          <button
+            type="button"
+            onClick={() => handleScopeChange('all')}
+            className={`rounded-full px-3 py-1 ${scope === 'all' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
+          >
+            All Tasks
+          </button>
+        </div>
+        <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold text-slate-600 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`rounded-full px-3 py-1 ${viewMode === 'list' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
+          >
+            List
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('kanban')}
+            className={`rounded-full px-3 py-1 ${viewMode === 'kanban' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
+          >
+            Kanban
+          </button>
+        </div>
+      </div>
+
       {/* Search & Filter */}
       <form
         onSubmit={handleSearchSubmit}
         className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
       >
-        <div className="grid gap-3 md:grid-cols-6">
-          <select
+        <div className="grid gap-3 md:grid-cols-7">
+          <FormSelect
             ref={searchInputRef}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
           >
@@ -186,9 +486,8 @@ function Tasks() {
                 {TASK_STATUS_LABELS[status]}
               </option>
             ))}
-          </select>
-          <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          </FormSelect>
+          <FormSelect
             value={filters.targetType}
             onChange={(e) => setFilters({ ...filters, targetType: e.target.value })}
           >
@@ -198,21 +497,32 @@ function Tasks() {
                 {TARGET_TYPE_LABELS[type]}
               </option>
             ))}
-          </select>
-          <input
+          </FormSelect>
+          <FormInput
             type="date"
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             value={filters.dueFrom}
             onChange={(e) => setFilters({ ...filters, dueFrom: e.target.value })}
             placeholder="期日（開始）"
           />
-          <input
+          <FormInput
             type="date"
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             value={filters.dueTo}
             onChange={(e) => setFilters({ ...filters, dueTo: e.target.value })}
             placeholder="期日（終了）"
           />
+          {scope === 'all' && (
+            <FormSelect
+              value={filters.assigneeId}
+              onChange={(e) => setFilters({ ...filters, assigneeId: e.target.value })}
+            >
+              <option value="">Assignee</option>
+              {userOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.email}
+                </option>
+              ))}
+            </FormSelect>
+          )}
           <button
             type="submit"
             className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
@@ -226,56 +536,38 @@ function Tasks() {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="text-xs text-slate-500">絞り込み中:</span>
             {filters.status && (
-              <button
-                type="button"
-                onClick={() => clearFilter('status')}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 transition-colors hover:bg-slate-200"
-              >
-                ステータス: {TASK_STATUS_LABELS[filters.status] || filters.status}
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <FilterBadge
+                label={`ステータス: ${TASK_STATUS_LABELS[filters.status] || filters.status}`}
+                onRemove={() => handleClearFilter('status')}
+              />
             )}
             {filters.targetType && (
-              <button
-                type="button"
-                onClick={() => clearFilter('targetType')}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 transition-colors hover:bg-slate-200"
-              >
-                対象: {TARGET_TYPE_LABELS[filters.targetType] || filters.targetType}
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <FilterBadge
+                label={`対象: ${TARGET_TYPE_LABELS[filters.targetType] || filters.targetType}`}
+                onRemove={() => handleClearFilter('targetType')}
+              />
             )}
             {filters.dueFrom && (
-              <button
-                type="button"
-                onClick={() => clearFilter('dueFrom')}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 transition-colors hover:bg-slate-200"
-              >
-                期日開始: {filters.dueFrom}
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <FilterBadge
+                label={`期日開始: ${filters.dueFrom}`}
+                onRemove={() => handleClearFilter('dueFrom')}
+              />
             )}
             {filters.dueTo && (
-              <button
-                type="button"
-                onClick={() => clearFilter('dueTo')}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 transition-colors hover:bg-slate-200"
-              >
-                期日終了: {filters.dueTo}
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <FilterBadge
+                label={`期日終了: ${filters.dueTo}`}
+                onRemove={() => handleClearFilter('dueTo')}
+              />
+            )}
+            {filters.assigneeId && (
+              <FilterBadge
+                label={`Assignee: ${userOptions.find((option) => option.id === filters.assigneeId)?.email || filters.assigneeId}`}
+                onRemove={() => handleClearFilter('assigneeId')}
+              />
             )}
             <button
               type="button"
-              onClick={clearAllFilters}
+              onClick={handleClearAllFilters}
               className="text-xs text-rose-600 hover:text-rose-700"
             >
               すべてクリア
@@ -283,6 +575,71 @@ function Tasks() {
           </div>
         )}
       </form>
+
+      {canWrite && tasks.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="rounded border-slate-300"
+                disabled={isBulkWorking}
+              />
+              Select all
+            </label>
+            <span>{selectedIds.length} selected</span>
+            <FormSelect
+              value={bulkStatus}
+              onChange={(e) => setBulkStatus(e.target.value)}
+            >
+              <option value="">Status</option>
+              {TASK_STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {TASK_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </FormSelect>
+            <FormInput
+              type="date"
+              value={bulkDueDate}
+              onChange={(e) => setBulkDueDate(e.target.value)}
+              placeholder="Due date"
+              disabled={clearBulkDueDate}
+            />
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={clearBulkDueDate}
+                onChange={(e) => setClearBulkDueDate(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              Clear due date
+            </label>
+            <FormSelect
+              value={bulkAssigneeId}
+              onChange={(e) => setBulkAssigneeId(e.target.value)}
+            >
+              <option value="">Assignee</option>
+              <option value="__unassigned__">Unassigned</option>
+              {userOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.email}
+                </option>
+              ))}
+            </FormSelect>
+            <button
+              type="button"
+              onClick={handleBulkUpdate}
+              disabled={isBulkWorking || selectedIds.length === 0}
+              className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white disabled:bg-slate-300"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Readonly Notice */}
       {!canWrite && (
@@ -292,34 +649,37 @@ function Tasks() {
       )}
 
       {/* Error */}
-      {error && (
-        <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-          <button onClick={() => setError('')} className="ml-2 text-rose-500 hover:text-rose-700">
-            ×
-          </button>
-        </div>
-      )}
+      <ErrorAlert message={error} onClose={() => setError('')} />
 
-      {/* Table */}
-      {isLoading ? (
-        <SkeletonTable rows={5} columns={5} />
-      ) : (
+            {/* Table */}
+      {isLoadingTasks ? (
+        <SkeletonTable rows={5} columns={6} />
+      ) : viewMode === 'list' ? (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-slate-50/80 text-left text-xs uppercase tracking-wider text-slate-500">
               <tr>
-                <th className="px-5 py-3">タイトル</th>
-                <th className="px-5 py-3">ステータス</th>
-                <th className="px-5 py-3">対象</th>
-                <th className="px-5 py-3">期日</th>
-                <th className="px-5 py-3">操作</th>
+                <th className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="rounded border-slate-300"
+                    disabled={isBulkWorking}
+                  />
+                </th>
+                <th className="px-4 py-3">Title</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Target</th>
+                <th className="px-4 py-3">Due</th>
+                <th className="px-4 py-3">Assignee</th>
+                <th className="px-4 py-3">Link</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {tasks.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center">
+                  <td colSpan={7} className="px-5 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <svg
                         className="h-12 w-12 text-slate-300"
@@ -334,14 +694,23 @@ function Tasks() {
                           d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
                         />
                       </svg>
-                      <p className="text-slate-500">割り当てられたタスクはありません</p>
+                      <p className="text-slate-500">No tasks found</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 tasks.map((task) => (
                   <tr key={task.id} className="group transition-colors hover:bg-slate-50/80">
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(task.id)}
+                        onChange={() => toggleSelected(task.id)}
+                        className="rounded border-slate-300"
+                        disabled={isBulkWorking}
+                      />
+                    </td>
+                    <td className="px-4 py-4">
                       <div>
                         <div className="font-semibold text-slate-900">{task.title}</div>
                         {task.description && (
@@ -351,7 +720,7 @@ function Tasks() {
                         )}
                       </div>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-4">
                       {canWrite ? (
                         <select
                           className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs focus:border-slate-400 focus:outline-none"
@@ -371,23 +740,57 @@ function Tasks() {
                         />
                       )}
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-4">
                       <Link
                         to={targetLink(task)}
-                        className="inline-flex items-center gap-1 text-slate-600 hover:text-sky-600"
+                        className="inline-flex flex-col items-start gap-1 text-slate-600 hover:text-sky-600"
                       >
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">
                           {TARGET_TYPE_LABELS[task.targetType] || task.targetType}
                         </span>
+                        <span className="text-xs text-slate-500">
+                          {task.target?.name || task.targetId}
+                        </span>
                       </Link>
                     </td>
-                    <td className="px-5 py-4 text-slate-600">{formatDate(task.dueDate)}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-4 text-slate-600">
+                      {canWrite ? (
+                        <input
+                          type="date"
+                          className="rounded border border-slate-200 px-2 py-1 text-xs"
+                          value={task.dueDate ? formatDateInput(new Date(task.dueDate)) : ''}
+                          onChange={(e) => handleDueDateChange(task.id, e.target.value)}
+                        />
+                      ) : (
+                        formatDate(task.dueDate)
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      {canWrite ? (
+                        <select
+                          className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs focus:border-slate-400 focus:outline-none"
+                          value={task.assigneeId ?? '__unassigned__'}
+                          onChange={(e) => handleAssigneeChange(task.id, e.target.value)}
+                        >
+                          <option value="__unassigned__">Unassigned</option>
+                          {userOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.email}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-xs text-slate-600">
+                          {task.assignee?.email || '-'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
                       <Link
                         to={targetLink(task)}
                         className="text-xs font-semibold text-slate-600 hover:text-slate-900"
                       >
-                        詳細へ
+                        View
                       </Link>
                     </td>
                   </tr>
@@ -395,6 +798,81 @@ function Tasks() {
               )}
             </tbody>
           </table>
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-4">
+          {kanbanColumns.map((column) => (
+            <div
+              key={column.key}
+              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>{column.label}</span>
+                <span>{tasksByStatus[column.key]?.length ?? 0}</span>
+              </div>
+              {tasksByStatus[column.key]?.length ? (
+                <div className="mt-3 space-y-3">
+                  {tasksByStatus[column.key].map((task) => (
+                    <div key={task.id} className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-sm font-semibold text-slate-900">{task.title}</div>
+                          {task.description && (
+                            <div className="mt-1 text-xs text-slate-500 line-clamp-2">
+                              {task.description}
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(task.id)}
+                          onChange={() => toggleSelected(task.id)}
+                          className="rounded border-slate-300"
+                          disabled={isBulkWorking}
+                        />
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">Due: {formatDate(task.dueDate)}</div>
+                      <Link
+                        to={targetLink(task)}
+                        className="mt-2 inline-flex text-xs font-semibold text-slate-600 hover:text-slate-900"
+                      >
+                        {task.target?.name || task.targetId}
+                      </Link>
+                      {canWrite && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <select
+                            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs"
+                            value={task.status}
+                            onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                          >
+                            {TASK_STATUS_OPTIONS.map((status) => (
+                              <option key={status} value={status}>
+                                {TASK_STATUS_LABELS[status]}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs"
+                            value={task.assigneeId ?? '__unassigned__'}
+                            onChange={(e) => handleAssigneeChange(task.id, e.target.value)}
+                          >
+                            <option value="__unassigned__">Unassigned</option>
+                            {userOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.email}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-4 text-xs text-slate-400">No tasks</div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

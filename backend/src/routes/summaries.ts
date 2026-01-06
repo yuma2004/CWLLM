@@ -1,10 +1,9 @@
 import { FastifyInstance } from 'fastify'
+import { JobType, SummaryType } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
-import { createLLMClient } from '../services/llm'
+import { enqueueJob } from '../services/jobQueue'
 import { prisma } from '../utils/prisma'
 import { isNonEmptyString, parseDate, parseStringArray } from '../utils/validation'
-
-const MAX_MESSAGES = 200
 
 interface DraftBody {
   periodStart: string
@@ -13,16 +12,21 @@ interface DraftBody {
 
 interface SummaryCreateBody {
   content: string
-  type?: string
+  type?: SummaryType
   periodStart: string
   periodEnd: string
   sourceLinks?: string[]
+  model?: string
+  promptVersion?: string
+  sourceMessageCount?: number
+  tokenUsage?: unknown
+  draftId?: string
 }
 
 const normalizeSummaryType = (value?: string) => {
   if (value === undefined) return undefined
-  if (value !== 'manual' && value !== 'auto') return null
-  return value
+  if (!Object.values(SummaryType).includes(value as SummaryType)) return null
+  return value as SummaryType
 }
 
 const extractCandidates = (content: string) => {
@@ -72,36 +76,43 @@ export async function summaryRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'Company not found' })
       }
 
-      const messages = await prisma.message.findMany({
+      const cached = await prisma.summaryDraft.findFirst({
         where: {
           companyId: request.params.id,
-          sentAt: {
-            gte: periodStart,
-            lte: periodEnd,
-          },
+          periodStart,
+          periodEnd,
+          expiresAt: { gt: new Date() },
         },
-        orderBy: { sentAt: 'desc' },
-        take: MAX_MESSAGES,
       })
+      if (cached) {
+        return {
+          cached: true,
+          draft: {
+            id: cached.id,
+            content: cached.content,
+            periodStart: cached.periodStart.toISOString(),
+            periodEnd: cached.periodEnd.toISOString(),
+            sourceLinks: cached.sourceLinks,
+            model: cached.model,
+            promptVersion: cached.promptVersion,
+            sourceMessageCount: cached.sourceMessageCount,
+            tokenUsage: cached.tokenUsage,
+          },
+        }
+      }
 
-      const client = createLLMClient()
-      const draft = await client.summarize(
-        messages.map((message) => ({
-          id: message.messageId,
-          sender: message.sender,
-          body: message.body,
-          sentAt: message.sentAt.toISOString(),
-        }))
-      )
-
-      return {
-        draft: {
-          content: draft.content,
+      const userId = (request.user as { userId?: string } | undefined)?.userId
+      const job = await enqueueJob(
+        JobType.summary_draft,
+        {
+          companyId: request.params.id,
           periodStart: periodStart.toISOString(),
           periodEnd: periodEnd.toISOString(),
-          sourceLinks: draft.sourceLinks,
         },
-      }
+        userId
+      )
+
+      return reply.code(202).send({ jobId: job.id, status: job.status })
     }
   )
 
@@ -114,6 +125,10 @@ export async function summaryRoutes(fastify: FastifyInstance) {
       const periodEnd = parseDate(request.body.periodEnd)
       const type = normalizeSummaryType(request.body.type)
       const sourceLinks = parseStringArray(request.body.sourceLinks)
+      const sourceMessageCount =
+        request.body.sourceMessageCount !== undefined
+          ? Number(request.body.sourceMessageCount)
+          : undefined
 
       if (!isNonEmptyString(content)) {
         return reply.code(400).send({ error: 'content is required' })
@@ -130,10 +145,32 @@ export async function summaryRoutes(fastify: FastifyInstance) {
       if (sourceLinks === null) {
         return reply.code(400).send({ error: 'sourceLinks must be string array' })
       }
+      if (sourceMessageCount !== undefined && !Number.isFinite(sourceMessageCount)) {
+        return reply.code(400).send({ error: 'Invalid sourceMessageCount' })
+      }
 
       const company = await prisma.company.findUnique({ where: { id: request.params.id } })
       if (!company) {
         return reply.code(404).send({ error: 'Company not found' })
+      }
+
+      let resolvedLinks = sourceLinks ?? []
+      let model = request.body.model ?? null
+      let promptVersion = request.body.promptVersion ?? null
+      let resolvedCount = sourceMessageCount ?? null
+      let tokenUsage = request.body.tokenUsage ?? null
+
+      if (request.body.draftId) {
+        const draft = await prisma.summaryDraft.findUnique({
+          where: { id: request.body.draftId },
+        })
+        if (draft && draft.companyId === request.params.id) {
+          resolvedLinks = resolvedLinks.length > 0 ? resolvedLinks : draft.sourceLinks
+          model = model ?? draft.model
+          promptVersion = promptVersion ?? draft.promptVersion
+          resolvedCount = resolvedCount ?? draft.sourceMessageCount
+          tokenUsage = tokenUsage ?? draft.tokenUsage
+        }
       }
 
       const summary = await prisma.summary.create({
@@ -143,7 +180,11 @@ export async function summaryRoutes(fastify: FastifyInstance) {
           periodStart,
           periodEnd,
           type: type ?? 'manual',
-          sourceLinks: sourceLinks ?? [],
+          sourceLinks: resolvedLinks,
+          model,
+          promptVersion,
+          sourceMessageCount: resolvedCount,
+          tokenUsage,
         },
       })
 

@@ -1,35 +1,24 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { Prisma } from '@prisma/client'
+import { Prisma, type Task as PrismaTask, TaskStatus, TargetType } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
+import { badRequest, notFound } from '../utils/errors'
 import { parsePagination } from '../utils/pagination'
-import { handlePrismaError, prisma } from '../utils/prisma'
-import { isNonEmptyString, parseDate } from '../utils/validation'
+import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
+import { createEnumNormalizer, isNonEmptyString, parseDate } from '../utils/validation'
 import { JWTUser } from '../types/auth'
 
-const TASK_STATUSES = new Set(['todo', 'in_progress', 'done', 'cancelled'])
-const TARGET_TYPES = new Set(['company', 'project', 'wholesale'])
-
-const normalizeStatus = (value?: string) => {
-  if (value === undefined) return undefined
-  if (!TASK_STATUSES.has(value)) return null
-  return value
-}
-
-const normalizeTargetType = (value?: string) => {
-  if (value === undefined) return undefined
-  if (!TARGET_TYPES.has(value)) return null
-  return value
-}
+const normalizeStatus = createEnumNormalizer(new Set(Object.values(TaskStatus)))
+const normalizeTargetType = createEnumNormalizer(new Set(Object.values(TargetType)))
 
 interface TaskCreateBody {
-  targetType: string
+  targetType: TargetType
   targetId: string
   title: string
   description?: string
   dueDate?: string
   assigneeId?: string
-  status?: string
+  status?: TaskStatus
 }
 
 interface TaskUpdateBody {
@@ -37,7 +26,14 @@ interface TaskUpdateBody {
   description?: string | null
   dueDate?: string | null
   assigneeId?: string | null
-  status?: string
+  status?: TaskStatus
+}
+
+interface TaskBulkUpdateBody {
+  taskIds: string[]
+  dueDate?: string | null
+  assigneeId?: string | null
+  status?: TaskStatus
 }
 
 interface TaskListQuery {
@@ -51,7 +47,7 @@ interface TaskListQuery {
   pageSize?: string
 }
 
-const ensureTargetExists = async (targetType: string, targetId: string) => {
+const ensureTargetExists = async (targetType: TargetType, targetId: string) => {
   if (targetType === 'company') {
     return prisma.company.findUnique({ where: { id: targetId } })
   }
@@ -64,6 +60,63 @@ const ensureTargetExists = async (targetType: string, targetId: string) => {
   return null
 }
 
+const attachTargetInfo = async (items: PrismaTask[]) => {
+  const companyIds = new Set<string>()
+  const projectIds = new Set<string>()
+  const wholesaleIds = new Set<string>()
+
+  items.forEach((task) => {
+    if (task.targetType === 'company') companyIds.add(task.targetId)
+    if (task.targetType === 'project') projectIds.add(task.targetId)
+    if (task.targetType === 'wholesale') wholesaleIds.add(task.targetId)
+  })
+
+  const [companies, projects, wholesales] = await Promise.all([
+    companyIds.size > 0
+      ? prisma.company.findMany({
+          where: { id: { in: Array.from(companyIds) } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    projectIds.size > 0
+      ? prisma.project.findMany({
+          where: { id: { in: Array.from(projectIds) } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    wholesaleIds.size > 0
+      ? prisma.wholesale.findMany({
+          where: { id: { in: Array.from(wholesaleIds) } },
+          select: { id: true, company: { select: { name: true } } },
+        })
+      : Promise.resolve([]),
+  ])
+
+  const companyMap = new Map(companies.map((company) => [company.id, company.name]))
+  const projectMap = new Map(projects.map((project) => [project.id, project.name]))
+  const wholesaleMap = new Map(
+    wholesales.map((wholesale) => [wholesale.id, wholesale.company?.name ?? wholesale.id])
+  )
+
+  return items.map((task) => {
+    const targetName =
+      task.targetType === 'company'
+        ? companyMap.get(task.targetId)
+        : task.targetType === 'project'
+          ? projectMap.get(task.targetId)
+          : wholesaleMap.get(task.targetId)
+
+    return {
+      ...task,
+      target: {
+        id: task.targetId,
+        type: task.targetType,
+        name: targetName ?? task.targetId,
+      },
+    }
+  })
+}
+
 export async function taskRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: TaskListQuery }>(
     '/tasks',
@@ -71,21 +124,21 @@ export async function taskRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const status = normalizeStatus(request.query.status)
       if (request.query.status !== undefined && status === null) {
-        return reply.code(400).send({ error: 'Invalid status' })
+        return reply.code(400).send(badRequest('Invalid status'))
       }
 
       const targetType = normalizeTargetType(request.query.targetType)
       if (request.query.targetType !== undefined && targetType === null) {
-        return reply.code(400).send({ error: 'Invalid targetType' })
+        return reply.code(400).send(badRequest('Invalid targetType'))
       }
 
       const dueFrom = parseDate(request.query.dueFrom)
       const dueTo = parseDate(request.query.dueTo)
       if (request.query.dueFrom && !dueFrom) {
-        return reply.code(400).send({ error: 'Invalid dueFrom date' })
+        return reply.code(400).send(badRequest('Invalid dueFrom date'))
       }
       if (request.query.dueTo && !dueTo) {
-        return reply.code(400).send({ error: 'Invalid dueTo date' })
+        return reply.code(400).send(badRequest('Invalid dueTo date'))
       }
 
       const { page, pageSize, skip } = parsePagination(
@@ -119,12 +172,16 @@ export async function taskRoutes(fastify: FastifyInstance) {
           orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
           skip,
           take: pageSize,
+          include: {
+            assignee: { select: { id: true, email: true } },
+          },
         }),
         prisma.task.count({ where }),
       ])
+      const itemsWithTarget = await attachTargetInfo(items)
 
       return {
-        items,
+        items: itemsWithTarget,
         pagination: {
           page,
           pageSize,
@@ -138,9 +195,12 @@ export async function taskRoutes(fastify: FastifyInstance) {
     '/tasks/:id',
     { preHandler: requireAuth() },
     async (request, reply) => {
-      const task = await prisma.task.findUnique({ where: { id: request.params.id } })
+      const task = await prisma.task.findUnique({
+        where: { id: request.params.id },
+        include: { assignee: { select: { id: true, email: true } } },
+      })
       if (!task) {
-        return reply.code(404).send({ error: 'Task not found' })
+        return reply.code(404).send(notFound('Task'))
       }
       return { task }
     }
@@ -154,29 +214,29 @@ export async function taskRoutes(fastify: FastifyInstance) {
       const status = normalizeStatus(request.body.status)
 
       if (!isNonEmptyString(targetType) || !TARGET_TYPES.has(targetType)) {
-        return reply.code(400).send({ error: 'targetType is required' })
+        return reply.code(400).send(badRequest('targetType is required'))
       }
       if (!isNonEmptyString(targetId)) {
-        return reply.code(400).send({ error: 'targetId is required' })
+        return reply.code(400).send(badRequest('targetId is required'))
       }
       if (!isNonEmptyString(title)) {
-        return reply.code(400).send({ error: 'title is required' })
+        return reply.code(400).send(badRequest('title is required'))
       }
       if (request.body.status !== undefined && status === null) {
-        return reply.code(400).send({ error: 'Invalid status' })
+        return reply.code(400).send(badRequest('Invalid status'))
       }
       if (assigneeId !== undefined && !isNonEmptyString(assigneeId)) {
-        return reply.code(400).send({ error: 'Invalid assigneeId' })
+        return reply.code(400).send(badRequest('Invalid assigneeId'))
       }
 
       const dueDate = parseDate(request.body.dueDate)
       if (request.body.dueDate && !dueDate) {
-        return reply.code(400).send({ error: 'Invalid dueDate' })
+        return reply.code(400).send(badRequest('Invalid dueDate'))
       }
 
       const target = await ensureTargetExists(targetType, targetId)
       if (!target) {
-        return reply.code(404).send({ error: 'Target not found' })
+        return reply.code(404).send(notFound('Target'))
       }
 
       try {
@@ -216,23 +276,23 @@ export async function taskRoutes(fastify: FastifyInstance) {
       const status = normalizeStatus(request.body.status)
 
       if (title !== undefined && !isNonEmptyString(title)) {
-        return reply.code(400).send({ error: 'title is required' })
+        return reply.code(400).send(badRequest('title is required'))
       }
       if (request.body.status !== undefined && status === null) {
-        return reply.code(400).send({ error: 'Invalid status' })
+        return reply.code(400).send(badRequest('Invalid status'))
       }
       if (assigneeId !== undefined && assigneeId !== null && !isNonEmptyString(assigneeId)) {
-        return reply.code(400).send({ error: 'Invalid assigneeId' })
+        return reply.code(400).send(badRequest('Invalid assigneeId'))
       }
 
       const dueDate = parseDate(request.body.dueDate ?? undefined)
       if (request.body.dueDate !== undefined && request.body.dueDate !== null && !dueDate) {
-        return reply.code(400).send({ error: 'Invalid dueDate' })
+        return reply.code(400).send(badRequest('Invalid dueDate'))
       }
 
       const existing = await prisma.task.findUnique({ where: { id: request.params.id } })
       if (!existing) {
-        return reply.code(404).send({ error: 'Task not found' })
+        return reply.code(404).send(notFound('Task'))
       }
 
       const data: Prisma.TaskUpdateInput = {}
@@ -246,14 +306,7 @@ export async function taskRoutes(fastify: FastifyInstance) {
         data.status = status
       }
       if (assigneeId !== undefined) {
-        data.assignee =
-          assigneeId === null
-            ? { disconnect: true }
-            : {
-                connect: {
-                  id: assigneeId,
-                },
-              }
+        data.assignee = connectOrDisconnect(assigneeId)
       }
       if (request.body.dueDate !== undefined) {
         data.dueDate = dueDate ?? null
@@ -282,13 +335,57 @@ export async function taskRoutes(fastify: FastifyInstance) {
     }
   )
 
+  fastify.patch<{ Body: TaskBulkUpdateBody }>(
+    '/tasks/bulk',
+    { preHandler: requireWriteAccess() },
+    async (request, reply) => {
+      const { taskIds, assigneeId } = request.body
+      const status = normalizeStatus(request.body.status)
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return reply.code(400).send(badRequest('taskIds is required'))
+      }
+      if (taskIds.some((taskId) => !isNonEmptyString(taskId))) {
+        return reply.code(400).send(badRequest('Invalid taskIds'))
+      }
+      if (request.body.status !== undefined && status === null) {
+        return reply.code(400).send(badRequest('Invalid status'))
+      }
+      if (assigneeId !== undefined && assigneeId !== null && !isNonEmptyString(assigneeId)) {
+        return reply.code(400).send(badRequest('Invalid assigneeId'))
+      }
+
+      const dueDate = parseDate(request.body.dueDate ?? undefined)
+      if (request.body.dueDate !== undefined && request.body.dueDate !== null && !dueDate) {
+        return reply.code(400).send(badRequest('Invalid dueDate'))
+      }
+
+      const updates = taskIds.map((taskId) => {
+        const data: Prisma.TaskUpdateInput = {}
+        if (status !== undefined && status !== null) {
+          data.status = status
+        }
+        if (request.body.dueDate !== undefined) {
+          data.dueDate = dueDate ?? null
+        }
+        if (assigneeId !== undefined) {
+          data.assignee = connectOrDisconnect(assigneeId)
+        }
+        return prisma.task.update({ where: { id: taskId }, data })
+      })
+
+      await prisma.$transaction(updates)
+
+      return { updated: updates.length }
+    }
+  )
+
   fastify.delete<{ Params: { id: string } }>(
     '/tasks/:id',
     { preHandler: requireWriteAccess() },
     async (request, reply) => {
       const existing = await prisma.task.findUnique({ where: { id: request.params.id } })
       if (!existing) {
-        return reply.code(404).send({ error: 'Task not found' })
+        return reply.code(404).send(notFound('Task'))
       }
 
       try {
@@ -317,15 +414,19 @@ export async function taskRoutes(fastify: FastifyInstance) {
       const userId = (request.user as JWTUser).userId
       const status = normalizeStatus(request.query.status)
       if (request.query.status !== undefined && status === null) {
-        return reply.code(400).send({ error: 'Invalid status' })
+        return reply.code(400).send(badRequest('Invalid status'))
+      }
+      const targetType = normalizeTargetType(request.query.targetType)
+      if (request.query.targetType !== undefined && targetType === null) {
+        return reply.code(400).send(badRequest('Invalid targetType'))
       }
       const dueFrom = parseDate(request.query.dueFrom)
       const dueTo = parseDate(request.query.dueTo)
       if (request.query.dueFrom && !dueFrom) {
-        return reply.code(400).send({ error: 'Invalid dueFrom date' })
+        return reply.code(400).send(badRequest('Invalid dueFrom date'))
       }
       if (request.query.dueTo && !dueTo) {
-        return reply.code(400).send({ error: 'Invalid dueTo date' })
+        return reply.code(400).send(badRequest('Invalid dueTo date'))
       }
 
       const { page, pageSize, skip } = parsePagination(
@@ -336,6 +437,12 @@ export async function taskRoutes(fastify: FastifyInstance) {
       const where: Prisma.TaskWhereInput = { assigneeId: userId }
       if (status) {
         where.status = status
+      }
+      if (targetType) {
+        where.targetType = targetType
+      }
+      if (request.query.targetId) {
+        where.targetId = request.query.targetId
       }
       if (dueFrom || dueTo) {
         where.dueDate = {
@@ -350,12 +457,16 @@ export async function taskRoutes(fastify: FastifyInstance) {
           orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
           skip,
           take: pageSize,
+          include: {
+            assignee: { select: { id: true, email: true } },
+          },
         }),
         prisma.task.count({ where }),
       ])
+      const itemsWithTarget = await attachTargetInfo(items)
 
       return {
-        items,
+        items: itemsWithTarget,
         pagination: {
           page,
           pageSize,
@@ -388,12 +499,16 @@ export async function taskRoutes(fastify: FastifyInstance) {
           orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
           skip,
           take: pageSize,
+          include: {
+            assignee: { select: { id: true, email: true } },
+          },
         }),
         prisma.task.count({ where }),
       ])
+      const itemsWithTarget = await attachTargetInfo(items)
 
       return {
-        items,
+        items: itemsWithTarget,
         pagination: {
           page,
           pageSize,
@@ -426,12 +541,16 @@ export async function taskRoutes(fastify: FastifyInstance) {
           orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
           skip,
           take: pageSize,
+          include: {
+            assignee: { select: { id: true, email: true } },
+          },
         }),
         prisma.task.count({ where }),
       ])
+      const itemsWithTarget = await attachTargetInfo(items)
 
       return {
-        items,
+        items: itemsWithTarget,
         pagination: {
           page,
           pageSize,
@@ -464,12 +583,16 @@ export async function taskRoutes(fastify: FastifyInstance) {
           orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
           skip,
           take: pageSize,
+          include: {
+            assignee: { select: { id: true, email: true } },
+          },
         }),
         prisma.task.count({ where }),
       ])
+      const itemsWithTarget = await attachTargetInfo(items)
 
       return {
-        items,
+        items: itemsWithTarget,
         pagination: {
           page,
           pageSize,

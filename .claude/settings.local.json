@@ -6,7 +6,15 @@
       "Bash(npm install:*)",
       "Bash(npm run prisma:generate:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(npm run dev:db:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(wc:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

@@ -1,16 +1,20 @@
 import { FastifyInstance } from 'fastify'
-import { Prisma } from '@prisma/client'
+import { Prisma, WholesaleStatus } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
 import { parsePagination } from '../utils/pagination'
-import { handlePrismaError, prisma } from '../utils/prisma'
+import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
 import {
+  createEnumNormalizer,
   isNonEmptyString,
   isNullableString,
   parseDate,
   parseNumber,
 } from '../utils/validation'
 import { JWTUser } from '../types/auth'
+import { badRequest, notFound } from '../utils/errors'
+
+const normalizeStatus = createEnumNormalizer(new Set(Object.values(WholesaleStatus)))
 
 interface WholesaleCreateBody {
   projectId: string
@@ -18,7 +22,7 @@ interface WholesaleCreateBody {
   conditions?: string
   unitPrice?: number
   margin?: number
-  status?: string
+  status?: WholesaleStatus
   agreedDate?: string
   ownerId?: string
 }
@@ -29,7 +33,7 @@ interface WholesaleUpdateBody {
   conditions?: string | null
   unitPrice?: number | null
   margin?: number | null
-  status?: string
+  status?: WholesaleStatus
   agreedDate?: string | null
   ownerId?: string | null
 }
@@ -46,8 +50,12 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: WholesaleListQuery }>(
     '/wholesales',
     { preHandler: requireAuth() },
-    async (request) => {
-      const { projectId, companyId, status } = request.query
+    async (request, reply) => {
+      const { projectId, companyId } = request.query
+      const status = normalizeStatus(request.query.status)
+      if (request.query.status !== undefined && status === null) {
+        return reply.code(400).send(badRequest('Invalid status'))
+      }
       const { page, pageSize, skip } = parsePagination(
         request.query.page,
         request.query.pageSize
@@ -97,28 +105,32 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
     '/wholesales',
     { preHandler: requireWriteAccess() },
     async (request, reply) => {
-      const { projectId, companyId, conditions, status, ownerId } = request.body
+      const { projectId, companyId, conditions, ownerId } = request.body
       const unitPrice = parseNumber(request.body.unitPrice)
       const margin = parseNumber(request.body.margin)
       const agreedDate = parseDate(request.body.agreedDate)
+      const status = normalizeStatus(request.body.status)
 
       if (!isNonEmptyString(projectId)) {
-        return reply.code(400).send({ error: 'projectId is required' })
+        return reply.code(400).send(badRequest('projectId is required'))
       }
       if (!isNonEmptyString(companyId)) {
-        return reply.code(400).send({ error: 'companyId is required' })
+        return reply.code(400).send(badRequest('companyId is required'))
       }
       if (unitPrice === null) {
-        return reply.code(400).send({ error: 'Invalid unitPrice' })
+        return reply.code(400).send(badRequest('Invalid unitPrice'))
       }
       if (margin === null) {
-        return reply.code(400).send({ error: 'Invalid margin' })
+        return reply.code(400).send(badRequest('Invalid margin'))
       }
       if (request.body.agreedDate && !agreedDate) {
-        return reply.code(400).send({ error: 'Invalid agreedDate' })
+        return reply.code(400).send(badRequest('Invalid agreedDate'))
+      }
+      if (request.body.status !== undefined && status === null) {
+        return reply.code(400).send(badRequest('Invalid status'))
       }
       if (ownerId !== undefined && !isNonEmptyString(ownerId)) {
-        return reply.code(400).send({ error: 'Invalid ownerId' })
+        return reply.code(400).send(badRequest('Invalid ownerId'))
       }
 
       const [project, company] = await Promise.all([
@@ -126,10 +138,10 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
         prisma.company.findUnique({ where: { id: companyId } }),
       ])
       if (!project) {
-        return reply.code(404).send({ error: 'Project not found' })
+        return reply.code(404).send(notFound('Project'))
       }
       if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       try {
@@ -140,7 +152,7 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
             conditions,
             unitPrice: unitPrice ?? undefined,
             margin: margin ?? undefined,
-            status,
+            status: status ?? undefined,
             agreedDate: agreedDate ?? undefined,
             ownerId,
           },
@@ -178,7 +190,7 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
         },
       })
       if (!wholesale) {
-        return reply.code(404).send({ error: 'Wholesale not found' })
+        return reply.code(404).send(notFound('Wholesale'))
       }
       return { wholesale }
     }
@@ -188,54 +200,55 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
     '/wholesales/:id',
     { preHandler: requireWriteAccess() },
     async (request, reply) => {
-      const { projectId, companyId, conditions, status, ownerId } = request.body
+      const { projectId, companyId, conditions, ownerId } = request.body
       const unitPrice = parseNumber(request.body.unitPrice)
       const margin = parseNumber(request.body.margin)
       const agreedDate = parseDate(request.body.agreedDate)
+      const status = normalizeStatus(request.body.status)
 
       if (projectId !== undefined && !isNonEmptyString(projectId)) {
-        return reply.code(400).send({ error: 'Invalid projectId' })
+        return reply.code(400).send(badRequest('Invalid projectId'))
       }
       if (companyId !== undefined && !isNonEmptyString(companyId)) {
-        return reply.code(400).send({ error: 'Invalid companyId' })
+        return reply.code(400).send(badRequest('Invalid companyId'))
       }
       if (!isNullableString(conditions)) {
-        return reply.code(400).send({ error: 'Invalid conditions' })
+        return reply.code(400).send(badRequest('Invalid conditions'))
       }
       if (unitPrice === null) {
-        return reply.code(400).send({ error: 'Invalid unitPrice' })
+        return reply.code(400).send(badRequest('Invalid unitPrice'))
       }
       if (margin === null) {
-        return reply.code(400).send({ error: 'Invalid margin' })
+        return reply.code(400).send(badRequest('Invalid margin'))
       }
       if (request.body.agreedDate !== undefined && request.body.agreedDate !== null && !agreedDate) {
-        return reply.code(400).send({ error: 'Invalid agreedDate' })
+        return reply.code(400).send(badRequest('Invalid agreedDate'))
       }
-      if (status !== undefined && !isNonEmptyString(status)) {
-        return reply.code(400).send({ error: 'Invalid status' })
+      if (request.body.status !== undefined && status === null) {
+        return reply.code(400).send(badRequest('Invalid status'))
       }
       if (!isNullableString(ownerId)) {
-        return reply.code(400).send({ error: 'Invalid ownerId' })
+        return reply.code(400).send(badRequest('Invalid ownerId'))
       }
       if (typeof ownerId === 'string' && ownerId.trim() === '') {
-        return reply.code(400).send({ error: 'Invalid ownerId' })
+        return reply.code(400).send(badRequest('Invalid ownerId'))
       }
 
       const existing = await prisma.wholesale.findUnique({ where: { id: request.params.id } })
       if (!existing) {
-        return reply.code(404).send({ error: 'Wholesale not found' })
+        return reply.code(404).send(notFound('Wholesale'))
       }
 
       if (projectId) {
         const project = await prisma.project.findUnique({ where: { id: projectId } })
         if (!project) {
-          return reply.code(404).send({ error: 'Project not found' })
+          return reply.code(404).send(notFound('Project'))
         }
       }
       if (companyId) {
         const company = await prisma.company.findUnique({ where: { id: companyId } })
         if (!company) {
-          return reply.code(404).send({ error: 'Company not found' })
+          return reply.code(404).send(notFound('Company'))
         }
       }
 
@@ -259,17 +272,10 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
         data.agreedDate = agreedDate ?? null
       }
       if (status !== undefined) {
-        data.status = status.trim()
+        data.status = status
       }
       if (ownerId !== undefined) {
-        data.owner =
-          ownerId === null
-            ? { disconnect: true }
-            : {
-                connect: {
-                  id: ownerId,
-                },
-              }
+        data.owner = connectOrDisconnect(ownerId)
       }
 
       try {
@@ -301,7 +307,7 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const existing = await prisma.wholesale.findUnique({ where: { id: request.params.id } })
       if (!existing) {
-        return reply.code(404).send({ error: 'Wholesale not found' })
+        return reply.code(404).send(notFound('Wholesale'))
       }
 
       try {
@@ -329,7 +335,7 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const company = await prisma.company.findUnique({ where: { id: request.params.id } })
       if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       const wholesales = await prisma.wholesale.findMany({

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
+import { badRequest, notFound } from '../utils/errors'
 import { parsePagination } from '../utils/pagination'
 import { handlePrismaError, prisma } from '../utils/prisma'
 import { parseDate } from '../utils/validation'
@@ -38,6 +39,20 @@ interface LabelBody {
   label: string
 }
 
+interface LabelListQuery {
+  limit?: string
+}
+
+interface BulkAssignBody {
+  messageIds: string[]
+  companyId: string
+}
+
+interface BulkLabelBody {
+  messageIds: string[]
+  label: string
+}
+
 const MAX_LABEL_LENGTH = 30
 
 const normalizeLabel = (value?: string) => {
@@ -57,16 +72,16 @@ export async function messageRoutes(fastify: FastifyInstance) {
       const { from, to } = request.query
       const label = normalizeLabel(request.query.label)
       if (request.query.label !== undefined && label === null) {
-        return reply.code(400).send({ error: 'Invalid label' })
+        return reply.code(400).send(badRequest('Invalid label'))
       }
 
       const fromDate = parseDate(from)
       const toDate = parseDate(to)
       if (from && !fromDate) {
-        return reply.code(400).send({ error: 'Invalid from date' })
+        return reply.code(400).send(badRequest('Invalid from date'))
       }
       if (to && !toDate) {
-        return reply.code(400).send({ error: 'Invalid to date' })
+        return reply.code(400).send(badRequest('Invalid to date'))
       }
 
       const { page, pageSize, skip } = parsePagination(
@@ -115,20 +130,20 @@ export async function messageRoutes(fastify: FastifyInstance) {
       const { q, messageId, companyId, from, to } = request.query
       const label = normalizeLabel(request.query.label)
       if (request.query.label !== undefined && label === null) {
-        return reply.code(400).send({ error: 'Invalid label' })
+        return reply.code(400).send(badRequest('Invalid label'))
       }
       const trimmedQuery = q?.trim()
       if ((!trimmedQuery || trimmedQuery === '') && !messageId) {
-        return reply.code(400).send({ error: 'q or messageId is required' })
+        return reply.code(400).send(badRequest('q or messageId is required'))
       }
 
       const fromDate = parseDate(from)
       const toDate = parseDate(to)
       if (from && !fromDate) {
-        return reply.code(400).send({ error: 'Invalid from date' })
+        return reply.code(400).send(badRequest('Invalid from date'))
       }
       if (to && !toDate) {
-        return reply.code(400).send({ error: 'Invalid to date' })
+        return reply.code(400).send(badRequest('Invalid to date'))
       }
 
       const { page, pageSize, skip } = parsePagination(
@@ -230,12 +245,12 @@ export async function messageRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const { companyId } = request.body
       if (!companyId || companyId.trim() === '') {
-        return reply.code(400).send({ error: 'companyId is required' })
+        return reply.code(400).send(badRequest('companyId is required'))
       }
 
       const company = await prisma.company.findUnique({ where: { id: companyId } })
       if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       try {
@@ -250,20 +265,46 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
+  fastify.patch<{ Body: BulkAssignBody }>(
+    '/messages/assign-company',
+    { preHandler: requireWriteAccess() },
+    async (request, reply) => {
+      const { companyId, messageIds } = request.body
+      if (!companyId || companyId.trim() === '') {
+        return reply.code(400).send(badRequest('companyId is required'))
+      }
+      if (!Array.isArray(messageIds) || messageIds.length === 0) {
+        return reply.code(400).send(badRequest('messageIds is required'))
+      }
+
+      const company = await prisma.company.findUnique({ where: { id: companyId } })
+      if (!company) {
+        return reply.code(404).send(notFound('Company'))
+      }
+
+      const result = await prisma.message.updateMany({
+        where: { id: { in: messageIds } },
+        data: { companyId },
+      })
+
+      return { updated: result.count }
+    }
+  )
+
   fastify.post<{ Params: { id: string }; Body: LabelBody }>(
     '/messages/:id/labels',
     { preHandler: requireWriteAccess() },
     async (request, reply) => {
       const label = normalizeLabel(request.body.label)
       if (!label) {
-        return reply.code(400).send({ error: 'Invalid label' })
+        return reply.code(400).send(badRequest('Invalid label'))
       }
 
       const message = await prisma.message.findUnique({
         where: { id: request.params.id },
       })
       if (!message) {
-        return reply.code(404).send({ error: 'Not found' })
+        return reply.code(404).send(notFound('Message'))
       }
 
       const nextLabels = Array.from(new Set([...(message.labels ?? []), label]))
@@ -281,14 +322,14 @@ export async function messageRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const label = normalizeLabel(request.params.label)
       if (!label) {
-        return reply.code(400).send({ error: 'Invalid label' })
+        return reply.code(400).send(badRequest('Invalid label'))
       }
 
       const message = await prisma.message.findUnique({
         where: { id: request.params.id },
       })
       if (!message) {
-        return reply.code(404).send({ error: 'Not found' })
+        return reply.code(404).send(notFound('Message'))
       }
 
       const nextLabels = (message.labels ?? []).filter((item) => item !== label)
@@ -297,6 +338,94 @@ export async function messageRoutes(fastify: FastifyInstance) {
         data: { labels: nextLabels },
       })
       return { message: updated }
+    }
+  )
+
+  fastify.post<{ Body: BulkLabelBody }>(
+    '/messages/labels/bulk',
+    { preHandler: requireWriteAccess() },
+    async (request, reply) => {
+      const label = normalizeLabel(request.body.label)
+      if (!label) {
+        return reply.code(400).send(badRequest('Invalid label'))
+      }
+      if (!Array.isArray(request.body.messageIds) || request.body.messageIds.length === 0) {
+        return reply.code(400).send(badRequest('messageIds is required'))
+      }
+
+      const messages = await prisma.message.findMany({
+        where: { id: { in: request.body.messageIds } },
+      })
+
+      const updates = messages.map((message) => {
+        const nextLabels = Array.from(new Set([...(message.labels ?? []), label]))
+        return prisma.message.update({
+          where: { id: message.id },
+          data: { labels: nextLabels },
+        })
+      })
+
+      await prisma.$transaction(updates)
+
+      return { updated: updates.length }
+    }
+  )
+
+  fastify.post<{ Body: BulkLabelBody }>(
+    '/messages/labels/bulk/remove',
+    { preHandler: requireWriteAccess() },
+    async (request, reply) => {
+      const label = normalizeLabel(request.body.label)
+      if (!label) {
+        return reply.code(400).send(badRequest('Invalid label'))
+      }
+      if (!Array.isArray(request.body.messageIds) || request.body.messageIds.length === 0) {
+        return reply.code(400).send(badRequest('messageIds is required'))
+      }
+
+      const messages = await prisma.message.findMany({
+        where: { id: { in: request.body.messageIds } },
+      })
+
+      const updates = messages.map((message) => {
+        const nextLabels = (message.labels ?? []).filter((item) => item !== label)
+        return prisma.message.update({
+          where: { id: message.id },
+          data: { labels: nextLabels },
+        })
+      })
+
+      await prisma.$transaction(updates)
+
+      return { updated: updates.length }
+    }
+  )
+
+  fastify.get<{ Querystring: LabelListQuery }>(
+    '/messages/labels',
+    { preHandler: requireAuth() },
+    async (request) => {
+      const limitValue = Number(request.query.limit)
+      const limit = Number.isFinite(limitValue)
+        ? Math.min(Math.max(Math.floor(limitValue), 1), 50)
+        : 20
+
+      // 最適化: PostgreSQLのunnestとGROUP BYを使用してDB側で集計
+      const labelCounts = await prisma.$queryRaw<{ label: string; count: bigint }[]>`
+        SELECT unnest(labels) as label, COUNT(*) as count
+        FROM messages
+        WHERE array_length(labels, 1) > 0
+        GROUP BY unnest(labels)
+        ORDER BY count DESC
+        LIMIT ${limit}
+      `
+
+      const items = labelCounts.map((row) => ({
+        label: row.label,
+        count: Number(row.count),
+      }))
+
+      return { items }
     }
   )
 }

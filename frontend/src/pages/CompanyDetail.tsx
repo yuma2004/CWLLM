@@ -1,13 +1,23 @@
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import CompanyTasksSection from '../components/CompanyTasksSection'
-import CompanySummarySection from '../components/CompanySummarySection'
-import CompanyRelationsSection from '../components/CompanyRelationsSection'
 import CompanyAuditSection from '../components/CompanyAuditSection'
-import Tabs, { Tab } from '../components/ui/Tabs'
+import CompanyRelationsSection from '../components/CompanyRelationsSection'
+import CompanySummarySection from '../components/CompanySummarySection'
+import CompanyTasksSection from '../components/CompanyTasksSection'
+import Badge from '../components/ui/Badge'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import ErrorAlert from '../components/ui/ErrorAlert'
+import Pagination from '../components/ui/Pagination'
+import { Skeleton, SkeletonAvatar, SkeletonText } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
-import { Skeleton, SkeletonText, SkeletonAvatar, SkeletonCard } from '../components/ui/Skeleton'
+import Tabs, { Tab } from '../components/ui/Tabs'
+import Toast from '../components/ui/Toast'
+import { usePagination } from '../hooks/usePagination'
+import { usePermissions } from '../hooks/usePermissions'
+import { apiRequest } from '../lib/apiClient'
+import { ApiListResponse } from '../types'
+import { formatDateGroup } from '../utils/date'
+import { getAvatarColor, getInitials } from '../utils/string'
 
 interface Company {
   id: string
@@ -26,6 +36,7 @@ interface Contact {
   email?: string | null
   phone?: string | null
   memo?: string | null
+  sortOrder?: number | null
 }
 
 interface MessageItem {
@@ -53,50 +64,6 @@ interface AvailableRoom {
   isActive: boolean
 }
 
-// Get initials from name
-function getInitials(name: string): string {
-  const words = name.trim().split(/\s+/)
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase()
-  }
-  return name.slice(0, 2).toUpperCase()
-}
-
-// Get consistent color for avatar
-function getAvatarColor(name: string): string {
-  const colors = [
-    'bg-sky-500',
-    'bg-emerald-500',
-    'bg-amber-500',
-    'bg-rose-500',
-    'bg-violet-500',
-    'bg-indigo-500',
-    'bg-teal-500',
-    'bg-orange-500',
-  ]
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return colors[Math.abs(hash) % colors.length]
-}
-
-// Format date for grouping
-function formatDateGroup(dateStr: string): string {
-  const date = new Date(dateStr)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-
-  if (date.toDateString() === today.toDateString()) {
-    return '今日'
-  }
-  if (date.toDateString() === yesterday.toDateString()) {
-    return '昨日'
-  }
-  return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
-}
-
 // Group messages by date
 function groupMessagesByDate(messages: MessageItem[]): Map<string, MessageItem[]> {
   const groups = new Map<string, MessageItem[]>()
@@ -110,9 +77,25 @@ function groupMessagesByDate(messages: MessageItem[]): Map<string, MessageItem[]
   return groups
 }
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const highlightText = (text: string, keyword: string) => {
+  if (!keyword.trim()) return text
+  const pattern = new RegExp(`(${escapeRegExp(keyword.trim())})`, 'gi')
+  return text.split(pattern).map((part, index) =>
+    part.toLowerCase() === keyword.toLowerCase() ? (
+      <mark key={`${part}-${index}`} className="rounded bg-amber-100 px-1 text-slate-900">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  )
+}
+
 function CompanyDetail() {
   const { id } = useParams<{ id: string }>()
-  const { user } = useAuth()
+  const { canWrite, isAdmin } = usePermissions()
   const [company, setCompany] = useState<Company | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -142,27 +125,63 @@ function CompanyDetail() {
     phone: '',
     memo: '',
   })
-  const [companyForm, setCompanyForm] = useState({
-    tags: '',
+  const [editingContactId, setEditingContactId] = useState<string | null>(null)
+  const [editContactForm, setEditContactForm] = useState({
+    name: '',
+    role: '',
+    email: '',
+    phone: '',
+    memo: '',
+  })
+  const [contactActionError, setContactActionError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
+  const [isDedupeConfirmOpen, setIsDedupeConfirmOpen] = useState(false)
+  const [isDedupeWorking, setIsDedupeWorking] = useState(false)
+  const [isReorderWorking, setIsReorderWorking] = useState(false)
+  const [isDeletingContact, setIsDeletingContact] = useState(false)
+  const [companyForm, setCompanyForm] = useState<{ tags: string[]; profile: string }>({
+    tags: [],
     profile: '',
   })
+  const [tagInput, setTagInput] = useState('')
+  const [tagOptions, setTagOptions] = useState<string[]>([])
+  const [labelOptions, setLabelOptions] = useState<string[]>([])
+  const [toast, setToast] = useState<{ message: string; variant?: 'success' | 'error' } | null>(null)
 
-  const canWrite = user?.role !== 'readonly'
+  const {
+    pagination: messagePagination,
+    setPagination: setMessagePagination,
+    setPage: setMessagePage,
+    setPageSize: setMessagePageSize,
+  } = usePagination(30)
+
 
   // Group messages by date
   const groupedMessages = useMemo(() => groupMessagesByDate(messages), [messages])
+  const duplicateContactGroups = useMemo(() => {
+    const groups = new Map<string, Contact[]>()
+    contacts.forEach((contact) => {
+      const emailKey = contact.email?.trim().toLowerCase()
+      const phoneKey = contact.phone?.trim()
+      const key = emailKey || phoneKey
+      if (!key) return
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(contact)
+    })
+    return Array.from(groups.values()).filter((group) => group.length > 1)
+  }, [contacts])
 
   // Tab configuration
   const tabs: Tab[] = useMemo(
     () => [
       { id: 'overview', label: '概要' },
-      { id: 'timeline', label: 'タイムライン', count: messages.length },
+      { id: 'timeline', label: 'タイムライン', count: messagePagination.total },
       { id: 'tasks', label: 'タスク' },
       { id: 'summary', label: 'AIサマリー' },
       { id: 'relations', label: '関連データ' },
       { id: 'audit', label: '変更履歴' },
     ],
-    [messages.length]
+    [messagePagination.total]
   )
 
   const fetchData = useCallback(async () => {
@@ -170,24 +189,15 @@ function CompanyDetail() {
     setIsLoading(true)
     setError('')
     try {
-      const [companyResponse, contactsResponse] = await Promise.all([
-        fetch(`/api/companies/${id}`, { credentials: 'include' }),
-        fetch(`/api/companies/${id}/contacts`, { credentials: 'include' }),
+      const [companyData, contactsData] = await Promise.all([
+        apiRequest<{ company: Company }>(`/api/companies/${id}`),
+        apiRequest<{ contacts: Contact[] }>(`/api/companies/${id}/contacts`),
       ])
 
-      if (!companyResponse.ok) {
-        throw new Error('企業情報の取得に失敗しました')
-      }
-      if (!contactsResponse.ok) {
-        throw new Error('担当者一覧の取得に失敗しました')
-      }
-
-      const companyData = await companyResponse.json()
-      const contactsData = await contactsResponse.json()
       setCompany(companyData.company)
-      setContacts(contactsData.contacts)
+      setContacts(contactsData.contacts ?? [])
       setCompanyForm({
-        tags: companyData.company.tags.join(', '),
+        tags: companyData.company.tags ?? [],
         profile: companyData.company.profile || '',
       })
     } catch (err) {
@@ -197,48 +207,53 @@ function CompanyDetail() {
     }
   }, [id])
 
-  const fetchMessages = useCallback(async () => {
-    if (!id) return
-    setMessageLoading(true)
-    setMessageError('')
-    try {
-      const params = new URLSearchParams()
-      params.set('page', '1')
-      params.set('pageSize', '50')
-      if (messageFrom) params.set('from', messageFrom)
-      if (messageTo) params.set('to', messageTo)
-      if (messageLabel.trim()) params.set('label', messageLabel.trim())
+  const fetchMessages = useCallback(
+    async (pageOverride?: number) => {
+      if (!id) return
+      setMessageLoading(true)
+      setMessageError('')
+      try {
+        const params = new URLSearchParams()
+        params.set('page', String(pageOverride ?? messagePagination.page))
+        params.set('pageSize', String(messagePagination.pageSize))
+        if (messageFrom) params.set('from', messageFrom)
+        if (messageTo) params.set('to', messageTo)
+        if (messageLabel.trim()) params.set('label', messageLabel.trim())
 
-      const trimmedQuery = messageQuery.trim()
-      const url = trimmedQuery
-        ? `/api/messages/search?${params.toString()}&q=${encodeURIComponent(trimmedQuery)}&companyId=${id}`
-        : `/api/companies/${id}/messages?${params.toString()}`
+        const trimmedQuery = messageQuery.trim()
+        const url = trimmedQuery
+          ? `/api/messages/search?${params.toString()}&q=${encodeURIComponent(trimmedQuery)}&companyId=${id}`
+          : `/api/companies/${id}/messages?${params.toString()}`
 
-      const response = await fetch(url, { credentials: 'include' })
-      if (!response.ok) {
-        throw new Error('メッセージの取得に失敗しました')
+        const data = await apiRequest<ApiListResponse<MessageItem>>(url)
+        setMessages(data.items ?? [])
+        setMessagePagination((prev) => ({ ...prev, ...data.pagination }))
+      } catch (err) {
+        setMessageError(err instanceof Error ? err.message : '通信エラーが発生しました')
+      } finally {
+        setMessageLoading(false)
       }
-      const data = await response.json()
-      setMessages(data.items)
-    } catch (err) {
-      setMessageError(err instanceof Error ? err.message : '通信エラーが発生しました')
-    } finally {
-      setMessageLoading(false)
-    }
-  }, [id, messageFrom, messageTo, messageQuery, messageLabel])
+    },
+    [
+      id,
+      messageFrom,
+      messageTo,
+      messageQuery,
+      messageLabel,
+      messagePagination.page,
+      messagePagination.pageSize,
+      setMessagePagination,
+    ]
+  )
 
   const fetchRooms = useCallback(async () => {
     if (!id) return
     setRoomError('')
     try {
-      const response = await fetch(`/api/companies/${id}/chatwork-rooms`, {
-        credentials: 'include',
-      })
-      if (!response.ok) {
-        throw new Error('Chatworkルームの取得に失敗しました')
-      }
-      const data = await response.json()
-      setLinkedRooms(data.rooms)
+      const data = await apiRequest<{ rooms: LinkedRoom[] }>(
+        `/api/companies/${id}/chatwork-rooms`
+      )
+      setLinkedRooms(data.rooms ?? [])
     } catch (err) {
       setRoomError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
@@ -247,11 +262,7 @@ function CompanyDetail() {
   const fetchAvailableRooms = useCallback(async () => {
     setIsLoadingRooms(true)
     try {
-      const response = await fetch('/api/chatwork/rooms', { credentials: 'include' })
-      if (!response?.ok) {
-        throw new Error('利用可能なルーム一覧の取得に失敗しました')
-      }
-      const data = await response.json()
+      const data = await apiRequest<{ rooms: AvailableRoom[] }>('/api/chatwork/rooms')
       const linkedRoomIds = new Set(linkedRooms.map((r) => r.roomId))
       const available = (data?.rooms ?? []).filter(
         (room: AvailableRoom) => !linkedRoomIds.has(room.roomId)
@@ -264,6 +275,26 @@ function CompanyDetail() {
     }
   }, [linkedRooms])
 
+  const fetchTagOptions = useCallback(async () => {
+    try {
+      const data = await apiRequest<{ tags: string[] }>('/api/companies/options')
+      setTagOptions(data.tags ?? [])
+    } catch {
+      setTagOptions([])
+    }
+  }, [])
+
+  const fetchLabelOptions = useCallback(async () => {
+    try {
+      const data = await apiRequest<{ items: Array<{ label: string }> }>(
+        '/api/messages/labels?limit=20'
+      )
+      setLabelOptions(data.items.map((item) => item.label))
+    } catch {
+      setLabelOptions([])
+    }
+  }, [])
+
   useEffect(() => {
     fetchData()
   }, [fetchData])
@@ -273,14 +304,32 @@ function CompanyDetail() {
   }, [fetchMessages])
 
   useEffect(() => {
+    setMessagePage(1)
+  }, [messageQuery, messageFrom, messageTo, messageLabel, setMessagePage])
+
+  useEffect(() => {
     fetchRooms()
   }, [fetchRooms])
 
   useEffect(() => {
-    if (linkedRooms.length >= 0 && canWrite) {
+    fetchTagOptions()
+  }, [fetchTagOptions])
+
+  useEffect(() => {
+    fetchLabelOptions()
+  }, [fetchLabelOptions])
+
+  useEffect(() => {
+    if (isAdmin) {
       fetchAvailableRooms()
     }
-  }, [linkedRooms, canWrite, fetchAvailableRooms])
+  }, [linkedRooms, isAdmin, fetchAvailableRooms])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 2000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   const handleAddContact = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -292,23 +341,16 @@ function CompanyDetail() {
     if (!id) return
 
     try {
-      const response = await fetch(`/api/companies/${id}/contacts`, {
+      await apiRequest(`/api/companies/${id}/contacts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           name: form.name,
           role: form.role || undefined,
           email: form.email || undefined,
           phone: form.phone || undefined,
           memo: form.memo || undefined,
-        }),
+        },
       })
-
-      if (!response.ok) {
-        const body = await response.json()
-        throw new Error(body.error || '担当者の追加に失敗しました')
-      }
 
       setForm({ name: '', role: '', email: '', phone: '', memo: '' })
       setShowContactForm(false)
@@ -318,33 +360,206 @@ function CompanyDetail() {
     }
   }
 
+  const resetEditContactForm = () => {
+    setEditContactForm({ name: '', role: '', email: '', phone: '', memo: '' })
+  }
+
+  const startEditContact = (contact: Contact) => {
+    setContactActionError('')
+    setEditingContactId(contact.id)
+    setEditContactForm({
+      name: contact.name,
+      role: contact.role ?? '',
+      email: contact.email ?? '',
+      phone: contact.phone ?? '',
+      memo: contact.memo ?? '',
+    })
+  }
+
+  const cancelEditContact = () => {
+    setEditingContactId(null)
+    resetEditContactForm()
+    setContactActionError('')
+  }
+
+  const handleSaveContact = async () => {
+    if (!editingContactId) return
+    const name = editContactForm.name.trim()
+    if (!name) {
+      setContactActionError('担当者名は必須です')
+      return
+    }
+    setContactActionError('')
+    try {
+      const { contact } = await apiRequest<{ contact: Contact }>(`/api/contacts/${editingContactId}`, {
+        method: 'PATCH',
+        body: {
+          name,
+          role: editContactForm.role.trim() || null,
+          email: editContactForm.email.trim() || null,
+          phone: editContactForm.phone.trim() || null,
+          memo: editContactForm.memo.trim() || null,
+        },
+      })
+      setContacts((prev) => prev.map((item) => (item.id === contact.id ? { ...item, ...contact } : item)))
+      setToast({ message: '担当者を更新しました', variant: 'success' })
+      setEditingContactId(null)
+      resetEditContactForm()
+    } catch (err) {
+      setContactActionError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
+    }
+  }
+
+  const handleConfirmDeleteContact = async () => {
+    if (!confirmDelete) return
+    setIsDeletingContact(true)
+    setContactActionError('')
+    try {
+      await apiRequest(`/api/contacts/${confirmDelete.id}`, { method: 'DELETE' })
+      setContacts((prev) => prev.filter((contact) => contact.id !== confirmDelete.id))
+      if (editingContactId === confirmDelete.id) {
+        setEditingContactId(null)
+        resetEditContactForm()
+      }
+      setToast({ message: '担当者を削除しました', variant: 'success' })
+      setConfirmDelete(null)
+    } catch (err) {
+      setContactActionError(err instanceof Error ? err.message : '担当者の削除に失敗しました')
+    } finally {
+      setIsDeletingContact(false)
+    }
+  }
+
+  const reorderContacts = async (nextContacts: Contact[]) => {
+    if (!id) return
+    setIsReorderWorking(true)
+    setContactActionError('')
+    const previous = contacts
+    const orderedContacts = nextContacts.map((contact, index) => ({
+      ...contact,
+      sortOrder: index + 1,
+    }))
+    setContacts(orderedContacts)
+    try {
+      await apiRequest(`/api/companies/${id}/contacts/reorder`, {
+        method: 'PATCH',
+        body: { orderedIds: orderedContacts.map((contact) => contact.id) },
+      })
+    } catch (err) {
+      setContacts(previous)
+      setContactActionError(err instanceof Error ? err.message : '並び替えに失敗しました')
+    } finally {
+      setIsReorderWorking(false)
+    }
+  }
+
+  const moveContact = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction
+    if (nextIndex < 0 || nextIndex >= contacts.length) return
+    const nextContacts = [...contacts]
+    const [moved] = nextContacts.splice(index, 1)
+    nextContacts.splice(nextIndex, 0, moved)
+    void reorderContacts(nextContacts)
+  }
+
+  const contactScore = (contact: Contact) =>
+    [contact.name, contact.role, contact.email, contact.phone, contact.memo].filter(
+      (value) => value && value.trim()
+    ).length
+
+  const pickContactValue = (...values: Array<string | null | undefined>) => {
+    for (const value of values) {
+      const trimmed = value?.trim()
+      if (trimmed) return trimmed
+    }
+    return ''
+  }
+
+  const handleMergeDuplicates = async () => {
+    if (duplicateContactGroups.length === 0) {
+      setIsDedupeConfirmOpen(false)
+      return
+    }
+    setIsDedupeWorking(true)
+    setContactActionError('')
+    try {
+      let nextContacts = [...contacts]
+      for (const group of duplicateContactGroups) {
+        const sortedGroup = [...group].sort((a, b) => contactScore(b) - contactScore(a))
+        const primary = sortedGroup[0]
+        const merged = {
+          name: pickContactValue(primary.name, ...sortedGroup.map((contact) => contact.name)),
+          role: pickContactValue(primary.role, ...sortedGroup.map((contact) => contact.role)),
+          email: pickContactValue(primary.email, ...sortedGroup.map((contact) => contact.email)),
+          phone: pickContactValue(primary.phone, ...sortedGroup.map((contact) => contact.phone)),
+          memo: pickContactValue(primary.memo, ...sortedGroup.map((contact) => contact.memo)),
+        }
+        const normalize = (value?: string | null) => value?.trim() || ''
+        const needsUpdate =
+          normalize(primary.name) !== merged.name ||
+          normalize(primary.role) !== merged.role ||
+          normalize(primary.email) !== merged.email ||
+          normalize(primary.phone) !== merged.phone ||
+          normalize(primary.memo) !== merged.memo
+
+        let updatedPrimary = primary
+        if (needsUpdate) {
+          const { contact } = await apiRequest<{ contact: Contact }>(`/api/contacts/${primary.id}`, {
+            method: 'PATCH',
+            body: {
+              name: merged.name,
+              role: merged.role || null,
+              email: merged.email || null,
+              phone: merged.phone || null,
+              memo: merged.memo || null,
+            },
+          })
+          updatedPrimary = contact
+        }
+
+        nextContacts = nextContacts.map((contact) =>
+          contact.id === updatedPrimary.id ? { ...contact, ...updatedPrimary } : contact
+        )
+
+        const duplicateContacts = group.filter((contact) => contact.id !== primary.id)
+        for (const duplicate of duplicateContacts) {
+          await apiRequest(`/api/contacts/${duplicate.id}`, { method: 'DELETE' })
+        }
+        if (duplicateContacts.length > 0) {
+          const duplicateIds = new Set(duplicateContacts.map((contact) => contact.id))
+          if (editingContactId && duplicateIds.has(editingContactId)) {
+            setEditingContactId(null)
+            resetEditContactForm()
+          }
+          nextContacts = nextContacts.filter((contact) => !duplicateIds.has(contact.id))
+        }
+      }
+
+      setContacts(nextContacts)
+      setToast({ message: '重複した担当者を統合しました', variant: 'success' })
+    } catch (err) {
+      setContactActionError(err instanceof Error ? err.message : '重複統合に失敗しました')
+    } finally {
+      setIsDedupeWorking(false)
+      setIsDedupeConfirmOpen(false)
+    }
+  }
+
   const handleUpdateCompany = async (field: 'tags' | 'profile') => {
     setCompanyError('')
     if (!id) return
 
     const tags =
-      field === 'tags'
-        ? companyForm.tags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter((tag) => tag.length > 0)
-        : company?.tags || []
+      field === 'tags' ? companyForm.tags : company?.tags || []
 
     try {
-      const response = await fetch(`/api/companies/${id}`, {
+      await apiRequest(`/api/companies/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           tags,
           profile: field === 'profile' ? companyForm.profile || null : company?.profile,
-        }),
+        },
       })
-
-      if (!response.ok) {
-        const body = await response.json()
-        throw new Error(body.error || '企業情報の更新に失敗しました')
-      }
 
       if (field === 'tags') setIsEditingTags(false)
       if (field === 'profile') setIsEditingProfile(false)
@@ -362,16 +577,10 @@ function CompanyDetail() {
       return
     }
     try {
-      const response = await fetch(`/api/companies/${id}/chatwork-rooms`, {
+      await apiRequest(`/api/companies/${id}/chatwork-rooms`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ roomId: roomInput.trim() }),
+        body: { roomId: roomInput.trim() },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'ルームの追加に失敗しました')
-      }
       setRoomInput('')
       fetchRooms()
     } catch (err) {
@@ -383,14 +592,9 @@ function CompanyDetail() {
     if (!id) return
     setRoomError('')
     try {
-      const response = await fetch(`/api/companies/${id}/chatwork-rooms/${roomId}`, {
+      await apiRequest(`/api/companies/${id}/chatwork-rooms/${roomId}`, {
         method: 'DELETE',
-        credentials: 'include',
       })
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'ルームの削除に失敗しました')
-      }
       fetchRooms()
     } catch (err) {
       setRoomError(err instanceof Error ? err.message : '通信エラーが発生しました')
@@ -405,16 +609,10 @@ function CompanyDetail() {
     }
     setMessageError('')
     try {
-      const response = await fetch(`/api/messages/${messageId}/labels`, {
+      await apiRequest(`/api/messages/${messageId}/labels`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ label }),
+        body: { label },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'ラベルの追加に失敗しました')
-      }
       setLabelInputs((prev) => ({ ...prev, [messageId]: '' }))
       fetchMessages()
     } catch (err) {
@@ -425,17 +623,9 @@ function CompanyDetail() {
   const handleRemoveLabel = async (messageId: string, label: string) => {
     setMessageError('')
     try {
-      const response = await fetch(
-        `/api/messages/${messageId}/labels/${encodeURIComponent(label)}`,
-        {
-          method: 'DELETE',
-          credentials: 'include',
-        }
-      )
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'ラベルの削除に失敗しました')
-      }
+      await apiRequest(`/api/messages/${messageId}/labels/${encodeURIComponent(label)}`, {
+        method: 'DELETE',
+      })
       fetchMessages()
     } catch (err) {
       setMessageError(err instanceof Error ? err.message : 'ネットワークエラー')
@@ -445,8 +635,9 @@ function CompanyDetail() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
+      setToast({ message: 'コピーしました', variant: 'success' })
     } catch (err) {
-      console.error('Failed to copy:', err)
+      setToast({ message: 'コピーに失敗しました', variant: 'error' })
     }
   }
 
@@ -473,7 +664,7 @@ function CompanyDetail() {
   }
 
   if (error) {
-    return <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+    return <ErrorAlert message={error} />
   }
 
   if (!company) {
@@ -536,7 +727,13 @@ function CompanyDetail() {
                           <dt className="text-slate-500">タグ</dt>
                           {canWrite && !isEditingTags && (
                             <button
-                              onClick={() => setIsEditingTags(true)}
+                              onClick={() => {
+                                setCompanyForm((prev) => ({
+                                  ...prev,
+                                  tags: company.tags ?? [],
+                                }))
+                                setIsEditingTags(true)
+                              }}
                               className="text-xs text-sky-600 hover:text-sky-700"
                             >
                               編集
@@ -544,41 +741,112 @@ function CompanyDetail() {
                           )}
                         </div>
                         {isEditingTags ? (
-                          <div className="mt-2 flex gap-2">
-                            <input
-                              className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
-                              value={companyForm.tags}
-                              onChange={(e) => setCompanyForm({ ...companyForm, tags: e.target.value })}
-                              placeholder="カンマ区切りで入力"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault()
-                                  handleUpdateCompany('tags')
-                                }
-                                if (e.key === 'Escape') {
+                          <div className="mt-2 space-y-3">
+                            <div className="flex flex-wrap gap-2">
+                              {companyForm.tags.length > 0 ? (
+                                companyForm.tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs text-slate-600 shadow-sm"
+                                  >
+                                    {tag}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setCompanyForm((prev) => ({
+                                          ...prev,
+                                          tags: prev.tags.filter((item) => item !== tag),
+                                        }))
+                                      }
+                                      className="text-slate-400 hover:text-rose-500"
+                                      aria-label={`${tag}を削除`}
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-xs text-slate-400">タグがまだありません</span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <input
+                                className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                value={tagInput}
+                                onChange={(e) => setTagInput(e.target.value)}
+                                placeholder="タグを追加（Enterで確定）"
+                                list="company-tag-options"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ',') {
+                                    e.preventDefault()
+                                    const value = tagInput.replace(',', '').trim()
+                                    if (!value) return
+                                    setCompanyForm((prev) => ({
+                                      ...prev,
+                                      tags: prev.tags.includes(value) ? prev.tags : [...prev.tags, value],
+                                    }))
+                                    setTagInput('')
+                                  }
+                                  if (e.key === 'Escape') {
+                                    setTagInput('')
+                                    setIsEditingTags(false)
+                                    setCompanyForm((prev) => ({
+                                      ...prev,
+                                      tags: company.tags ?? [],
+                                    }))
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const value = tagInput.trim()
+                                  if (!value) return
+                                  setCompanyForm((prev) => ({
+                                    ...prev,
+                                    tags: prev.tags.includes(value) ? prev.tags : [...prev.tags, value],
+                                  }))
+                                  setTagInput('')
+                                }}
+                                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white"
+                              >
+                                追加
+                              </button>
+                            </div>
+                            <datalist id="company-tag-options">
+                              {tagOptions.map((option) => (
+                                <option key={option} value={option} />
+                              ))}
+                            </datalist>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => handleUpdateCompany('tags')}
+                                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white"
+                              >
+                                保存
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
                                   setIsEditingTags(false)
-                                  setCompanyForm({ ...companyForm, tags: company.tags.join(', ') })
-                                }
-                              }}
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => handleUpdateCompany('tags')}
-                              className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white"
-                            >
-                              保存
-                            </button>
+                                  setTagInput('')
+                                  setCompanyForm((prev) => ({
+                                    ...prev,
+                                    tags: company.tags ?? [],
+                                  }))
+                                }}
+                                className="text-xs text-slate-500 hover:text-slate-700"
+                              >
+                                キャンセル
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           <dd className="mt-2 flex flex-wrap gap-1.5">
                             {company.tags.length > 0 ? (
                               company.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded-full bg-white px-2.5 py-0.5 text-xs text-slate-600 shadow-sm"
-                                >
-                                  {tag}
-                                </span>
+                                <Badge key={tag} label={tag} />
                               ))
                             ) : (
                               <span className="text-slate-400">-</span>
@@ -634,11 +902,7 @@ function CompanyDetail() {
                         )}
                       </div>
                     </dl>
-                    {companyError && (
-                      <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                        {companyError}
-                      </div>
-                    )}
+                    {companyError && <ErrorAlert message={companyError} />}
                   </div>
 
                   {/* Contacts */}
@@ -712,6 +976,34 @@ function CompanyDetail() {
                       </form>
                     )}
 
+                    {contactActionError && <ErrorAlert message={contactActionError} className="mb-3" />}
+
+                    {duplicateContactGroups.length > 0 && (
+                      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <div className="font-semibold">重複している担当者があります</div>
+                            <div className="text-xs text-amber-700">メールまたは電話番号が一致しています。</div>
+                          </div>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => setIsDedupeConfirmOpen(true)}
+                              disabled={isDedupeWorking}
+                              className="rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold text-white disabled:bg-amber-300"
+                            >
+                              {isDedupeWorking ? '統合中...' : '重複を統合'}
+                            </button>
+                          )}
+                        </div>
+                        <ul className="mt-2 space-y-1 text-xs text-amber-700">
+                          {duplicateContactGroups.map((group) => (
+                            <li key={group[0].id}>{group.map((contact) => contact.name).join(' / ')}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     {/* Contact List */}
                     <div className="space-y-2">
                       {contacts.length === 0 ? (
@@ -719,42 +1011,167 @@ function CompanyDetail() {
                           担当者が登録されていません
                         </div>
                       ) : (
-                        contacts.map((contact) => (
-                          <div
-                            key={contact.id}
-                            className="rounded-lg border border-slate-100 bg-white p-3 transition-colors hover:border-slate-200"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div
-                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${getAvatarColor(contact.name)}`}
-                              >
-                                {getInitials(contact.name)}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="font-semibold text-slate-900">{contact.name}</div>
-                                {contact.role && <div className="text-xs text-slate-500">{contact.role}</div>}
-                                <div className="mt-1 flex flex-wrap gap-2 text-xs">
-                                  {contact.email && (
-                                    <button
-                                      onClick={() => copyToClipboard(contact.email!)}
-                                      className="text-slate-500 hover:text-sky-600"
-                                    >
-                                      {contact.email}
-                                    </button>
-                                  )}
-                                  {contact.phone && (
-                                    <button
-                                      onClick={() => copyToClipboard(contact.phone!)}
-                                      className="text-slate-500 hover:text-sky-600"
-                                    >
-                                      {contact.phone}
-                                    </button>
-                                  )}
+                        contacts.map((contact, index) => {
+                          const isEditing = editingContactId === contact.id
+                          return (
+                            <div
+                              key={contact.id}
+                              className="rounded-lg border border-slate-100 bg-white p-3 transition-colors hover:border-slate-200"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                  <div
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${getAvatarColor(contact.name)}`}
+                                  >
+                                    {getInitials(contact.name)}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    {isEditing ? (
+                                      <div className="space-y-2">
+                                        <input
+                                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                                          placeholder="担当者名（必須）"
+                                          value={editContactForm.name}
+                                          onChange={(e) =>
+                                            setEditContactForm({ ...editContactForm, name: e.target.value })
+                                          }
+                                        />
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <input
+                                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                                            placeholder="役職"
+                                            value={editContactForm.role}
+                                            onChange={(e) =>
+                                              setEditContactForm({ ...editContactForm, role: e.target.value })
+                                            }
+                                          />
+                                          <input
+                                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                                            placeholder="電話番号"
+                                            value={editContactForm.phone}
+                                            onChange={(e) =>
+                                              setEditContactForm({ ...editContactForm, phone: e.target.value })
+                                            }
+                                          />
+                                        </div>
+                                        <input
+                                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                                          placeholder="メールアドレス"
+                                          value={editContactForm.email}
+                                          onChange={(e) =>
+                                            setEditContactForm({ ...editContactForm, email: e.target.value })
+                                          }
+                                        />
+                                        <textarea
+                                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                                          placeholder="メモ"
+                                          rows={2}
+                                          value={editContactForm.memo}
+                                          onChange={(e) =>
+                                            setEditContactForm({ ...editContactForm, memo: e.target.value })
+                                          }
+                                        />
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="font-semibold text-slate-900">{contact.name}</div>
+                                        {contact.role && <div className="text-xs text-slate-500">{contact.role}</div>}
+                                        <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                                          {contact.email && (
+                                            <button
+                                              onClick={() => copyToClipboard(contact.email!)}
+                                              className="text-slate-500 hover:text-sky-600"
+                                            >
+                                              {contact.email}
+                                            </button>
+                                          )}
+                                          {contact.phone && (
+                                            <button
+                                              onClick={() => copyToClipboard(contact.phone!)}
+                                              className="text-slate-500 hover:text-sky-600"
+                                            >
+                                              {contact.phone}
+                                            </button>
+                                          )}
+                                        </div>
+                                        {contact.memo && (
+                                          <p className="mt-2 whitespace-pre-line text-xs text-slate-500">
+                                            {contact.memo}
+                                          </p>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
+                                {canWrite && (
+                                  <div className="flex shrink-0 flex-col items-end gap-2">
+                                    {!isEditing && (
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => moveContact(index, -1)}
+                                          disabled={index === 0 || isReorderWorking}
+                                          className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
+                                        >
+                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveContact(index, 1)}
+                                          disabled={index === contacts.length - 1 || isReorderWorking}
+                                          className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
+                                        >
+                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      {isEditing ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={handleSaveContact}
+                                            className="text-xs font-medium text-sky-600 hover:text-sky-700"
+                                          >
+                                            保存
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={cancelEditContact}
+                                            className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                                          >
+                                            キャンセル
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => startEditContact(contact)}
+                                            className="text-xs font-medium text-sky-600 hover:text-sky-700"
+                                          >
+                                            編集
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setConfirmDelete({ id: contact.id, name: contact.name })}
+                                            className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                                          >
+                                            削除
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                          </div>
-                        ))
+                          )
+                        })
                       )}
                     </div>
                   </div>
@@ -770,11 +1187,7 @@ function CompanyDetail() {
                       <h4 className="font-medium text-slate-900">Chatworkルーム</h4>
                       <span className="text-xs text-slate-500">{linkedRooms.length}件</span>
                     </div>
-                    {roomError && (
-                      <div className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                        {roomError}
-                      </div>
-                    )}
+                    {roomError && <ErrorAlert message={roomError} className="mb-3" />}
                     <div className="flex flex-wrap gap-2">
                       {linkedRooms.length === 0 ? (
                         <span className="text-sm text-slate-500">ルームが紐づいていません</span>
@@ -799,7 +1212,7 @@ function CompanyDetail() {
                         ))
                       )}
                     </div>
-                    {canWrite && (
+                    {isAdmin ? (
                       <form onSubmit={handleAddRoom} className="mt-3 flex gap-2">
                         <select
                           className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm"
@@ -825,7 +1238,11 @@ function CompanyDetail() {
                           追加
                         </button>
                       </form>
-                    )}
+                    ) : canWrite ? (
+                      <div className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
+                        ルームの追加は管理者のみ可能です。
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Message Filters */}
@@ -854,14 +1271,16 @@ function CompanyDetail() {
                       placeholder="ラベル"
                       value={messageLabel}
                       onChange={(e) => setMessageLabel(e.target.value)}
+                      list="company-message-label-options"
                     />
                   </div>
+                  <datalist id="company-message-label-options">
+                    {labelOptions.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
 
-                  {messageError && (
-                    <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                      {messageError}
-                    </div>
-                  )}
+                  {messageError && <ErrorAlert message={messageError} />}
 
                   {/* Messages Timeline */}
                   {messageLoading ? (
@@ -906,7 +1325,7 @@ function CompanyDetail() {
                                     </span>
                                   </div>
                                   <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                                    {message.body}
+                                    {highlightText(message.body, messageQuery)}
                                   </p>
                                   {message.labels && message.labels.length > 0 && (
                                     <div className="mt-2 flex flex-wrap gap-1">
@@ -945,6 +1364,7 @@ function CompanyDetail() {
                                             handleAddLabel(message.id)
                                           }
                                         }}
+                                        list="company-message-label-options"
                                       />
                                       <button
                                         onClick={() => handleAddLabel(message.id)}
@@ -960,6 +1380,17 @@ function CompanyDetail() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                  {messagePagination.total > 0 && (
+                    <div className="mt-6">
+                      <Pagination
+                        page={messagePagination.page}
+                        pageSize={messagePagination.pageSize}
+                        total={messagePagination.total}
+                        onPageChange={setMessagePage}
+                        onPageSizeChange={setMessagePageSize}
+                      />
                     </div>
                   )}
                 </div>
@@ -980,6 +1411,34 @@ function CompanyDetail() {
           )}
         </Tabs>
       </div>
+      <ConfirmDialog
+        isOpen={!!confirmDelete}
+        title="担当者を削除しますか？"
+        description={confirmDelete ? `${confirmDelete.name} を削除します。` : undefined}
+        confirmLabel="削除"
+        cancelLabel="キャンセル"
+        isLoading={isDeletingContact}
+        onConfirm={handleConfirmDeleteContact}
+        onCancel={() => setConfirmDelete(null)}
+      />
+      <ConfirmDialog
+        isOpen={isDedupeConfirmOpen}
+        title="重複した担当者を統合しますか？"
+        description={`${duplicateContactGroups.length} 件のグループを統合し、重複レコードを削除します。`}
+        confirmLabel="統合"
+        cancelLabel="キャンセル"
+        isLoading={isDedupeWorking}
+        onConfirm={handleMergeDuplicates}
+        onCancel={() => setIsDedupeConfirmOpen(false)}
+      />
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : 'success'}
+          onClose={() => setToast(null)}
+          className="fixed bottom-6 right-6 z-50"
+        />
+      )}
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import bcrypt from 'bcrypt'
 import { JWTUser } from '../types/auth'
+import { env } from '../config/env'
+import { buildErrorPayload } from '../utils/errors'
 import { prisma } from '../utils/prisma'
 
 interface LoginBody {
@@ -12,20 +14,28 @@ export async function authRoutes(fastify: FastifyInstance) {
   // ログイン
   fastify.post<{ Body: LoginBody }>(
     '/auth/login',
+    {
+      config: {
+        rateLimit: {
+          max: env.rateLimitMax,
+          timeWindow: env.rateLimitWindowMs,
+        },
+      },
+    },
     async (request: FastifyRequest<{ Body: LoginBody }>, reply: FastifyReply) => {
       const { email, password } = request.body
 
       const user = await prisma.user.findUnique({ where: { email } })
       if (!user) {
-        return reply.code(401).send({ error: 'Invalid credentials' })
+        return reply.code(401).send(buildErrorPayload(401, 'Invalid credentials'))
       }
 
       const isValid = await bcrypt.compare(password, user.password)
       if (!isValid) {
-        return reply.code(401).send({ error: 'Invalid credentials' })
+        return reply.code(401).send(buildErrorPayload(401, 'Invalid credentials'))
       }
 
-      const token = fastify.jwt.sign({ userId: user.id, role: user.role })
+      const token = fastify.jwt.sign({ userId: user.id, role: user.role }, { expiresIn: '7d' })
       reply.setCookie('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -62,12 +72,12 @@ export async function authRoutes(fastify: FastifyInstance) {
       })
 
       if (!user) {
-        return reply.code(404).send({ error: 'User not found' })
+        return reply.code(404).send(buildErrorPayload(404, 'User not found'))
       }
 
       return { user }
     } catch (err) {
-      return reply.code(401).send({ error: 'Unauthorized' })
+      return reply.code(401).send(buildErrorPayload(401, 'Unauthorized'))
     }
   })
 }

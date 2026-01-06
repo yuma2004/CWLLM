@@ -1,16 +1,19 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import bcrypt from 'bcrypt'
-import { requireAdmin } from '../middleware/rbac'
+import { UserRole } from '@prisma/client'
+import { requireAdmin, requireAuth } from '../middleware/rbac'
+import { buildErrorPayload } from '../utils/errors'
 import { prisma } from '../utils/prisma'
+import { validatePassword } from '../utils/validation'
 
 interface CreateUserBody {
   email: string
   password: string
-  role: string
+  role: UserRole
 }
 
 interface UpdateUserRoleBody {
-  role: string
+  role: UserRole
 }
 
 export async function userRoutes(fastify: FastifyInstance) {
@@ -22,15 +25,19 @@ export async function userRoutes(fastify: FastifyInstance) {
       const { email, password, role } = request.body
 
       // バリデーション
-      const validRoles = ['admin', 'sales', 'ops', 'readonly']
-      if (!validRoles.includes(role)) {
-        return reply.code(400).send({ error: 'Invalid role' })
+      const validRoles = new Set(Object.values(UserRole))
+      if (!validRoles.has(role)) {
+        return reply.code(400).send(buildErrorPayload(400, 'Invalid role'))
+      }
+      const passwordCheck = validatePassword(password)
+      if (!passwordCheck.ok) {
+        return reply.code(400).send(buildErrorPayload(400, passwordCheck.reason))
       }
 
       // 既存ユーザーチェック
       const existing = await prisma.user.findUnique({ where: { email } })
       if (existing) {
-        return reply.code(409).send({ error: 'User already exists' })
+        return reply.code(409).send(buildErrorPayload(409, 'User already exists'))
       }
 
       // パスワードハッシュ化
@@ -73,6 +80,23 @@ export async function userRoutes(fastify: FastifyInstance) {
     }
   )
 
+  fastify.get(
+    '/users/options',
+    { preHandler: requireAuth() },
+    async () => {
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          role: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      })
+
+      return { users }
+    }
+  )
+
   // ロール変更（Adminのみ）
   fastify.patch<{ Params: { id: string }; Body: UpdateUserRoleBody }>(
     '/users/:id/role',
@@ -85,9 +109,9 @@ export async function userRoutes(fastify: FastifyInstance) {
       const { role } = request.body
 
       // バリデーション
-      const validRoles = ['admin', 'sales', 'ops', 'readonly']
-      if (!validRoles.includes(role)) {
-        return reply.code(400).send({ error: 'Invalid role' })
+      const validRoles = new Set(Object.values(UserRole))
+      if (!validRoles.has(role)) {
+        return reply.code(400).send(buildErrorPayload(400, 'Invalid role'))
       }
 
       const user = await prisma.user.update({

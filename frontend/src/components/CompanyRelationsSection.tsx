@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import StatusBadge from './ui/StatusBadge'
+import { WHOLESALE_STATUS_LABELS } from '../constants'
+import { formatDate } from '../utils/date'
+import { apiRequest } from '../lib/apiClient'
 
 interface Project {
   id: string
@@ -29,24 +33,15 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
   const fetchRelations = useCallback(async () => {
     setError('')
     try {
-      const [projectResponse, wholesaleResponse] = await Promise.all([
-        fetch(`/api/companies/${companyId}/projects`, { credentials: 'include' }),
-        fetch(`/api/companies/${companyId}/wholesales`, { credentials: 'include' }),
+      const [projectData, wholesaleData] = await Promise.all([
+        apiRequest<{ projects: Project[] }>(`/api/companies/${companyId}/projects`),
+        apiRequest<{ wholesales: Wholesale[] }>(`/api/companies/${companyId}/wholesales`),
       ])
-
-      const projectData = await projectResponse.json()
-      const wholesaleData = await wholesaleResponse.json()
-      if (!projectResponse.ok) {
-        throw new Error(projectData.error || 'Failed to load projects')
-      }
-      if (!wholesaleResponse.ok) {
-        throw new Error(wholesaleData.error || 'Failed to load wholesales')
-      }
 
       setProjects(projectData.projects || [])
       setWholesales(wholesaleData.wholesales || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }, [companyId])
 
@@ -54,32 +49,9 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
     fetchRelations()
   }, [fetchRelations])
 
-  const getStatusBadge = (status: string) => {
-    const statusStyles: Record<string, string> = {
-      active: 'bg-emerald-50 text-emerald-700',
-      paused: 'bg-amber-50 text-amber-700',
-      closed: 'bg-slate-100 text-slate-600',
-    }
-    const statusLabels: Record<string, string> = {
-      active: '有効',
-      paused: '停止中',
-      closed: '終了',
-    }
-    return (
-      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[status] || 'bg-slate-100 text-slate-600'}`}>
-        {statusLabels[status] || status}
-      </span>
-    )
-  }
-
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return null
     return `¥${value.toLocaleString()}`
-  }
-
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return null
-    return new Date(dateString).toLocaleDateString('ja-JP')
   }
 
   return (
@@ -107,10 +79,15 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
                   key={project.id}
                   className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm"
                 >
-                  <div className="flex-1">
-                    <div className="font-semibold text-slate-900">{project.name}</div>
-                    <div className="mt-1">{getStatusBadge(project.status)}</div>
-                  </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900">{project.name}</div>
+                      <div className="mt-1">
+                        <StatusBadge
+                          status={WHOLESALE_STATUS_LABELS[project.status] || project.status}
+                          size="sm"
+                        />
+                      </div>
+                    </div>
                   <Link
                     to={`/projects/${project.id}`}
                     className="text-xs font-semibold text-sky-600 hover:text-sky-700"
@@ -155,7 +132,10 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
                         </div>
                       )}
                     </div>
-                    {getStatusBadge(wholesale.status)}
+                    <StatusBadge
+                      status={WHOLESALE_STATUS_LABELS[wholesale.status] || wholesale.status}
+                      size="sm"
+                    />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                     {formatCurrency(wholesale.unitPrice) && (
@@ -164,7 +144,7 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
                     {wholesale.margin != null && (
                       <span>マージン: {wholesale.margin}%</span>
                     )}
-                    {formatDate(wholesale.agreedDate) && (
+                    {wholesale.agreedDate && (
                       <span>合意日: {formatDate(wholesale.agreedDate)}</span>
                     )}
                   </div>

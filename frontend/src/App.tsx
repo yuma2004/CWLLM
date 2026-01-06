@@ -12,6 +12,8 @@ import MessageSearch from './pages/MessageSearch'
 import Tasks from './pages/Tasks'
 import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
+import Wholesales from './pages/Wholesales'
+import WholesaleDetail from './pages/WholesaleDetail'
 import Settings from './pages/Settings'
 import Exports from './pages/Exports'
 
@@ -29,6 +31,8 @@ const protectedRoutes: ProtectedRouteConfig[] = [
   { path: '/tasks', element: <Tasks /> },
   { path: '/projects', element: <Projects /> },
   { path: '/projects/:id', element: <ProjectDetail /> },
+  { path: '/wholesales', element: <Wholesales /> },
+  { path: '/wholesales/:id', element: <WholesaleDetail /> },
   { path: '/settings', element: <Settings />, allowedRoles: ['admin'] },
   { path: '/exports', element: <Exports />, allowedRoles: ['admin'] },
   { path: '/messages/search', element: <MessageSearch /> },

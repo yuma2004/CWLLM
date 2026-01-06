@@ -83,4 +83,31 @@ describe('Tasks page', () => {
       expect(hasPatch).toBe(true)
     })
   })
+
+  it('requests targetType filter', async () => {
+    queueResponse({
+      items: [],
+      pagination: { page: 1, pageSize: 20, total: 0 },
+    })
+    queueResponse({
+      items: [],
+      pagination: { page: 1, pageSize: 20, total: 0 },
+    })
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>
+    )
+
+    const selects = screen.getAllByRole('combobox')
+    fireEvent.change(selects[1], { target: { value: 'company' } })
+
+    await waitFor(() => {
+      const hasTargetType = mockFetch.mock.calls.some(([url]) =>
+        typeof url === 'string' ? url.includes('targetType=company') : false
+      )
+      expect(hasTargetType).toBe(true)
+    })
+  })
 })

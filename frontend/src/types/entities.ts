@@ -7,6 +7,11 @@ export interface Task {
   dueDate?: string | null
   targetType: string
   targetId: string
+  target?: {
+    id: string
+    type: string
+    name: string
+  }
   assigneeId?: string | null
   assignee?: {
     id: string
@@ -68,4 +73,48 @@ export interface Project {
   }
   createdAt?: string
   updatedAt?: string
+}
+
+export interface ChatworkRoom {
+  id: string
+  roomId: string
+  name: string
+  iconPath?: string
+  companyId?: string
+  description?: string | null
+  isActive?: boolean
+  lastSyncAt?: string | null
+  lastErrorAt?: string | null
+  lastErrorMessage?: string | null
+  lastErrorStatus?: number | null
+}
+
+export interface Message {
+  id: string
+  body: string
+  sendTime?: string
+  sentAt?: string
+  messageId?: string
+  sender?: string
+  account?: { name: string; avatarImageUrl?: string }
+  roomId?: string
+  room?: { name: string }
+  companyId?: string | null
+  labels?: string[]
+}
+
+export interface Contact {
+  id: string
+  name: string
+  role?: string | null
+  email?: string | null
+  phone?: string | null
+  memo?: string | null
+  sortOrder?: number | null
+}
+
+export interface CompanyOptions {
+  categories: string[]
+  statuses: string[]
+  tags: string[]
 }

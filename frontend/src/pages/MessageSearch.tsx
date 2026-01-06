@@ -1,5 +1,15 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import CompanySearchSelect from '../components/CompanySearchSelect'
+import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
+import ErrorAlert from '../components/ui/ErrorAlert'
+import Pagination from '../components/ui/Pagination'
+import { usePagination } from '../hooks/usePagination'
+import { usePermissions } from '../hooks/usePermissions'
+import { apiRequest } from '../lib/apiClient'
+import { ApiListResponse } from '../types'
+import { formatDateInput } from '../utils/date'
 
 interface MessageResult {
   id: string
@@ -12,54 +22,78 @@ interface MessageResult {
   labels?: string[]
 }
 
-interface Company {
-  id: string
-  name: string
-}
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-const formatDate = (value: Date) => value.toISOString().slice(0, 10)
+const highlightText = (text: string, keyword: string) => {
+  if (!keyword.trim()) return text
+  const pattern = new RegExp(`(${escapeRegExp(keyword.trim())})`, 'gi')
+  return text.split(pattern).map((part, index) =>
+    part.toLowerCase() === keyword.toLowerCase() ? (
+      <mark key={`${part}-${index}`} className="rounded bg-amber-100 px-1 text-slate-900">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  )
+}
 
 function MessageSearch() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { canWrite } = usePermissions()
   const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const initialQuery = initialParams.get('q') ?? ''
   const initialMessageId = initialParams.get('messageId') ?? ''
   const initialCompanyId = initialParams.get('companyId') ?? ''
+  const initialLabel = initialParams.get('label') ?? ''
+  const initialFrom = initialParams.get('from') ?? ''
+  const initialTo = initialParams.get('to') ?? ''
+  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
+  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 50, 1)
 
   const [query, setQuery] = useState(initialQuery)
   const [messageId, setMessageId] = useState(initialMessageId)
   const [companyId, setCompanyId] = useState(initialCompanyId)
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [label, setLabel] = useState(initialLabel)
+  const [from, setFrom] = useState(initialFrom)
+  const [to, setTo] = useState(initialTo)
   const [preset, setPreset] = useState<'all' | '7' | '30' | 'custom'>('all')
   const [results, setResults] = useState<MessageResult[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false)
   const [error, setError] = useState('')
   const [assignTarget, setAssignTarget] = useState<Record<string, string>>({})
+  const [assigningIds, setAssigningIds] = useState<string[]>([])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [bulkCompanyId, setBulkCompanyId] = useState('')
+  const [bulkLabel, setBulkLabel] = useState('')
+  const [labelOptions, setLabelOptions] = useState<string[]>([])
+  const [isBulkWorking, setIsBulkWorking] = useState(false)
+  const [hasSearched, setHasSearched] = useState(
+    Boolean(initialQuery || initialMessageId || initialCompanyId || initialLabel)
+  )
+  const { pagination, setPagination, setPage, setPageSize } = usePagination(initialPageSize)
 
-  const fetchCompanies = useCallback(async () => {
-    setIsLoadingCompanies(true)
+  const fetchLabelOptions = useCallback(async () => {
     try {
-      const response = await fetch('/api/companies?page=1&pageSize=1000', {
-        credentials: 'include',
-      })
-      if (!response.ok) {
-        throw new Error('企業一覧の取得に失敗しました')
-      }
-      const data = await response.json()
-      setCompanies(data.items || [])
-    } catch (err) {
-      console.error('企業一覧の取得エラー:', err)
-    } finally {
-      setIsLoadingCompanies(false)
+      const data = await apiRequest<{ items: Array<{ label: string }> }>(
+        '/api/messages/labels?limit=20'
+      )
+      setLabelOptions(data.items.map((item) => item.label))
+    } catch {
+      setLabelOptions([])
     }
   }, [])
 
   useEffect(() => {
-    fetchCompanies()
-  }, [fetchCompanies])
+    fetchLabelOptions()
+  }, [fetchLabelOptions])
+
+  useEffect(() => {
+    if (initialPage !== pagination.page) {
+      setPage(initialPage)
+    }
+  }, [initialPage, pagination.page, setPage])
 
   const applyPreset = (days?: number) => {
     if (!days) {
@@ -72,54 +106,59 @@ function MessageSearch() {
     const fromDate = new Date(today)
     fromDate.setDate(today.getDate() - days + 1)
     setPreset(days === 7 ? '7' : '30')
-    setFrom(formatDate(fromDate))
-    setTo(formatDate(today))
+    setFrom(formatDateInput(fromDate))
+    setTo(formatDateInput(today))
   }
 
-  const handleSearch = useCallback(async () => {
-    const trimmed = query.trim()
-    if (!trimmed && !messageId.trim() && !companyId.trim()) {
-      setError('キーワード、メッセージID、または企業を入力してください')
-      return
-    }
-
-    setIsLoading(true)
-    setError('')
-
-    try {
-      const params = new URLSearchParams()
-      if (trimmed) params.set('q', trimmed)
-      if (messageId.trim()) params.set('messageId', messageId.trim())
-      if (companyId.trim()) params.set('companyId', companyId.trim())
-      params.set('page', '1')
-      params.set('pageSize', '50')
-      if (from) params.set('from', from)
-      if (to) params.set('to', to)
-
-      const response = await fetch(`/api/messages/search?${params.toString()}`, {
-        credentials: 'include',
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || '検索に失敗しました')
+  const handleSearch = useCallback(
+    async (pageOverride?: number) => {
+      const trimmed = query.trim()
+      if (!trimmed && !messageId.trim() && !companyId.trim() && !label.trim()) {
+        setError('キーワード、メッセージID、企業、またはラベルを入力してください')
+        return
       }
-      setResults(data.items)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ネットワークエラー')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [companyId, from, messageId, query, to])
+
+      setIsLoading(true)
+      setError('')
+
+      try {
+        const params = new URLSearchParams()
+        if (trimmed) params.set('q', trimmed)
+        if (messageId.trim()) params.set('messageId', messageId.trim())
+        if (companyId.trim()) params.set('companyId', companyId.trim())
+        if (label.trim()) params.set('label', label.trim())
+        params.set('page', String(pageOverride ?? pagination.page))
+        params.set('pageSize', String(pagination.pageSize))
+        if (from) params.set('from', from)
+        if (to) params.set('to', to)
+
+        const data = await apiRequest<ApiListResponse<MessageResult>>(
+          `/api/messages/search?${params.toString()}`
+        )
+        setResults(data.items ?? [])
+        setPagination((prev) => ({ ...prev, ...data.pagination }))
+        setSelectedIds([])
+        setHasSearched(true)
+        navigate({ pathname: '/messages/search', search: params.toString() }, { replace: true })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'ネットワークエラー')
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [companyId, from, label, messageId, navigate, pagination.page, pagination.pageSize, query, setPagination, to]
+  )
 
   useEffect(() => {
-    if (initialQuery || initialMessageId) {
+    if (hasSearched) {
       handleSearch()
     }
-  }, [handleSearch, initialMessageId, initialQuery])
+  }, [handleSearch, hasSearched, pagination.page, pagination.pageSize])
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
-    handleSearch()
+    setPage(1)
+    handleSearch(1)
   }
 
   const handleAssign = async (messageId: string) => {
@@ -129,17 +168,12 @@ function MessageSearch() {
       return
     }
     setError('')
+    setAssigningIds((prev) => [...prev, messageId])
     try {
-      const response = await fetch(`/api/messages/${messageId}/assign-company`, {
+      await apiRequest(`/api/messages/${messageId}/assign-company`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ companyId: targetCompanyId }),
+        body: { companyId: targetCompanyId },
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || '割当てに失敗しました')
-      }
       // 割り当て成功後、該当メッセージの選択をクリアして再検索
       setAssignTarget((prev) => {
         const next = { ...prev }
@@ -149,7 +183,105 @@ function MessageSearch() {
       handleSearch()
     } catch (err) {
       setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+    } finally {
+      setAssigningIds((prev) => prev.filter((id) => id !== messageId))
     }
+  }
+
+  const handleBulkAssign = async () => {
+    if (selectedIds.length === 0) {
+      setError('対象メッセージを選択してください')
+      return
+    }
+    if (!bulkCompanyId) {
+      setError('企業を選択してください')
+      return
+    }
+    setError('')
+    setIsBulkWorking(true)
+    try {
+      await apiRequest('/api/messages/assign-company', {
+        method: 'PATCH',
+        body: { companyId: bulkCompanyId, messageIds: selectedIds },
+      })
+      setSelectedIds([])
+      setBulkCompanyId('')
+      handleSearch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+    } finally {
+      setIsBulkWorking(false)
+    }
+  }
+
+  const handleBulkLabelAdd = async () => {
+    if (selectedIds.length === 0) {
+      setError('対象メッセージを選択してください')
+      return
+    }
+    if (!bulkLabel.trim()) {
+      setError('ラベルを入力してください')
+      return
+    }
+    setError('')
+    setIsBulkWorking(true)
+    try {
+      await apiRequest('/api/messages/labels/bulk', {
+        method: 'POST',
+        body: { label: bulkLabel.trim(), messageIds: selectedIds },
+      })
+      setBulkLabel('')
+      setSelectedIds([])
+      handleSearch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+    } finally {
+      setIsBulkWorking(false)
+    }
+  }
+
+  const handleBulkLabelRemove = async () => {
+    if (selectedIds.length === 0) {
+      setError('対象メッセージを選択してください')
+      return
+    }
+    if (!bulkLabel.trim()) {
+      setError('ラベルを入力してください')
+      return
+    }
+    setError('')
+    setIsBulkWorking(true)
+    try {
+      await apiRequest('/api/messages/labels/bulk/remove', {
+        method: 'POST',
+        body: { label: bulkLabel.trim(), messageIds: selectedIds },
+      })
+      setBulkLabel('')
+      setSelectedIds([])
+      handleSearch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+    } finally {
+      setIsBulkWorking(false)
+    }
+  }
+
+  const allSelected = results.length > 0 && selectedIds.length === results.length
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(results.map((message) => message.id))
+    }
+  }
+
+  const toggleSelected = (messageId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(messageId)
+        ? prev.filter((id) => id !== messageId)
+        : [...prev, messageId]
+    )
   }
 
   return (
@@ -227,37 +359,105 @@ function MessageSearch() {
             検索
           </button>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr]">
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
           <input
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
             placeholder="メッセージID"
             value={messageId}
             onChange={(event) => setMessageId(event.target.value)}
           />
-          <select
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+          <CompanySearchSelect
             value={companyId}
-            onChange={(event) => setCompanyId(event.target.value)}
-          >
-            <option value="">全ての企業</option>
-            {isLoadingCompanies ? (
-              <option disabled>読み込み中...</option>
-            ) : (
-              companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
-                </option>
-              ))
-            )}
-          </select>
+            onChange={(nextId) => setCompanyId(nextId)}
+            placeholder="企業名で検索"
+          />
+          <div>
+            <input
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              placeholder="ラベルで絞り込み"
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              list="message-label-options"
+            />
+            <datalist id="message-label-options">
+              {labelOptions.map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
+          </div>
         </div>
       </form>
 
-      {error && <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>}
+      {error && <ErrorAlert message={error} />}
+
+      {results.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="rounded border-slate-300"
+                disabled={isBulkWorking}
+              />
+              全選択
+            </label>
+            <span className="text-xs text-slate-500">{selectedIds.length}件選択</span>
+            <div className="min-w-[220px] flex-1">
+              <CompanySearchSelect
+                value={bulkCompanyId}
+                onChange={(nextId) => setBulkCompanyId(nextId)}
+                placeholder="一括割当の企業を選択"
+                disabled={!canWrite || isBulkWorking || isLoading}
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={handleBulkAssign}
+              isLoading={isBulkWorking}
+              loadingLabel="処理中..."
+              disabled={!canWrite}
+            >
+              一括割当
+            </Button>
+            <input
+              className="min-w-[160px] rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              placeholder="ラベル"
+              value={bulkLabel}
+              onChange={(event) => setBulkLabel(event.target.value)}
+              list="message-label-options"
+              disabled={!canWrite || isBulkWorking || isLoading}
+            />
+            <Button
+              type="button"
+              onClick={handleBulkLabelAdd}
+              variant="secondary"
+              isLoading={isBulkWorking}
+              loadingLabel="処理中..."
+              disabled={!canWrite}
+            >
+              ラベル追加
+            </Button>
+            <Button
+              type="button"
+              onClick={handleBulkLabelRemove}
+              variant="ghost"
+              isLoading={isBulkWorking}
+              loadingLabel="処理中..."
+              disabled={!canWrite}
+            >
+              ラベル解除
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         {isLoading ? (
           <div className="text-sm text-slate-500">検索中...</div>
+        ) : !hasSearched ? (
+          <div className="text-sm text-slate-500">条件を入力して検索してください。</div>
         ) : results.length === 0 ? (
           <div className="text-sm text-slate-500">検索結果がありません。</div>
         ) : (
@@ -265,22 +465,36 @@ function MessageSearch() {
             {results.map((message) => (
               <div
                 key={message.id}
-                className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-700"
+                className={[
+                  'rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-700',
+                  selectedIds.includes(message.id) ? 'bg-slate-50' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(message.id)}
+                      onChange={() => toggleSelected(message.id)}
+                      className="rounded border-slate-300"
+                      disabled={isBulkWorking}
+                    />
+                    選択
+                  </label>
                   <span>{message.sender}</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
                   <span>{new Date(message.sentAt).toLocaleString()}</span>
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">{message.body}</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">
+                  {highlightText(message.body, query)}
+                </p>
                 {message.labels && message.labels.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2 text-xs">
                     {message.labels.map((label) => (
-                      <span
-                        key={label}
-                        className="rounded-full bg-slate-100 px-3 py-1 text-[11px] text-slate-600"
-                      >
-                        #{label}
-                      </span>
+                      <Badge key={label} label={`#${label}`} />
                     ))}
                   </div>
                 )}
@@ -298,34 +512,32 @@ function MessageSearch() {
                       <span className="text-slate-400">未割当</span>
                     )}
                   </div>
-                  {!message.companyId && (
+                  {!message.companyId && canWrite && (
                     <div className="flex flex-wrap gap-2 items-center">
-                      <select
-                        className="rounded-xl border border-slate-200 px-3 py-1 text-xs bg-white"
-                        value={assignTarget[message.id] || ''}
-                        onChange={(event) =>
-                          setAssignTarget((prev) => ({
-                            ...prev,
-                            [message.id]: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">企業を選択...</option>
-                        {companies.map((company) => (
-                          <option key={company.id} value={company.id}>
-                            {company.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => handleAssign(message.id)}
-                        disabled={!assignTarget[message.id]}
-                        className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
-                      >
-                        割当て
-                      </button>
+                      <div className="min-w-[200px]">
+                        <CompanySearchSelect
+                          value={assignTarget[message.id] || ''}
+                          onChange={(companyId) =>
+                            setAssignTarget((prev) => ({ ...prev, [message.id]: companyId }))
+                          }
+                          placeholder="企業を選択..."
+                          disabled={assigningIds.includes(message.id) || isBulkWorking}
+                        />
+                      </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleAssign(message.id)}
+                          disabled={!assignTarget[message.id]}
+                          isLoading={assigningIds.includes(message.id)}
+                          loadingLabel="割当中..."
+                        >
+                          割当て
+                        </Button>
                     </div>
+                  )}
+                  {!message.companyId && !canWrite && (
+                    <span className="text-xs text-slate-400">閲覧専用ロールは割当てできません。</span>
                   )}
                 </div>
               </div>
@@ -333,6 +545,16 @@ function MessageSearch() {
           </div>
         )}
       </div>
+
+      {pagination.total > 0 && (
+        <Pagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
     </div>
   )
 }

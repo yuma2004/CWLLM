@@ -1,16 +1,28 @@
 import { FastifyInstance } from 'fastify'
-import { Prisma } from '@prisma/client'
+import { Prisma, ProjectStatus } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
 import { parsePagination } from '../utils/pagination'
-import { handlePrismaError, prisma } from '../utils/prisma'
+import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
 import {
+  createEnumNormalizer,
   isNonEmptyString,
   isNullableString,
   parseDate,
   parseNumber,
 } from '../utils/validation'
 import { JWTUser } from '../types/auth'
+import { badRequest, notFound } from '../utils/errors'
+
+const normalizeProjectStatus = createEnumNormalizer(new Set(Object.values(ProjectStatus)))
+
+const normalizeSort = (value?: string) => {
+  if (!value) return { createdAt: 'desc' as const }
+  if (value === 'updatedAt') return { updatedAt: 'desc' as const }
+  if (value === 'status') return { status: 'asc' as const }
+  if (value === 'name') return { name: 'asc' as const }
+  return { createdAt: 'desc' as const }
+}
 
 interface ProjectCreateBody {
   companyId: string
@@ -19,7 +31,7 @@ interface ProjectCreateBody {
   unitPrice?: number
   periodStart?: string
   periodEnd?: string
-  status?: string
+  status?: ProjectStatus
   ownerId?: string
 }
 
@@ -29,7 +41,7 @@ interface ProjectUpdateBody {
   unitPrice?: number | null
   periodStart?: string | null
   periodEnd?: string | null
-  status?: string
+  status?: ProjectStatus
   ownerId?: string | null
 }
 
@@ -37,6 +49,7 @@ interface ProjectListQuery {
   q?: string
   companyId?: string
   status?: string
+  sort?: string
   page?: string
   pageSize?: string
 }
@@ -45,8 +58,12 @@ export async function projectRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: ProjectListQuery }>(
     '/projects',
     { preHandler: requireAuth() },
-    async (request) => {
-      const { q, companyId, status } = request.query
+    async (request, reply) => {
+      const { q, companyId } = request.query
+      const status = normalizeProjectStatus(request.query.status)
+      if (request.query.status !== undefined && status === null) {
+        return reply.code(400).send(badRequest('Invalid status'))
+      }
       const { page, pageSize, skip } = parsePagination(
         request.query.page,
         request.query.pageSize
@@ -63,10 +80,12 @@ export async function projectRoutes(fastify: FastifyInstance) {
         where.status = status
       }
 
+      const orderBy = normalizeSort(request.query.sort)
+
       const [items, total] = await prisma.$transaction([
         prisma.project.findMany({
           where,
-          orderBy: { createdAt: 'desc' },
+          orderBy,
           skip,
           take: pageSize,
         }),
@@ -88,33 +107,37 @@ export async function projectRoutes(fastify: FastifyInstance) {
     '/projects',
     { preHandler: requireWriteAccess() },
     async (request, reply) => {
-      const { companyId, name, conditions, status, ownerId } = request.body
+      const { companyId, name, conditions, ownerId } = request.body
       const unitPrice = parseNumber(request.body.unitPrice)
       const periodStart = parseDate(request.body.periodStart)
       const periodEnd = parseDate(request.body.periodEnd)
+      const normalizedStatus = normalizeProjectStatus(request.body.status)
 
       if (!isNonEmptyString(companyId)) {
-        return reply.code(400).send({ error: 'companyId is required' })
+        return reply.code(400).send(badRequest('companyId is required'))
       }
       if (!isNonEmptyString(name)) {
-        return reply.code(400).send({ error: 'name is required' })
+        return reply.code(400).send(badRequest('name is required'))
       }
       if (unitPrice === null) {
-        return reply.code(400).send({ error: 'Invalid unitPrice' })
+        return reply.code(400).send(badRequest('Invalid unitPrice'))
       }
       if (request.body.periodStart && !periodStart) {
-        return reply.code(400).send({ error: 'Invalid periodStart' })
+        return reply.code(400).send(badRequest('Invalid periodStart'))
       }
       if (request.body.periodEnd && !periodEnd) {
-        return reply.code(400).send({ error: 'Invalid periodEnd' })
+        return reply.code(400).send(badRequest('Invalid periodEnd'))
       }
       if (ownerId !== undefined && !isNonEmptyString(ownerId)) {
-        return reply.code(400).send({ error: 'Invalid ownerId' })
+        return reply.code(400).send(badRequest('Invalid ownerId'))
+      }
+      if (request.body.status !== undefined && normalizedStatus === null) {
+        return reply.code(400).send(badRequest('Invalid status'))
       }
 
       const company = await prisma.company.findUnique({ where: { id: companyId } })
       if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       try {
@@ -126,7 +149,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
             unitPrice: unitPrice ?? undefined,
             periodStart: periodStart ?? undefined,
             periodEnd: periodEnd ?? undefined,
-            status,
+            status: normalizedStatus ?? undefined,
             ownerId,
           },
         })
@@ -153,7 +176,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const project = await prisma.project.findUnique({ where: { id: request.params.id } })
       if (!project) {
-        return reply.code(404).send({ error: 'Project not found' })
+        return reply.code(404).send(notFound('Project'))
       }
       return { project }
     }
@@ -163,39 +186,40 @@ export async function projectRoutes(fastify: FastifyInstance) {
     '/projects/:id',
     { preHandler: requireWriteAccess() },
     async (request, reply) => {
-      const { name, conditions, status, ownerId } = request.body
+      const { name, conditions, ownerId } = request.body
       const unitPrice = parseNumber(request.body.unitPrice)
       const periodStart = parseDate(request.body.periodStart)
       const periodEnd = parseDate(request.body.periodEnd)
+      const normalizedStatus = normalizeProjectStatus(request.body.status)
 
       if (name !== undefined && !isNonEmptyString(name)) {
-        return reply.code(400).send({ error: 'name is required' })
+        return reply.code(400).send(badRequest('name is required'))
       }
       if (!isNullableString(conditions)) {
-        return reply.code(400).send({ error: 'Invalid conditions' })
+        return reply.code(400).send(badRequest('Invalid conditions'))
       }
       if (unitPrice === null) {
-        return reply.code(400).send({ error: 'Invalid unitPrice' })
+        return reply.code(400).send(badRequest('Invalid unitPrice'))
       }
       if (request.body.periodStart !== undefined && request.body.periodStart !== null && !periodStart) {
-        return reply.code(400).send({ error: 'Invalid periodStart' })
+        return reply.code(400).send(badRequest('Invalid periodStart'))
       }
       if (request.body.periodEnd !== undefined && request.body.periodEnd !== null && !periodEnd) {
-        return reply.code(400).send({ error: 'Invalid periodEnd' })
+        return reply.code(400).send(badRequest('Invalid periodEnd'))
       }
-      if (status !== undefined && !isNonEmptyString(status)) {
-        return reply.code(400).send({ error: 'Invalid status' })
+      if (request.body.status !== undefined && normalizedStatus === null) {
+        return reply.code(400).send(badRequest('Invalid status'))
       }
       if (!isNullableString(ownerId)) {
-        return reply.code(400).send({ error: 'Invalid ownerId' })
+        return reply.code(400).send(badRequest('Invalid ownerId'))
       }
       if (typeof ownerId === 'string' && ownerId.trim() === '') {
-        return reply.code(400).send({ error: 'Invalid ownerId' })
+        return reply.code(400).send(badRequest('Invalid ownerId'))
       }
 
       const existing = await prisma.project.findUnique({ where: { id: request.params.id } })
       if (!existing) {
-        return reply.code(404).send({ error: 'Project not found' })
+        return reply.code(404).send(notFound('Project'))
       }
 
       const data: Prisma.ProjectUpdateInput = {}
@@ -214,18 +238,11 @@ export async function projectRoutes(fastify: FastifyInstance) {
       if (request.body.periodEnd !== undefined) {
         data.periodEnd = periodEnd ?? null
       }
-      if (status !== undefined) {
-        data.status = status.trim()
+      if (normalizedStatus !== undefined) {
+        data.status = normalizedStatus
       }
       if (ownerId !== undefined) {
-        data.owner =
-          ownerId === null
-            ? { disconnect: true }
-            : {
-                connect: {
-                  id: ownerId,
-                },
-              }
+        data.owner = connectOrDisconnect(ownerId)
       }
 
       try {
@@ -257,7 +274,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const existing = await prisma.project.findUnique({ where: { id: request.params.id } })
       if (!existing) {
-        return reply.code(404).send({ error: 'Project not found' })
+        return reply.code(404).send(notFound('Project'))
       }
 
       try {
@@ -285,7 +302,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const project = await prisma.project.findUnique({ where: { id: request.params.id } })
       if (!project) {
-        return reply.code(404).send({ error: 'Project not found' })
+        return reply.code(404).send(notFound('Project'))
       }
 
       const wholesales = await prisma.wholesale.findMany({
@@ -307,7 +324,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const company = await prisma.company.findUnique({ where: { id: request.params.id } })
       if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
+        return reply.code(404).send(notFound('Company'))
       }
 
       const projects = await prisma.project.findMany({
