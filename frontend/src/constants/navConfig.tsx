@@ -58,26 +58,6 @@ export const buildNavItems = (canWrite: boolean, isAdmin: boolean): NavItem[] =>
     ),
     show: true,
   },
-  {
-    to: '/messages/search',
-    label: 'メッセージ検索',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    ),
-    show: true,
-  },
-  {
-    to: '/messages/unassigned',
-    label: '未割当メッセージ',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-    show: canWrite,
-  },
 ]
 
 export const buildSettingsItems = (isAdmin: boolean): NavItem[] => [

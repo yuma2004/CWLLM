@@ -37,7 +37,6 @@ function Home() {
   const [todayTasks, setTodayTasks] = useState<DashboardTask[]>([])
   const [soonTasks, setSoonTasks] = useState<DashboardTask[]>([])
   const [weekTasks, setWeekTasks] = useState<DashboardTask[]>([])
-  const [unassignedMessageCount, setUnassignedMessageCount] = useState(0)
   const [latestSummaries, setLatestSummaries] = useState<DashboardSummary[]>([])
   const [recentCompanies, setRecentCompanies] = useState<DashboardCompany[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -55,7 +54,6 @@ function Home() {
           weekTasks: DashboardTask[]
           latestSummaries: DashboardSummary[]
           recentCompanies: DashboardCompany[]
-          unassignedMessageCount: number
         }>('/api/dashboard')
         setOverdueTasks(data.overdueTasks || [])
         setTodayTasks(data.todayTasks || [])
@@ -63,7 +61,6 @@ function Home() {
         setWeekTasks(data.weekTasks || [])
         setLatestSummaries(data.latestSummaries || [])
         setRecentCompanies(data.recentCompanies || [])
-        setUnassignedMessageCount(data.unassignedMessageCount || 0)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'ネットワークエラー')
       } finally {
@@ -117,22 +114,6 @@ function Home() {
 
       {error && <ErrorAlert message={error} />}
 
-      {unassignedMessageCount > 0 && (
-        <Link
-          to="/messages/unassigned"
-          className="group flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 transition-colors hover:border-amber-300 hover:bg-amber-100"
-        >
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-amber-500">Action</div>
-            <div className="font-semibold text-amber-800">
-              未割当メッセージが{unassignedMessageCount}件あります
-            </div>
-          </div>
-          <span className="text-xs font-semibold text-amber-700 group-hover:text-amber-900">
-            割当画面へ →
-          </span>
-        </Link>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Task Triage Panel */}

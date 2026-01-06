@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import Button from './ui/Button'
 import ErrorAlert from './ui/ErrorAlert'
 import { apiRequest } from '../lib/apiClient'
@@ -389,15 +388,9 @@ function CompanySummarySection({
             <div className="text-xs text-slate-500">
               参照元:{' '}
               {draftSourceLinks.map((link) => (
-                <Link
-                  key={link}
-                  to={`/messages/search?messageId=${encodeURIComponent(
-                    link
-                  )}&companyId=${encodeURIComponent(companyId)}`}
-                  className="mr-2 text-slate-600 hover:text-slate-900"
-                >
+                <span key={link} className="mr-2 text-slate-600">
                   {link}
-                </Link>
+                </span>
               ))}
             </div>
           )}
@@ -454,15 +447,9 @@ function CompanySummarySection({
                   <div className="mt-2 text-xs text-slate-500">
                     参照元:{' '}
                     {summary.sourceLinks.map((link) => (
-                      <Link
-                        key={link}
-                        to={`/messages/search?messageId=${encodeURIComponent(
-                          link
-                        )}&companyId=${encodeURIComponent(companyId)}`}
-                        className="mr-2 text-slate-600 hover:text-slate-900"
-                      >
+                      <span key={link} className="mr-2 text-slate-600">
                         {link}
-                      </Link>
+                      </span>
                     ))}
                   </div>
                 )}

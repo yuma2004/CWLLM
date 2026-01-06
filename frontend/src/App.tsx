@@ -7,8 +7,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Companies from './pages/Companies'
 import CompanyDetail from './pages/CompanyDetail'
 import ChatworkSettings from './pages/ChatworkSettings'
-import UnassignedMessages from './pages/UnassignedMessages'
-import MessageSearch from './pages/MessageSearch'
 import Tasks from './pages/Tasks'
 import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
@@ -35,12 +33,6 @@ const protectedRoutes: ProtectedRouteConfig[] = [
   { path: '/wholesales/:id', element: <WholesaleDetail /> },
   { path: '/settings', element: <Settings />, allowedRoles: ['admin'] },
   { path: '/exports', element: <Exports />, allowedRoles: ['admin'] },
-  { path: '/messages/search', element: <MessageSearch /> },
-  {
-    path: '/messages/unassigned',
-    element: <UnassignedMessages />,
-    allowedRoles: ['admin', 'sales', 'ops'],
-  },
 ]
 
 const renderProtectedRoute = (route: ProtectedRouteConfig) => (
