@@ -3,7 +3,7 @@ type LoadingStateProps = {
   className?: string
 }
 
-const LoadingState = ({ message = 'Loading...', className }: LoadingStateProps) => {
+const LoadingState = ({ message = '読み込み中...', className }: LoadingStateProps) => {
   return (
     <div className={['text-sm text-slate-500', className].filter(Boolean).join(' ')}>
       {message}

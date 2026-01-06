@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { PrismaClient } from '@prisma/client'
 import { chatworkRoutes } from './chatwork'
 
@@ -20,6 +21,8 @@ const buildResponse = (payload: unknown, status = 200) =>
 
 const buildTestServer = async () => {
   const app = Fastify()
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
   await app.register(cors)
   await app.register(cookie)
   await app.register(jwt, {
@@ -35,12 +38,21 @@ const buildTestServer = async () => {
 
 describe('Chatwork sync', () => {
   let fastify: FastifyInstance
+  let userId: string
 
   beforeEach(async () => {
     process.env.CHATWORK_API_TOKEN = 'test-token'
     mockFetch.mockReset()
     globalThis.fetch = mockFetch as unknown as typeof fetch
     fastify = await buildTestServer()
+    const user = await prisma.user.create({
+      data: {
+        email: `chatwork-test-${Date.now()}@example.com`,
+        password: 'password',
+        role: 'admin',
+      },
+    })
+    userId = user.id
   })
 
   afterEach(async () => {
@@ -48,6 +60,11 @@ describe('Chatwork sync', () => {
     await prisma.companyRoomLink.deleteMany()
     await prisma.chatworkRoom.deleteMany()
     await prisma.company.deleteMany()
+    await prisma.user.deleteMany({
+      where: {
+        email: { contains: 'chatwork-test-' },
+      },
+    })
     await fastify.close()
   })
 
@@ -70,7 +87,7 @@ describe('Chatwork sync', () => {
       return buildResponse([])
     })
 
-    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
 
     const roomSync = await fastify.inject({
       method: 'POST',
@@ -138,7 +155,7 @@ describe('Chatwork sync', () => {
       return buildResponse([])
     })
 
-    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
     await fastify.inject({
       method: 'POST',
       url: '/api/chatwork/rooms/sync',
@@ -179,7 +196,7 @@ describe('Chatwork sync', () => {
       return buildResponse([])
     })
 
-    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
     await fastify.inject({
       method: 'POST',
       url: '/api/chatwork/rooms/sync',
@@ -194,15 +211,19 @@ describe('Chatwork sync', () => {
 
     expect(response.statusCode).toBe(200)
     const body = JSON.parse(response.body)
-    expect(body.errors.length).toBe(1)
-    expect(body.errors[0].roomId).toBe('300')
+    expect(body.jobId).toBeTruthy()
+
+    const job = await prisma.job.findUnique({ where: { id: body.jobId } })
+    const result = job?.result as { errors?: Array<{ roomId: string }> } | null
+    expect(result?.errors?.length).toBe(1)
+    expect(result?.errors?.[0]?.roomId).toBe('300')
 
     const room = await prisma.chatworkRoom.findUnique({ where: { roomId: '300' } })
     expect(room?.lastErrorMessage).toBeTruthy()
   })
 
   it('clears recorded errors after a successful sync', async () => {
-    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
 
     mockFetch.mockImplementation((input) => {
       const url = input.toString()

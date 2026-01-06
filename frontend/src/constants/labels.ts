@@ -29,6 +29,12 @@ export const TARGET_TYPE_LABELS: Record<string, string> = {
   wholesale: '卸',
 }
 
+// 企業区分（標準候補）
+export const COMPANY_CATEGORY_DEFAULT_OPTIONS = ['広告主', 'メディア', '他社ASP', 'その他'] as const
+
+// 企業ステータス（標準候補）
+export const COMPANY_STATUS_DEFAULT_OPTIONS = ['商談中', '稼働中', '停止', '休眠', 'active'] as const
+
 // 共通ラベル
 export const COMMON_LABELS = {
   // アクション

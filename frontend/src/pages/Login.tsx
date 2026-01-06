@@ -110,7 +110,7 @@ function Login() {
         </div>
         
         <p className="mt-8 text-center text-xs text-slate-400">
-          © CWLLM System. All rights reserved.
+          © CWLLM System. すべての権利を保有します。
         </p>
       </div>
     </div>

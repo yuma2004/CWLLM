@@ -4,6 +4,7 @@ import { UserRole } from '@prisma/client'
 import { requireAdmin, requireAuth } from '../middleware/rbac'
 import { buildErrorPayload } from '../utils/errors'
 import { prisma } from '../utils/prisma'
+import { getCache, setCache } from '../utils/ttlCache'
 import { validatePassword } from '../utils/validation'
 
 interface CreateUserBody {
@@ -15,6 +16,8 @@ interface CreateUserBody {
 interface UpdateUserRoleBody {
   role: UserRole
 }
+
+const USER_OPTIONS_CACHE_TTL_MS = 30_000
 
 export async function userRoutes(fastify: FastifyInstance) {
   // ユーザー作成（Adminのみ）
@@ -31,7 +34,8 @@ export async function userRoutes(fastify: FastifyInstance) {
       }
       const passwordCheck = validatePassword(password)
       if (!passwordCheck.ok) {
-        return reply.code(400).send(buildErrorPayload(400, passwordCheck.reason))
+        const reason = passwordCheck.reason ?? 'Invalid password'
+        return reply.code(400).send(buildErrorPayload(400, reason))
       }
 
       // 既存ユーザーチェック
@@ -84,6 +88,14 @@ export async function userRoutes(fastify: FastifyInstance) {
     '/users/options',
     { preHandler: requireAuth() },
     async () => {
+      const cacheKey = 'users:options'
+      const cached = getCache<{ users: Array<{ id: string; email: string; role: UserRole }> }>(
+        cacheKey
+      )
+      if (cached) {
+        return cached
+      }
+
       const users = await prisma.user.findMany({
         select: {
           id: true,
@@ -93,7 +105,10 @@ export async function userRoutes(fastify: FastifyInstance) {
         orderBy: { createdAt: 'asc' },
       })
 
-      return { users }
+      const response = { users }
+      setCache(cacheKey, response, USER_OPTIONS_CACHE_TTL_MS)
+
+      return response
     }
   )
 

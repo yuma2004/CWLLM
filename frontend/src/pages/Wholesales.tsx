@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import CompanySearchSelect from '../components/CompanySearchSelect'
+import ProjectSearchSelect from '../components/ProjectSearchSelect'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import FilterBadge from '../components/ui/FilterBadge'
-import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
@@ -11,28 +12,28 @@ import { useFetch } from '../hooks/useApi'
 import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { usePagination } from '../hooks/usePagination'
-import { ApiListResponse, Wholesale } from '../types'
+import { ApiListResponse, Wholesale, WholesalesFilters } from '../types'
 import { WHOLESALE_STATUS_LABELS, WHOLESALE_STATUS_OPTIONS } from '../constants'
 
-type WholesaleFilters = {
-  status: string
-  projectId: string
-  companyId: string
-}
-
-const defaultFilters: WholesaleFilters = {
+const defaultFilters: WholesalesFilters = {
   status: '',
   projectId: '',
   companyId: '',
 }
 
 function Wholesales() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [error, setError] = useState('')
-  const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchInputRef = useRef<HTMLSelectElement>(null)
+  const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
+  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
 
   const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters } =
     useFilters(defaultFilters)
-  const { pagination, setPagination, setPage, setPageSize, paginationQuery } = usePagination()
+  const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
+    usePagination(initialPageSize)
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams(paginationQuery)
@@ -56,6 +57,25 @@ function Wholesales() {
 
   const wholesales = wholesalesData?.items ?? []
 
+  const { data: selectedCompanyData } = useFetch<{ company: { id: string; name: string } }>(
+    filters.companyId ? `/api/companies/${filters.companyId}` : null,
+    {
+      enabled: Boolean(filters.companyId),
+      cacheTimeMs: 30_000,
+    }
+  )
+
+  const { data: selectedProjectData } = useFetch<{ project: { id: string; name: string } }>(
+    filters.projectId ? `/api/projects/${filters.projectId}` : null,
+    {
+      enabled: Boolean(filters.projectId),
+      cacheTimeMs: 30_000,
+    }
+  )
+
+  const selectedCompanyName = selectedCompanyData?.company?.name || filters.companyId
+  const selectedProjectName = selectedProjectData?.project?.name || filters.projectId
+
   const shortcuts = useMemo(
     () => [
       {
@@ -71,12 +91,52 @@ function Wholesales() {
 
   useKeyboardShortcut(shortcuts)
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const nextFilters = {
+      ...defaultFilters,
+      status: params.get('status') ?? '',
+      projectId: params.get('projectId') ?? '',
+      companyId: params.get('companyId') ?? '',
+    }
+    setFilters(nextFilters)
+    const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
+    const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
+    setPagination((prev) => ({
+      ...prev,
+      page: nextPage,
+      pageSize: nextPageSize,
+    }))
+  }, [initialPage, initialPageSize, location.search, setFilters, setPagination])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (filters.status) params.set('status', filters.status)
+    if (filters.projectId) params.set('projectId', filters.projectId)
+    if (filters.companyId) params.set('companyId', filters.companyId)
+    params.set('page', String(pagination.page))
+    params.set('pageSize', String(pagination.pageSize))
+    const nextSearch = params.toString()
+    const currentSearch = location.search.replace(/^\?/, '')
+    if (nextSearch !== currentSearch) {
+      navigate({ pathname: '/wholesales', search: nextSearch }, { replace: true })
+    }
+  }, [
+    filters.companyId,
+    filters.projectId,
+    filters.status,
+    location.search,
+    navigate,
+    pagination.page,
+    pagination.pageSize,
+  ])
+
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setPage(1)
   }
 
-  const handleClearFilter = (key: keyof WholesaleFilters) => {
+  const handleClearFilter = (key: keyof WholesalesFilters) => {
     clearFilter(key)
     setPage(1)
   }
@@ -113,7 +173,10 @@ function Wholesales() {
           <FormSelect
             ref={searchInputRef}
             value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            onChange={(e) => {
+              setFilters({ ...filters, status: e.target.value })
+              setPage(1)
+            }}
           >
             <option value="">全てのステータス</option>
             {WHOLESALE_STATUS_OPTIONS.map((status) => (
@@ -122,15 +185,21 @@ function Wholesales() {
               </option>
             ))}
           </FormSelect>
-          <FormInput
+          <ProjectSearchSelect
             value={filters.projectId}
-            onChange={(e) => setFilters({ ...filters, projectId: e.target.value })}
-            placeholder="案件IDで検索"
+            onChange={(projectId) => {
+              setFilters({ ...filters, projectId })
+              setPage(1)
+            }}
+            placeholder="案件を検索"
           />
-          <FormInput
+          <CompanySearchSelect
             value={filters.companyId}
-            onChange={(e) => setFilters({ ...filters, companyId: e.target.value })}
-            placeholder="企業IDで検索"
+            onChange={(companyId) => {
+              setFilters({ ...filters, companyId })
+              setPage(1)
+            }}
+            placeholder="企業を検索"
           />
           <button
             type="submit"
@@ -151,13 +220,13 @@ function Wholesales() {
             )}
             {filters.projectId && (
               <FilterBadge
-                label={`案件ID: ${filters.projectId}`}
+                label={`Project: ${selectedProjectName}`}
                 onRemove={() => handleClearFilter('projectId')}
               />
             )}
             {filters.companyId && (
               <FilterBadge
-                label={`企業ID: ${filters.companyId}`}
+                label={`Company: ${selectedCompanyName}`}
                 onRemove={() => handleClearFilter('companyId')}
               />
             )}

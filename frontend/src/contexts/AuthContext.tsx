@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { apiRequest } from '../lib/apiClient'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { useFetch, useMutation } from '../hooks/useApi'
 
 interface User {
   id: string
@@ -18,8 +18,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // モックモード: デザイン確認用（バックエンド不要で全ページアクセス可能）
-// TODO: 本番では false に戻すこと
-const MOCK_AUTH = (import.meta.env.VITE_MOCK_AUTH ?? 'false') === 'true'
+const MOCK_AUTH =
+  !import.meta.env.PROD && (import.meta.env.VITE_MOCK_AUTH ?? 'false') === 'true'
 const MOCK_USER: User = {
   id: 'mock-user-1',
   email: 'admin@example.com',
@@ -28,37 +28,45 @@ const MOCK_USER: User = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(MOCK_AUTH ? MOCK_USER : null)
-  const [isLoading, setIsLoading] = useState(!MOCK_AUTH)
+  const { data: authData, error: authError, isLoading: isAuthLoading, refetch: refetchAuth } =
+    useFetch<{ user: User }>('/api/auth/me', {
+      enabled: !MOCK_AUTH,
+      errorMessage: '認証に失敗しました',
+      cacheTimeMs: 0,
+    })
+
+  const { mutate: loginRequest } = useMutation<{ user: User }, { email: string; password: string }>(
+    '/api/auth/login',
+    'POST'
+  )
+
+  const { mutate: logoutRequest } = useMutation<void, void>('/api/auth/logout', 'POST')
 
   useEffect(() => {
-    // モックモードの場合は認証チェックをスキップ
     if (MOCK_AUTH) return
-    // 初期化時に認証状態を確認
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    try {
-      const data = await apiRequest<{ user: User }>('/api/auth/me')
-      setUser(data.user)
-    } catch (error) {
-      setUser(null)
-    } finally {
-      setIsLoading(false)
+    if (authData?.user) {
+      setUser(authData.user)
+      return
     }
-  }
+    if (authError) {
+      setUser(null)
+    }
+  }, [authData, authError])
 
   const login = async (email: string, password: string) => {
-    const data = await apiRequest<{ user: User }>('/api/auth/login', {
-      method: 'POST',
-      body: { email, password },
-    })
-    setUser(data.user)
+    const data = await loginRequest(
+      { email, password },
+      { errorMessage: 'ログインに失敗しました' }
+    )
+    if (data?.user) {
+      setUser(data.user)
+      void refetchAuth(undefined, { ignoreCache: true })
+    }
   }
 
   const logout = async () => {
     try {
-      await apiRequest('/api/auth/logout', { method: 'POST' })
+      await logoutRequest(undefined, { errorMessage: 'ログアウトに失敗しました' })
     } catch {
       // noop
     }
@@ -71,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         login,
         logout,
-        isLoading,
+        isLoading: MOCK_AUTH ? false : isAuthLoading,
         isAuthenticated: !!user,
       }}
     >

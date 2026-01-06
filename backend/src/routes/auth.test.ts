@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { authRoutes } from './auth'
@@ -12,6 +13,8 @@ const prisma = new PrismaClient()
 
 const buildTestServer = async () => {
   const app = Fastify()
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
   await app.register(cors)
   await app.register(cookie)
   await app.register(jwt, {
@@ -82,7 +85,9 @@ describe('Auth endpoints', () => {
 
     expect(response.statusCode).toBe(401)
     const body = JSON.parse(response.body)
-    expect(body.error).toBe('Invalid credentials')
+    const message =
+      typeof body.error === 'string' ? body.error : body.error?.message
+    expect(message).toBe('Invalid credentials')
   })
 
   it('should logout successfully', async () => {

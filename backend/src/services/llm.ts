@@ -49,7 +49,7 @@ const truncate = (value: string, max: number) =>
   value.length > max ? `${value.slice(0, max)}...` : value
 
 const normalizeBody = (value: string) =>
-  value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
+  value.replace(/[\p{Cc}\p{Cf}]/gu, ' ').replace(/\s+/g, ' ').trim()
 
 const chunkMessages = <T>(messages: T[], size: number) => {
   const chunks: T[][] = []

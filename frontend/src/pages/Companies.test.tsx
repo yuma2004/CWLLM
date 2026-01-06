@@ -15,6 +15,7 @@ const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
 const queueResponse = (payload: unknown) =>
   mockFetch.mockResolvedValueOnce({
     ok: true,
+    text: async () => JSON.stringify(payload),
     json: async () => payload,
   } as Response)
 
@@ -38,6 +39,7 @@ describe('Companies page', () => {
       ],
       pagination: { page: 1, pageSize: 20, total: 1 },
     })
+    queueResponse({ categories: [], statuses: [], tags: [] })
 
     render(
       <MemoryRouter>
@@ -69,20 +71,15 @@ describe('Companies page', () => {
       </MemoryRouter>
     )
 
-    const searchInput = await screen.findByPlaceholderText('企業名で検索')
+    const searchInput = await screen.findByPlaceholderText('企業名で検索 (/ で移動)')
     fireEvent.change(searchInput, { target: { value: 'Acme' } })
 
     await waitFor(() => {
-      const companyCalls = mockFetch.mock.calls.filter(
-        ([url]) => typeof url === 'string' && (url as string).startsWith('/api/companies')
-      )
-      expect(companyCalls.length).toBeGreaterThanOrEqual(2)
+      const searchCall = mockFetch.mock.calls
+        .map(([url]) => url as string)
+        .find((url) => url.includes('/api/companies') && url.includes('q=Acme'))
+
+      expect(searchCall).toBeTruthy()
     })
-
-    const searchCall = mockFetch.mock.calls
-      .map(([url]) => url as string)
-      .find((url) => url.includes('/api/companies') && url.includes('q=Acme'))
-
-    expect(searchCall).toBeTruthy()
   })
 })

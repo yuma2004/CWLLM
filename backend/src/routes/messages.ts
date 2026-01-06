@@ -1,9 +1,12 @@
 import { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { badRequest, notFound } from '../utils/errors'
 import { parsePagination } from '../utils/pagination'
 import { handlePrismaError, prisma } from '../utils/prisma'
+import { getCache, setCache } from '../utils/ttlCache'
 import { parseDate } from '../utils/validation'
 
 interface MessageListQuery {
@@ -54,6 +57,108 @@ interface BulkLabelBody {
 }
 
 const MAX_LABEL_LENGTH = 30
+const LABEL_CACHE_TTL_MS = 30_000
+
+const dateSchema = z.preprocess(
+  (value) => (value instanceof Date ? value.toISOString() : value),
+  z.string()
+)
+const paginationSchema = z.object({
+  page: z.number(),
+  pageSize: z.number(),
+  total: z.number(),
+})
+
+const messageSchema = z
+  .object({
+    id: z.string(),
+    chatworkRoomId: z.string().optional(),
+    roomId: z.string(),
+    messageId: z.string(),
+    sender: z.string(),
+    body: z.string(),
+    sentAt: dateSchema.optional(),
+    labels: z.array(z.string()).optional(),
+    companyId: z.string().nullable().optional(),
+    projectId: z.string().nullable().optional(),
+    wholesaleId: z.string().nullable().optional(),
+    createdAt: dateSchema.optional(),
+    updatedAt: dateSchema.optional(),
+  })
+  .passthrough()
+
+const messageListQuerySchema = z.object({
+  page: z.string().optional(),
+  pageSize: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  label: z.string().optional(),
+})
+
+const messageSearchQuerySchema = z.object({
+  q: z.string().optional(),
+  messageId: z.string().optional(),
+  companyId: z.string().optional(),
+  page: z.string().optional(),
+  pageSize: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  label: z.string().optional(),
+})
+
+const messageUnassignedQuerySchema = z.object({
+  q: z.string().optional(),
+  page: z.string().optional(),
+  pageSize: z.string().optional(),
+})
+
+const messageAssignBodySchema = z.object({
+  companyId: z.string().min(1),
+})
+
+const messageLabelBodySchema = z.object({
+  label: z.string().min(1),
+})
+
+const messageBulkAssignBodySchema = z.object({
+  messageIds: z.array(z.string().min(1)).min(1),
+  companyId: z.string().min(1),
+})
+
+const messageBulkLabelBodySchema = z.object({
+  messageIds: z.array(z.string().min(1)).min(1),
+  label: z.string().min(1),
+})
+
+const messageLabelListQuerySchema = z.object({
+  limit: z.string().optional(),
+})
+
+const messageParamsSchema = z.object({ id: z.string().min(1) })
+const messageLabelParamsSchema = z.object({ id: z.string().min(1), label: z.string() })
+
+const messageListResponseSchema = z
+  .object({
+    items: z.array(messageSchema),
+    pagination: paginationSchema,
+  })
+  .passthrough()
+
+const messageResponseSchema = z.object({ message: messageSchema }).passthrough()
+const messageBulkResponseSchema = z.object({ updated: z.number() }).passthrough()
+
+const messageLabelListResponseSchema = z
+  .object({
+    items: z.array(
+      z
+        .object({
+          label: z.string(),
+          count: z.number(),
+        })
+        .passthrough()
+    ),
+  })
+  .passthrough()
 
 const normalizeLabel = (value?: string) => {
   if (value === undefined) return undefined
@@ -64,10 +169,63 @@ const normalizeLabel = (value?: string) => {
   return trimmed
 }
 
+type MessageSearchFilters = {
+  query?: string
+  messageId?: string
+  companyId?: string | null
+  label?: string
+  fromDate?: Date
+  toDate?: Date
+}
+
+const buildMessageSearchWhere = (filters: MessageSearchFilters) => {
+  const conditions: Prisma.Sql[] = []
+  if (filters.query) {
+    conditions.push(
+      Prisma.sql`to_tsvector('simple', "body") @@ plainto_tsquery('simple', ${filters.query})`
+    )
+  }
+  if (filters.messageId) {
+    conditions.push(Prisma.sql`"messageId" = ${filters.messageId}`)
+  }
+  if (filters.companyId !== undefined) {
+    if (filters.companyId === null) {
+      conditions.push(Prisma.sql`"companyId" IS NULL`)
+    } else {
+      conditions.push(Prisma.sql`"companyId" = ${filters.companyId}`)
+    }
+  }
+  if (filters.label) {
+    conditions.push(Prisma.sql`"labels" @> ARRAY[${filters.label}]::text[]`)
+  }
+  if (filters.fromDate) {
+    conditions.push(Prisma.sql`"sentAt" >= ${filters.fromDate}`)
+  }
+  if (filters.toDate) {
+    conditions.push(Prisma.sql`"sentAt" <= ${filters.toDate}`)
+  }
+  if (conditions.length === 0) {
+    return Prisma.sql``
+  }
+  return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+}
+
 export async function messageRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Params: { id: string }; Querystring: MessageListQuery }>(
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
+
+  app.get<{ Params: { id: string }; Querystring: MessageListQuery }>(
     '/companies/:id/messages',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Messages'],
+        params: messageParamsSchema,
+        querystring: messageListQuerySchema,
+        response: {
+          200: messageListResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { from, to } = request.query
       const label = normalizeLabel(request.query.label)
@@ -123,9 +281,18 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Querystring: MessageSearchQuery }>(
+  app.get<{ Querystring: MessageSearchQuery }>(
     '/messages/search',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Messages'],
+        querystring: messageSearchQuerySchema,
+        response: {
+          200: messageListResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { q, messageId, companyId, from, to } = request.query
       const label = normalizeLabel(request.query.label)
@@ -151,45 +318,40 @@ export async function messageRoutes(fastify: FastifyInstance) {
         request.query.pageSize
       )
 
-      const where: Prisma.MessageWhereInput = {}
-      if (trimmedQuery) {
-        where.body = { contains: trimmedQuery, mode: 'insensitive' }
-      }
-      if (messageId) {
-        where.messageId = messageId
-      }
-      if (companyId) {
-        where.companyId = companyId
-      }
-      if (label) {
-        where.labels = { has: label }
-      }
-      if (fromDate || toDate) {
-        where.sentAt = {
-          ...(fromDate ? { gte: fromDate } : {}),
-          ...(toDate ? { lte: toDate } : {}),
-        }
-      }
+      const whereSql = buildMessageSearchWhere({
+        query: trimmedQuery || undefined,
+        messageId,
+        companyId: companyId ?? undefined,
+        label: label ?? undefined,
+        fromDate: fromDate ?? undefined,
+        toDate: toDate ?? undefined,
+      })
 
-      const [items, total] = await prisma.$transaction([
-        prisma.message.findMany({
-          where,
-          orderBy: { sentAt: 'desc' },
-          skip,
-          take: pageSize,
-          select: {
-            id: true,
-            roomId: true,
-            messageId: true,
-            sender: true,
-            body: true,
-            sentAt: true,
-            companyId: true,
-            labels: true,
-          },
-        }),
-        prisma.message.count({ where }),
+      const [items, countRows] = await prisma.$transaction([
+        prisma.$queryRaw<
+          Array<{
+            id: string
+            roomId: string
+            messageId: string
+            sender: string
+            body: string
+            sentAt: Date
+            companyId: string | null
+            labels: string[]
+          }>
+        >(
+          Prisma.sql`SELECT "id", "roomId", "messageId", "sender", "body", "sentAt", "companyId", "labels"
+            FROM "messages"
+            ${whereSql}
+            ORDER BY "sentAt" DESC
+            LIMIT ${pageSize} OFFSET ${skip}`
+        ),
+        prisma.$queryRaw<Array<{ count: bigint }>>(
+          Prisma.sql`SELECT COUNT(*)::bigint as count FROM "messages" ${whereSql}`
+        ),
       ])
+
+      const total = Number(countRows[0]?.count ?? 0)
 
       return {
         items,
@@ -202,31 +364,44 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Querystring: UnassignedQuery }>(
+  app.get<{ Querystring: UnassignedQuery }>(
     '/messages/unassigned',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Messages'],
+        querystring: messageUnassignedQuerySchema,
+        response: {
+          200: messageListResponseSchema,
+        },
+      },
+    },
     async (request) => {
       const { page, pageSize, skip } = parsePagination(
         request.query.page,
         request.query.pageSize
       )
 
-      const where: Prisma.MessageWhereInput = {
+      const trimmedQuery = request.query.q?.trim()
+      const whereSql = buildMessageSearchWhere({
+        query: trimmedQuery || undefined,
         companyId: null,
-      }
-      if (request.query.q) {
-        where.body = { contains: request.query.q, mode: 'insensitive' }
-      }
+      })
 
-      const [items, total] = await prisma.$transaction([
-        prisma.message.findMany({
-          where,
-          orderBy: { sentAt: 'desc' },
-          skip,
-          take: pageSize,
-        }),
-        prisma.message.count({ where }),
+      const [items, countRows] = await prisma.$transaction([
+        prisma.$queryRaw<Array<Record<string, unknown>>>(
+          Prisma.sql`SELECT *
+            FROM "messages"
+            ${whereSql}
+            ORDER BY "sentAt" DESC
+            LIMIT ${pageSize} OFFSET ${skip}`
+        ),
+        prisma.$queryRaw<Array<{ count: bigint }>>(
+          Prisma.sql`SELECT COUNT(*)::bigint as count FROM "messages" ${whereSql}`
+        ),
       ])
+
+      const total = Number(countRows[0]?.count ?? 0)
 
       return {
         items,
@@ -239,9 +414,19 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.patch<{ Params: { id: string }; Body: AssignBody }>(
+  app.patch<{ Params: { id: string }; Body: AssignBody }>(
     '/messages/:id/assign-company',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Messages'],
+        params: messageParamsSchema,
+        body: messageAssignBodySchema,
+        response: {
+          200: messageResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { companyId } = request.body
       if (!companyId || companyId.trim() === '') {
@@ -265,9 +450,18 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.patch<{ Body: BulkAssignBody }>(
+  app.patch<{ Body: BulkAssignBody }>(
     '/messages/assign-company',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Messages'],
+        body: messageBulkAssignBodySchema,
+        response: {
+          200: messageBulkResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { companyId, messageIds } = request.body
       if (!companyId || companyId.trim() === '') {
@@ -291,9 +485,19 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.post<{ Params: { id: string }; Body: LabelBody }>(
+  app.post<{ Params: { id: string }; Body: LabelBody }>(
     '/messages/:id/labels',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Messages'],
+        params: messageParamsSchema,
+        body: messageLabelBodySchema,
+        response: {
+          200: messageResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const label = normalizeLabel(request.body.label)
       if (!label) {
@@ -316,9 +520,18 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.delete<{ Params: { id: string; label: string } }>(
+  app.delete<{ Params: { id: string; label: string } }>(
     '/messages/:id/labels/:label',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Messages'],
+        params: messageLabelParamsSchema,
+        response: {
+          200: messageResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const label = normalizeLabel(request.params.label)
       if (!label) {
@@ -341,9 +554,18 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.post<{ Body: BulkLabelBody }>(
+  app.post<{ Body: BulkLabelBody }>(
     '/messages/labels/bulk',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Messages'],
+        body: messageBulkLabelBodySchema,
+        response: {
+          200: messageBulkResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const label = normalizeLabel(request.body.label)
       if (!label) {
@@ -371,9 +593,18 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.post<{ Body: BulkLabelBody }>(
+  app.post<{ Body: BulkLabelBody }>(
     '/messages/labels/bulk/remove',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Messages'],
+        body: messageBulkLabelBodySchema,
+        response: {
+          200: messageBulkResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const label = normalizeLabel(request.body.label)
       if (!label) {
@@ -401,14 +632,29 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Querystring: LabelListQuery }>(
+  app.get<{ Querystring: LabelListQuery }>(
     '/messages/labels',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Messages'],
+        querystring: messageLabelListQuerySchema,
+        response: {
+          200: messageLabelListResponseSchema,
+        },
+      },
+    },
     async (request) => {
       const limitValue = Number(request.query.limit)
       const limit = Number.isFinite(limitValue)
         ? Math.min(Math.max(Math.floor(limitValue), 1), 50)
         : 20
+
+      const cacheKey = `messages:labels:${limit}`
+      const cached = getCache<{ items: Array<{ label: string; count: number }> }>(cacheKey)
+      if (cached) {
+        return cached
+      }
 
       // 最適化: PostgreSQLのunnestとGROUP BYを使用してDB側で集計
       const labelCounts = await prisma.$queryRaw<{ label: string; count: bigint }[]>`
@@ -425,7 +671,10 @@ export async function messageRoutes(fastify: FastifyInstance) {
         count: Number(row.count),
       }))
 
-      return { items }
+      const response = { items }
+      setCache(cacheKey, response, LABEL_CACHE_TTL_MS)
+
+      return response
     }
   )
 }

@@ -1,53 +1,89 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import CompanySearchSelect from '../components/CompanySearchSelect'
 import Pagination from '../components/ui/Pagination'
 import FormSelect from '../components/ui/FormSelect'
 import { usePermissions } from '../hooks/usePermissions'
+import { useFetch, useMutation } from '../hooks/useApi'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { usePagination } from '../hooks/usePagination'
-import { apiRequest } from '../lib/apiClient'
-
-interface Project {
-  id: string
-  name: string
-  status: string
-  companyId: string
-}
+import { ApiListResponse, Project } from '../types'
 
 function Projects() {
   const { canWrite } = usePermissions()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState('createdAt')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const initialQuery = initialParams.get('q') ?? ''
+  const initialSortParam = initialParams.get('sort') ?? 'createdAt'
+  const initialSort = ['createdAt', 'updatedAt', 'status', 'name'].includes(initialSortParam)
+    ? initialSortParam
+    : 'createdAt'
+  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
+  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
+  const [query, setQuery] = useState(initialQuery)
+  const [sort, setSort] = useState(initialSort)
   const [form, setForm] = useState({ companyId: '', name: '' })
   const [formError, setFormError] = useState('')
-  const { pagination, setPagination, setPage, setPageSize, paginationQuery } = usePagination()
+  const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
+    usePagination(initialPageSize)
+  const debouncedQuery = useDebouncedValue(query, 300)
 
-  const fetchProjects = useCallback(async () => {
-    setIsLoading(true)
-    setError('')
-    try {
-      const params = new URLSearchParams(paginationQuery)
-      if (query.trim()) params.set('q', query.trim())
-      if (sort) params.set('sort', sort)
-      const data = await apiRequest<{
-        items: Project[]
-        pagination: { page: number; pageSize: number; total: number }
-      }>(`/api/projects?${params.toString()}`)
-      setProjects(data.items ?? [])
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams(paginationQuery)
+    if (debouncedQuery.trim()) params.set('q', debouncedQuery.trim())
+    if (sort) params.set('sort', sort)
+    return params.toString()
+  }, [debouncedQuery, paginationQuery, sort])
+
+  const {
+    data: projectsData,
+    isLoading: isLoadingProjects,
+    error: fetchError,
+    refetch: refetchProjects,
+  } = useFetch<ApiListResponse<Project>>(`/api/projects?${queryString}`, {
+    errorMessage: 'ネットワークエラー',
+    onSuccess: (data) => {
       setPagination((prev) => ({ ...prev, ...data.pagination }))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ネットワークエラー')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [paginationQuery, query, setPagination, sort])
+    },
+  })
+
+  const projects = projectsData?.items ?? []
 
   useEffect(() => {
-    fetchProjects()
-  }, [fetchProjects])
+    const params = new URLSearchParams(location.search)
+    setQuery(params.get('q') ?? '')
+    const nextSortParam = params.get('sort') ?? 'createdAt'
+    const nextSort = ['createdAt', 'updatedAt', 'status', 'name'].includes(nextSortParam)
+      ? nextSortParam
+      : 'createdAt'
+    setSort(nextSort)
+    const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
+    const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
+    setPagination((prev) => ({
+      ...prev,
+      page: nextPage,
+      pageSize: nextPageSize,
+    }))
+  }, [initialPage, initialPageSize, location.search, setPagination])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (debouncedQuery.trim()) params.set('q', debouncedQuery.trim())
+    if (sort) params.set('sort', sort)
+    params.set('page', String(pagination.page))
+    params.set('pageSize', String(pagination.pageSize))
+    const nextSearch = params.toString()
+    const currentSearch = location.search.replace(/^\?/, '')
+    if (nextSearch !== currentSearch) {
+      navigate({ pathname: '/projects', search: nextSearch }, { replace: true })
+    }
+  }, [debouncedQuery, location.search, navigate, pagination.page, pagination.pageSize, sort])
+
+  const { mutate: createProject, isLoading: isCreating } = useMutation<
+    { project: Project },
+    { companyId: string; name: string }
+  >('/api/projects', 'POST')
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -57,15 +93,15 @@ function Projects() {
       return
     }
     try {
-      await apiRequest('/api/projects', {
-        method: 'POST',
-        body: {
+      await createProject(
+        {
           companyId: form.companyId.trim(),
           name: form.name.trim(),
         },
-      })
+        { errorMessage: 'ネットワークエラー' }
+      )
       setForm({ companyId: '', name: '' })
-      fetchProjects()
+      void refetchProjects(undefined, { ignoreCache: true })
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
@@ -74,7 +110,7 @@ function Projects() {
   return (
     <div className="space-y-6 animate-fade-up">
       <div>
-        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Projects</p>
+        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Project</p>
         <h2 className="text-3xl font-bold text-slate-900">案件管理</h2>
       </div>
 
@@ -84,17 +120,29 @@ function Projects() {
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
             placeholder="案件名で検索"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setPage(1)
+            }}
           />
-          <FormSelect value={sort} onChange={(event) => setSort(event.target.value)}>
-            <option value="createdAt">Created</option>
-            <option value="updatedAt">Updated</option>
-            <option value="status">Status</option>
-            <option value="name">Name</option>
+          <FormSelect
+            value={sort}
+            onChange={(event) => {
+              setSort(event.target.value)
+              setPage(1)
+            }}
+          >
+            <option value="createdAt">作成日</option>
+            <option value="updatedAt">更新日</option>
+            <option value="status">ステータス</option>
+            <option value="name">名前</option>
           </FormSelect>
           <button
             type="button"
-            onClick={fetchProjects}
+            onClick={() => {
+              setPage(1)
+              void refetchProjects(undefined, { ignoreCache: true })
+            }}
             className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white"
           >
             検索
@@ -102,12 +150,12 @@ function Projects() {
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>
+      {fetchError && (
+        <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{fetchError}</div>
       )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        {isLoading ? (
+        {isLoadingProjects ? (
           <div className="text-sm text-slate-500">案件を読み込み中...</div>
         ) : projects.length === 0 ? (
           <div className="text-sm text-slate-500">案件はありません。</div>
@@ -172,8 +220,9 @@ function Projects() {
             <button
               type="submit"
               className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white"
+              disabled={isCreating}
             >
-              作成
+              {isCreating ? '作成中...' : '作成'}
             </button>
           </div>
         </form>

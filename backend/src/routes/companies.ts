@@ -1,11 +1,14 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma } from '@prisma/client'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
 import { badRequest, notFound } from '../utils/errors'
 import { normalizeCompanyName } from '../utils/normalize'
 import { parsePagination } from '../utils/pagination'
 import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
+import { getCache, setCache } from '../utils/ttlCache'
 import {
   isNonEmptyString,
   isNullableString,
@@ -16,6 +19,8 @@ import { JWTUser } from '../types/auth'
 const prismaErrorOverrides = {
   P2002: { status: 409, message: 'Duplicate record' },
 }
+
+const OPTIONS_CACHE_TTL_MS = 60_000
 
 interface CompanyCreateBody {
   name: string
@@ -71,10 +76,156 @@ interface ContactReorderBody {
   orderedIds: string[]
 }
 
+const dateSchema = z.preprocess(
+  (value) => (value instanceof Date ? value.toISOString() : value),
+  z.string()
+)
+const paginationSchema = z.object({
+  page: z.number(),
+  pageSize: z.number(),
+  total: z.number(),
+})
+
+const companySchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    normalizedName: z.string().optional(),
+    category: z.string().nullable().optional(),
+    status: z.string(),
+    tags: z.array(z.string()),
+    profile: z.string().nullable().optional(),
+    ownerId: z.string().nullable().optional(),
+    createdAt: dateSchema.optional(),
+    updatedAt: dateSchema.optional(),
+  })
+  .passthrough()
+
+const contactSchema = z
+  .object({
+    id: z.string(),
+    companyId: z.string(),
+    name: z.string(),
+    role: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    memo: z.string().nullable().optional(),
+    sortOrder: z.number().optional(),
+    createdAt: dateSchema.optional(),
+    updatedAt: dateSchema.optional(),
+  })
+  .passthrough()
+
+const companyListQuerySchema = z.object({
+  q: z.string().optional(),
+  category: z.string().optional(),
+  status: z.string().optional(),
+  tag: z.string().optional(),
+  ownerId: z.string().optional(),
+  page: z.string().optional(),
+  pageSize: z.string().optional(),
+})
+
+const companySearchQuerySchema = z.object({
+  q: z.string().min(1),
+  limit: z.string().optional(),
+})
+
+const companyCreateBodySchema = z.object({
+  name: z.string().min(1),
+  category: z.string().optional(),
+  status: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  profile: z.string().optional(),
+  ownerId: z.string().optional(),
+})
+
+const companyUpdateBodySchema = z.object({
+  name: z.string().min(1).optional(),
+  category: z.string().nullable().optional(),
+  status: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  profile: z.string().nullable().optional(),
+  ownerId: z.string().nullable().optional(),
+})
+
+const contactCreateBodySchema = z.object({
+  name: z.string().min(1),
+  role: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  memo: z.string().optional(),
+})
+
+const contactUpdateBodySchema = z.object({
+  name: z.string().min(1).optional(),
+  role: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  memo: z.string().nullable().optional(),
+  sortOrder: z.number().int().min(0).nullable().optional(),
+})
+
+const contactReorderBodySchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1),
+})
+
+const companyParamsSchema = z.object({ id: z.string().min(1) })
+const contactParamsSchema = z.object({ id: z.string().min(1) })
+
+const companyResponseSchema = z.object({ company: companySchema }).passthrough()
+const companyListResponseSchema = z
+  .object({
+    items: z.array(companySchema),
+    pagination: paginationSchema,
+  })
+  .passthrough()
+const companySearchResponseSchema = z
+  .object({
+    items: z.array(
+      z
+        .object({
+          id: z.string(),
+          name: z.string(),
+          status: z.string().optional(),
+          category: z.string().nullable().optional(),
+          tags: z.array(z.string()).optional(),
+        })
+        .passthrough()
+    ),
+  })
+  .passthrough()
+
+const contactListResponseSchema = z
+  .object({
+    contacts: z.array(contactSchema),
+  })
+  .passthrough()
+const contactResponseSchema = z.object({ contact: contactSchema }).passthrough()
+
+const companyOptionsResponseSchema = z
+  .object({
+    categories: z.array(z.string()),
+    statuses: z.array(z.string()),
+    tags: z.array(z.string()),
+  })
+  .passthrough()
+
 export async function companyRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Querystring: CompanyListQuery }>(
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
+
+  app.get<{ Querystring: CompanyListQuery }>(
     '/companies',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Companies'],
+        querystring: companyListQuerySchema,
+        response: {
+          200: companyListResponseSchema,
+        },
+      },
+    },
     async (request) => {
       const { q, category, status, tag, ownerId } = request.query
       const { page, pageSize, skip } = parsePagination(
@@ -125,9 +276,18 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Querystring: CompanySearchQuery }>(
+  app.get<{ Querystring: CompanySearchQuery }>(
     '/companies/search',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Companies'],
+        querystring: companySearchQuerySchema,
+        response: {
+          200: companySearchResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const rawQuery = request.query.q?.trim() ?? ''
       if (!rawQuery) {
@@ -162,9 +322,18 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.post<{ Body: CompanyCreateBody }>(
+  app.post<{ Body: CompanyCreateBody }>(
     '/companies',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Companies'],
+        body: companyCreateBodySchema,
+        response: {
+          201: companyResponseSchema,
+        },
+      },
+    },
     async (request: FastifyRequest<{ Body: CompanyCreateBody }>, reply: FastifyReply) => {
       const { name, category, status, profile, ownerId } = request.body
       const tags = parseStringArray(request.body.tags)
@@ -204,9 +373,18 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/companies/:id',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Companies'],
+        params: companyParamsSchema,
+        response: {
+          200: companyResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const company = await prisma.company.findUnique({
         where: { id: request.params.id },
@@ -220,9 +398,19 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.patch<{ Params: { id: string }; Body: CompanyUpdateBody }>(
+  app.patch<{ Params: { id: string }; Body: CompanyUpdateBody }>(
     '/companies/:id',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Companies'],
+        params: companyParamsSchema,
+        body: companyUpdateBodySchema,
+        response: {
+          200: companyResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { name, category, status, profile, ownerId } = request.body
       const tags = parseStringArray(request.body.tags)
@@ -295,9 +483,18 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string } }>(
     '/companies/:id',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Companies'],
+        params: companyParamsSchema,
+        response: {
+          204: z.undefined(),
+        },
+      },
+    },
     async (request, reply) => {
       const existing = await prisma.company.findUnique({
         where: { id: request.params.id },
@@ -325,9 +522,18 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/companies/:id/contacts',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Contacts'],
+        params: companyParamsSchema,
+        response: {
+          200: contactListResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const company = await prisma.company.findUnique({
         where: { id: request.params.id },
@@ -345,9 +551,19 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.post<{ Params: { id: string }; Body: ContactCreateBody }>(
+  app.post<{ Params: { id: string }; Body: ContactCreateBody }>(
     '/companies/:id/contacts',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Contacts'],
+        params: companyParamsSchema,
+        body: contactCreateBodySchema,
+        response: {
+          201: contactResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { name, role, email, phone, memo } = request.body
 
@@ -384,9 +600,19 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.patch<{ Params: { id: string }; Body: ContactUpdateBody }>(
+  app.patch<{ Params: { id: string }; Body: ContactUpdateBody }>(
     '/contacts/:id',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Contacts'],
+        params: contactParamsSchema,
+        body: contactUpdateBodySchema,
+        response: {
+          200: contactResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { name, role, email, phone, memo } = request.body
 
@@ -421,7 +647,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
       if (memo !== undefined) {
         data.memo = memo
       }
-      if (request.body.sortOrder !== undefined) {
+      if (request.body.sortOrder !== undefined && request.body.sortOrder !== null) {
         data.sortOrder = request.body.sortOrder
       }
 
@@ -437,9 +663,18 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string } }>(
     '/contacts/:id',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Contacts'],
+        params: contactParamsSchema,
+        response: {
+          204: z.undefined(),
+        },
+      },
+    },
     async (request, reply) => {
       try {
         await prisma.contact.delete({
@@ -452,9 +687,19 @@ export async function companyRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.patch<{ Params: { id: string }; Body: ContactReorderBody }>(
+  app.patch<{ Params: { id: string }; Body: ContactReorderBody }>(
     '/companies/:id/contacts/reorder',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Contacts'],
+        params: companyParamsSchema,
+        body: contactReorderBodySchema,
+        response: {
+          204: z.undefined(),
+        },
+      },
+    },
     async (request, reply) => {
       const { orderedIds } = request.body
       if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
@@ -493,28 +738,63 @@ export async function companyRoutes(fastify: FastifyInstance) {
   )
 
   // 企業の区分、ステータス、タグの候補を取得
-  fastify.get('/companies/options', { preHandler: requireAuth() }, async () => {
-    const [categories, statuses, tagRows] = await prisma.$transaction([
-      prisma.company.findMany({
-        distinct: ['category'],
-        where: { category: { not: null } },
-        select: { category: true },
-      }),
-      prisma.company.findMany({
-        distinct: ['status'],
-        select: { status: true },
-      }),
-      prisma.$queryRaw<{ tag: string }[]>`
-        select distinct unnest("tags") as tag
-        from "companies"
-        where coalesce(array_length("tags", 1), 0) > 0
-      `,
-    ])
+  app.get(
+    '/companies/options',
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Companies'],
+        response: {
+          200: companyOptionsResponseSchema,
+        },
+      },
+    },
+    async () => {
+      const cacheKey = 'companies:options'
+      const cached = getCache<{
+        categories: string[]
+        statuses: string[]
+        tags: string[]
+      }>(cacheKey)
+      if (cached) {
+        return cached
+      }
 
-    return {
-      categories: categories.map((item) => item.category).filter(Boolean).sort(),
-      statuses: statuses.map((item) => item.status).filter(Boolean).sort(),
-      tags: tagRows.map((row) => row.tag).filter(Boolean).sort(),
+      const [categories, statuses, tagRows] = await prisma.$transaction([
+        prisma.company.findMany({
+          distinct: ['category'],
+          where: { category: { not: null } },
+          select: { category: true },
+        }),
+        prisma.company.findMany({
+          distinct: ['status'],
+          select: { status: true },
+        }),
+        prisma.$queryRaw<{ tag: string }[]>`
+          select distinct unnest("tags") as tag
+          from "companies"
+          where coalesce(array_length("tags", 1), 0) > 0
+        `,
+      ])
+
+      const response = {
+        categories: categories
+          .map((item) => item.category)
+          .filter((category): category is string => Boolean(category))
+          .sort(),
+        statuses: statuses
+          .map((item) => item.status)
+          .filter((status): status is string => Boolean(status))
+          .sort(),
+        tags: tagRows
+          .map((row) => row.tag)
+          .filter((tag): tag is string => Boolean(tag))
+          .sort(),
+      }
+
+      setCache(cacheKey, response, OPTIONS_CACHE_TTL_MS)
+
+      return response
     }
-  })
+  )
 }

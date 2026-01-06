@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { JobType, SummaryType } from '@prisma/client'
+import { JobType, SummaryType, Prisma } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { enqueueJob } from '../services/jobQueue'
 import { prisma } from '../utils/prisma'
@@ -27,6 +27,11 @@ const normalizeSummaryType = (value?: string) => {
   if (value === undefined) return undefined
   if (!Object.values(SummaryType).includes(value as SummaryType)) return null
   return value as SummaryType
+}
+
+const normalizeJsonInput = (value: unknown): Prisma.InputJsonValue | undefined => {
+  if (value === undefined || value === null) return undefined
+  return value as Prisma.InputJsonValue
 }
 
 const extractCandidates = (content: string) => {
@@ -158,7 +163,7 @@ export async function summaryRoutes(fastify: FastifyInstance) {
       let model = request.body.model ?? null
       let promptVersion = request.body.promptVersion ?? null
       let resolvedCount = sourceMessageCount ?? null
-      let tokenUsage = request.body.tokenUsage ?? null
+      let tokenUsage = normalizeJsonInput(request.body.tokenUsage)
 
       if (request.body.draftId) {
         const draft = await prisma.summaryDraft.findUnique({
@@ -169,7 +174,7 @@ export async function summaryRoutes(fastify: FastifyInstance) {
           model = model ?? draft.model
           promptVersion = promptVersion ?? draft.promptVersion
           resolvedCount = resolvedCount ?? draft.sourceMessageCount
-          tokenUsage = tokenUsage ?? draft.tokenUsage
+          tokenUsage = tokenUsage ?? normalizeJsonInput(draft.tokenUsage)
         }
       }
 

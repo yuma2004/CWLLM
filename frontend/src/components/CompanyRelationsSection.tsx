@@ -1,58 +1,37 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import StatusBadge from './ui/StatusBadge'
 import { WHOLESALE_STATUS_LABELS } from '../constants'
 import { formatDate } from '../utils/date'
-import { apiRequest } from '../lib/apiClient'
-
-interface Project {
-  id: string
-  name: string
-  status: string
-}
-
-interface Wholesale {
-  id: string
-  status: string
-  projectId: string
-  unitPrice?: number | null
-  margin?: number | null
-  agreedDate?: string | null
-  project?: {
-    id: string
-    name: string
-    company?: { id: string; name: string }
-  }
-}
+import { useFetch } from '../hooks/useApi'
+import { Project, Wholesale } from '../types'
 
 function CompanyRelationsSection({ companyId }: { companyId: string }) {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [wholesales, setWholesales] = useState<Wholesale[]>([])
-  const [error, setError] = useState('')
-
-  const fetchRelations = useCallback(async () => {
-    setError('')
-    try {
-      const [projectData, wholesaleData] = await Promise.all([
-        apiRequest<{ projects: Project[] }>(`/api/companies/${companyId}/projects`),
-        apiRequest<{ wholesales: Wholesale[] }>(`/api/companies/${companyId}/wholesales`),
-      ])
-
-      setProjects(projectData.projects || [])
-      setWholesales(wholesaleData.wholesales || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ネットワークエラー')
+  const { data: projectsData, error: projectsError } = useFetch<{ projects: Project[] }>(
+    `/api/companies/${companyId}/projects`,
+    {
+      errorMessage: 'ネットワークエラー',
+      cacheTimeMs: 10_000,
     }
-  }, [companyId])
+  )
 
-  useEffect(() => {
-    fetchRelations()
-  }, [fetchRelations])
+  const { data: wholesalesData, error: wholesalesError } = useFetch<{
+    wholesales: Wholesale[]
+  }>(`/api/companies/${companyId}/wholesales`, {
+    errorMessage: 'ネットワークエラー',
+    cacheTimeMs: 10_000,
+  })
+
+  const projects = projectsData?.projects ?? []
+  const wholesales = wholesalesData?.wholesales ?? []
+  const errorMessage = projectsError || wholesalesError
 
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return null
     return `¥${value.toLocaleString()}`
   }
+
+  const hasError = useMemo(() => Boolean(errorMessage), [errorMessage])
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -60,9 +39,9 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
         <h3 className="text-lg font-semibold text-slate-900">案件と卸</h3>
       </div>
 
-      {error && (
+      {hasError && (
         <div className="mt-3 rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">
-          {error}
+          {errorMessage}
         </div>
       )}
 
@@ -74,7 +53,9 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
             {projects.length === 0 ? (
               <div className="text-sm text-slate-500">案件がありません</div>
             ) : (
-              projects.map((project) => (
+              projects.map((project) => {
+                const projectStatus = project.status ?? ''
+                return (
                 <div
                   key={project.id}
                   className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm"
@@ -83,7 +64,9 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
                       <div className="font-semibold text-slate-900">{project.name}</div>
                       <div className="mt-1">
                         <StatusBadge
-                          status={WHOLESALE_STATUS_LABELS[project.status] || project.status}
+                          status={
+                            WHOLESALE_STATUS_LABELS[projectStatus] || project.status || '-'
+                          }
                           size="sm"
                         />
                       </div>
@@ -95,7 +78,8 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
                     詳細
                   </Link>
                 </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>

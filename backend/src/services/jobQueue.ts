@@ -1,4 +1,4 @@
-import { Queue, Worker, Job as BullJob } from 'bullmq'
+import { Queue, Worker, Job as BullJob, type ConnectionOptions } from 'bullmq'
 import IORedis from 'ioredis'
 import { JobStatus, JobType, Prisma } from '@prisma/client'
 import { env } from '../config/env'
@@ -11,6 +11,11 @@ const QUEUE_NAME = 'cwllm-jobs'
 let queue: Queue | null = null
 let worker: Worker | null = null
 const connection = env.redisUrl ? new IORedis(env.redisUrl) : null
+
+type JobQueueOptions = {
+  enableQueue?: boolean
+  enableWorker?: boolean
+}
 
 const serializeError = (error: unknown) => {
   if (error instanceof Error) {
@@ -27,7 +32,9 @@ const isCanceled = async (jobId: string) => {
   return job?.status === JobStatus.canceled
 }
 
-const updateProgress = async (jobId: string, result: Prisma.JsonValue) => {
+const toJsonInput = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue
+
+const updateProgress = async (jobId: string, result: Prisma.InputJsonValue) => {
   await prisma.job.update({
     where: { id: jobId },
     data: {
@@ -52,16 +59,17 @@ const executeJob = async (
   })
 
   try {
-    let result: Prisma.JsonValue | null = null
+    let result: Prisma.InputJsonValue
 
     if (type === JobType.chatwork_rooms_sync) {
-      result = await syncChatworkRooms(() => isCanceled(jobId), logger)
+      const syncResult = await syncChatworkRooms(() => isCanceled(jobId), logger)
+      result = toJsonInput(syncResult)
     } else if (type === JobType.chatwork_messages_sync) {
       const roomId = (payload as { roomId?: string } | null)?.roomId
       const rooms = await prisma.chatworkRoom.count({
         where: roomId ? { roomId } : { isActive: true },
       })
-      await updateProgress(jobId, { totalRooms: rooms, processedRooms: 0 })
+      await updateProgress(jobId, toJsonInput({ totalRooms: rooms, processedRooms: 0 }))
 
       let processed = 0
       const data = await syncChatworkMessages(
@@ -73,8 +81,11 @@ const executeJob = async (
         logger
       )
       processed = data.rooms.length + data.errors.length
-      await updateProgress(jobId, { totalRooms: rooms, processedRooms: processed, summary: data })
-      result = data
+      await updateProgress(
+        jobId,
+        toJsonInput({ totalRooms: rooms, processedRooms: processed, summary: data })
+      )
+      result = toJsonInput(data)
     } else if (type === JobType.summary_draft) {
       const typedPayload = payload as { companyId: string; periodStart: string; periodEnd: string }
       const draft = await generateSummaryDraft(
@@ -82,7 +93,7 @@ const executeJob = async (
         new Date(typedPayload.periodStart),
         new Date(typedPayload.periodEnd)
       )
-      result = {
+      result = toJsonInput({
         draft: {
           id: draft.id,
           companyId: draft.companyId,
@@ -93,9 +104,9 @@ const executeJob = async (
           model: draft.model,
           promptVersion: draft.promptVersion,
           sourceMessageCount: draft.sourceMessageCount,
-          tokenUsage: draft.tokenUsage,
+          tokenUsage: draft.tokenUsage ?? null,
         },
-      }
+      })
     } else {
       throw new Error(`Unknown job type: ${type}`)
     }
@@ -123,7 +134,7 @@ const executeJob = async (
       where: { id: jobId },
       data: {
         status: JobStatus.failed,
-        error: serializeError(error),
+        error: toJsonInput(serializeError(error)),
         finishedAt: new Date(),
       },
     })
@@ -142,20 +153,27 @@ const processBullJob = async (job: BullJob, logger?: { warn: (message: string) =
   return executeJob(jobId, dbJob.type, dbJob.payload, logger)
 }
 
-export const initJobQueue = (logger?: { warn: (message: string) => void }) => {
+export const initJobQueue = (
+  logger?: { warn: (message: string) => void },
+  options: JobQueueOptions = {}
+) => {
+  const { enableQueue = true, enableWorker = true } = options
   if (!connection) return null
-  if (!queue) {
-    queue = new Queue(QUEUE_NAME, { connection })
+  const connectionOptions = connection as unknown as ConnectionOptions
+  if (enableQueue && !queue) {
+    queue = new Queue(QUEUE_NAME, { connection: connectionOptions })
   }
-  if (!worker) {
-    worker = new Worker(QUEUE_NAME, (job) => processBullJob(job, logger), { connection })
+  if (enableWorker && !worker) {
+    worker = new Worker(QUEUE_NAME, (job) => processBullJob(job, logger), {
+      connection: connectionOptions,
+    })
   }
   return queue
 }
 
 export const enqueueJob = async (
   type: JobType,
-  payload: Prisma.JsonValue,
+  payload: Prisma.InputJsonValue,
   userId?: string
 ) => {
   const job = await prisma.job.create({
@@ -170,6 +188,9 @@ export const enqueueJob = async (
   if (queue) {
     await queue.add(type, { jobId: job.id }, { jobId: job.id, attempts: 1 })
   } else {
+    if (env.nodeEnv === 'production') {
+      throw new Error('Job queue is not available')
+    }
     try {
       await executeJob(job.id, job.type, job.payload)
     } catch {

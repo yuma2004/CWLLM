@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { PrismaClient } from '@prisma/client'
 import { settingRoutes } from './settings'
 import { exportRoutes } from './export'
@@ -12,6 +13,8 @@ const prisma = new PrismaClient()
 
 const buildTestServer = async () => {
   const app = Fastify()
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
   await app.register(cors)
   await app.register(cookie)
   await app.register(jwt, {
@@ -113,7 +116,11 @@ describe('Admin tools endpoints', () => {
 
     expect(dashboardResponse.statusCode).toBe(200)
     const dashboardBody = JSON.parse(dashboardResponse.body)
-    expect(dashboardBody.dueTasks.length).toBeGreaterThan(0)
+    expect(Array.isArray(dashboardBody.overdueTasks)).toBe(true)
+    expect(Array.isArray(dashboardBody.todayTasks)).toBe(true)
+    expect(Array.isArray(dashboardBody.soonTasks)).toBe(true)
+    expect(Array.isArray(dashboardBody.weekTasks)).toBe(true)
+    expect(dashboardBody.overdueTasks.length).toBeGreaterThan(0)
     expect(dashboardBody.latestSummaries.length).toBeGreaterThan(0)
     expect(dashboardBody.recentCompanies.length).toBeGreaterThan(0)
 

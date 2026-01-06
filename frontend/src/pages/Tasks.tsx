@@ -13,24 +13,15 @@ import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { usePagination } from '../hooks/usePagination'
 import { formatDate, formatDateInput } from '../utils/date'
-import { ApiListResponse, Task } from '../types'
+import { ApiListResponse, Task, TasksFilters } from '../types'
 import {
   TASK_STATUS_OPTIONS,
   TASK_STATUS_LABELS,
   TARGET_TYPE_OPTIONS,
   TARGET_TYPE_LABELS,
 } from '../constants'
-import { apiRequest } from '../lib/apiClient'
 
-interface TaskFilters {
-  status: string
-  targetType: string
-  dueFrom: string
-  dueTo: string
-  assigneeId: string
-}
-
-const defaultFilters: TaskFilters = {
+const defaultFilters: TasksFilters = {
   status: '',
   targetType: '',
   dueFrom: '',
@@ -61,8 +52,6 @@ function Tasks() {
   const [bulkAssigneeId, setBulkAssigneeId] = useState('')
   const [bulkDueDate, setBulkDueDate] = useState('')
   const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
-  const [isBulkWorking, setIsBulkWorking] = useState(false)
-  const [userOptions, setUserOptions] = useState<Array<{ id: string; email: string; role: string }>>([])
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams(paginationQuery)
@@ -103,7 +92,21 @@ function Tasks() {
     { status?: string; dueDate?: string | null; assigneeId?: string | null }
   >('/api/tasks', 'PATCH')
 
-  const tasks = tasksData?.items ?? []
+  const { mutate: bulkUpdateTasks, isLoading: isBulkUpdating } = useMutation<
+    { updated: number },
+    { taskIds: string[]; status?: string; assigneeId?: string | null; dueDate?: string | null }
+  >('/api/tasks/bulk', 'PATCH')
+
+  const { data: userOptionsData } = useFetch<{
+    users: Array<{ id: string; email: string; role: string }>
+  }>('/api/users/options', {
+    errorMessage: 'Failed to load users',
+    cacheTimeMs: 30_000,
+  })
+
+  const userOptions = userOptionsData?.users ?? []
+
+  const tasks = useMemo(() => tasksData?.items ?? [], [tasksData])
 
   useEffect(() => {
     setSelectedIds([])
@@ -177,28 +180,6 @@ function Tasks() {
     scope,
     viewMode,
   ])
-
-  useEffect(() => {
-    let isMounted = true
-    const loadUsers = async () => {
-      try {
-        const data = await apiRequest<{ users: Array<{ id: string; email: string; role: string }> }>(
-          '/api/users/options'
-        )
-        if (isMounted) {
-          setUserOptions(data.users ?? [])
-        }
-      } catch {
-        if (isMounted) {
-          setUserOptions([])
-        }
-      }
-    }
-    loadUsers()
-    return () => {
-      isMounted = false
-    }
-  }, [])
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -313,26 +294,21 @@ function Tasks() {
       setError('Choose fields to update')
       return
     }
-    setIsBulkWorking(true)
     setError('')
     try {
-      const payload: Record<string, unknown> = {
-        taskIds: selectedIds,
-      }
+      const payload: {
+        taskIds: string[]
+        status?: string
+        assigneeId?: string | null
+        dueDate?: string | null
+      } = { taskIds: selectedIds }
       if (bulkStatus) payload.status = bulkStatus
       if (bulkAssigneeId) {
         payload.assigneeId = bulkAssigneeId === '__unassigned__' ? null : bulkAssigneeId
       }
-      if (bulkDueDate) {
-        payload.dueDate = bulkDueDate
-      }
-      if (clearBulkDueDate) {
-        payload.dueDate = null
-      }
-      await apiRequest('/api/tasks/bulk', {
-        method: 'PATCH',
-        body: payload,
-      })
+      if (bulkDueDate) payload.dueDate = bulkDueDate
+      if (clearBulkDueDate) payload.dueDate = null
+      await bulkUpdateTasks(payload, { errorMessage: '一括更新に失敗しました' })
       setSelectedIds([])
       setBulkStatus('')
       setBulkAssigneeId('')
@@ -340,9 +316,7 @@ function Tasks() {
       setClearBulkDueDate(false)
       void refetchTasks()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bulk update failed')
-    } finally {
-      setIsBulkWorking(false)
+      setError(err instanceof Error ? err.message : '一括更新に失敗しました')
     }
   }
 
@@ -378,7 +352,7 @@ function Tasks() {
     setPageSize(newPageSize)
   }
 
-  const handleClearFilter = (key: keyof TaskFilters) => {
+  const handleClearFilter = (key: keyof TasksFilters) => {
     clearFilter(key)
     setPage(1)
   }
@@ -585,7 +559,7 @@ function Tasks() {
                 checked={allSelected}
                 onChange={toggleSelectAll}
                 className="rounded border-slate-300"
-                disabled={isBulkWorking}
+                disabled={isBulkUpdating}
               />
               Select all
             </label>
@@ -605,7 +579,7 @@ function Tasks() {
               type="date"
               value={bulkDueDate}
               onChange={(e) => setBulkDueDate(e.target.value)}
-              placeholder="Due date"
+              placeholder="期日"
               disabled={clearBulkDueDate}
             />
             <label className="flex items-center gap-2">
@@ -615,14 +589,14 @@ function Tasks() {
                 onChange={(e) => setClearBulkDueDate(e.target.checked)}
                 className="rounded border-slate-300"
               />
-              Clear due date
+              期日をクリア
             </label>
             <FormSelect
               value={bulkAssigneeId}
               onChange={(e) => setBulkAssigneeId(e.target.value)}
             >
-              <option value="">Assignee</option>
-              <option value="__unassigned__">Unassigned</option>
+              <option value="">担当者</option>
+              <option value="__unassigned__">未割り当て</option>
               {userOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.email}
@@ -632,10 +606,10 @@ function Tasks() {
             <button
               type="button"
               onClick={handleBulkUpdate}
-              disabled={isBulkWorking || selectedIds.length === 0}
+              disabled={isBulkUpdating || selectedIds.length === 0}
               className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white disabled:bg-slate-300"
             >
-              Apply
+              適用
             </button>
           </div>
         </div>
@@ -665,7 +639,7 @@ function Tasks() {
                     checked={allSelected}
                     onChange={toggleSelectAll}
                     className="rounded border-slate-300"
-                    disabled={isBulkWorking}
+                    disabled={isBulkUpdating}
                   />
                 </th>
                 <th className="px-4 py-3">Title</th>
@@ -707,7 +681,7 @@ function Tasks() {
                         checked={selectedIds.includes(task.id)}
                         onChange={() => toggleSelected(task.id)}
                         className="rounded border-slate-300"
-                        disabled={isBulkWorking}
+                        disabled={isBulkUpdating}
                       />
                     </td>
                     <td className="px-4 py-4">
@@ -828,7 +802,7 @@ function Tasks() {
                           checked={selectedIds.includes(task.id)}
                           onChange={() => toggleSelected(task.id)}
                           className="rounded border-slate-300"
-                          disabled={isBulkWorking}
+                          disabled={isBulkUpdating}
                         />
                       </div>
                       <div className="mt-2 text-xs text-slate-500">Due: {formatDate(task.dueDate)}</div>

@@ -1,84 +1,39 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import { useAuth } from '../contexts/AuthContext'
-import { apiRequest } from '../lib/apiClient'
+import { useFetch } from '../hooks/useApi'
 import { TARGET_TYPE_LABELS, TASK_STATUS_LABELS } from '../constants'
-
-interface DashboardTask {
-  id: string
-  title: string
-  dueDate?: string | null
-  targetType: string
-  targetId: string
-  status: string
-  assigneeId?: string | null
-}
-
-interface DashboardSummary {
-  id: string
-  content: string
-  createdAt: string
-  company: {
-    id: string
-    name: string
-  }
-}
-
-interface DashboardCompany {
-  id: string
-  name: string
-  updatedAt: string
-}
+import { DashboardResponse, DashboardTask } from '../types'
 
 function Home() {
   const { user, logout } = useAuth()
-  const [overdueTasks, setOverdueTasks] = useState<DashboardTask[]>([])
-  const [todayTasks, setTodayTasks] = useState<DashboardTask[]>([])
-  const [soonTasks, setSoonTasks] = useState<DashboardTask[]>([])
-  const [weekTasks, setWeekTasks] = useState<DashboardTask[]>([])
-  const [latestSummaries, setLatestSummaries] = useState<DashboardSummary[]>([])
-  const [recentCompanies, setRecentCompanies] = useState<DashboardCompany[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      setIsLoading(true)
-      setError('')
-      try {
-        const data = await apiRequest<{
-          overdueTasks: DashboardTask[]
-          todayTasks: DashboardTask[]
-          soonTasks: DashboardTask[]
-          weekTasks: DashboardTask[]
-          latestSummaries: DashboardSummary[]
-          recentCompanies: DashboardCompany[]
-        }>('/api/dashboard')
-        setOverdueTasks(data.overdueTasks || [])
-        setTodayTasks(data.todayTasks || [])
-        setSoonTasks(data.soonTasks || [])
-        setWeekTasks(data.weekTasks || [])
-        setLatestSummaries(data.latestSummaries || [])
-        setRecentCompanies(data.recentCompanies || [])
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'ネットワークエラー')
-      } finally {
-        setIsLoading(false)
-      }
+  const { data: dashboardData, error, isLoading } = useFetch<DashboardResponse>(
+    '/api/dashboard',
+    {
+      errorMessage: 'ネットワークエラー',
+      cacheTimeMs: 10_000,
     }
+  )
 
-    fetchDashboard()
-  }, [])
+  const latestSummaries = dashboardData?.latestSummaries ?? []
+  const recentCompanies = dashboardData?.recentCompanies ?? []
 
   const taskGroups = useMemo(
-    () => [
-      { id: 'overdue', label: '期限切れ', dotClass: 'bg-rose-500', tasks: overdueTasks },
-      { id: 'today', label: '本日', dotClass: 'bg-amber-500', tasks: todayTasks },
-      { id: 'soon', label: '3日以内', dotClass: 'bg-sky-500', tasks: soonTasks },
-      { id: 'week', label: '7日以内', dotClass: 'bg-slate-500', tasks: weekTasks },
-    ],
-    [overdueTasks, todayTasks, soonTasks, weekTasks]
+    () => {
+      const overdueTasks = dashboardData?.overdueTasks ?? []
+      const todayTasks = dashboardData?.todayTasks ?? []
+      const soonTasks = dashboardData?.soonTasks ?? []
+      const weekTasks = dashboardData?.weekTasks ?? []
+
+      return [
+        { id: 'overdue', label: '期限切れ', dotClass: 'bg-rose-500', tasks: overdueTasks },
+        { id: 'today', label: '本日', dotClass: 'bg-amber-500', tasks: todayTasks },
+        { id: 'soon', label: '3日以内', dotClass: 'bg-sky-500', tasks: soonTasks },
+        { id: 'week', label: '7日以内', dotClass: 'bg-slate-500', tasks: weekTasks },
+      ]
+    },
+    [dashboardData]
   )
 
   const targetLink = (task: DashboardTask) => {
@@ -170,7 +125,7 @@ function Home() {
                             <span>
                               状態: {TASK_STATUS_LABELS[task.status] || task.status}
                             </span>
-                            <span>担当: {task.assigneeId || '-'}</span>
+                            <span>担当: {task.assignee?.email || task.assigneeId || '-'}</span>
                             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
                               {TARGET_TYPE_LABELS[task.targetType] || task.targetType}
                             </span>
@@ -212,22 +167,31 @@ function Home() {
                 <p className="text-sm">要約はまだありません</p>
               </div>
             ) : (
-              latestSummaries.map((summary) => (
-                <div key={summary.id} className="relative pl-4 border-l-2 border-slate-100 hover:border-purple-200 transition-colors">
-                  <div className="flex justify-between items-baseline mb-1">
-                    <div className="text-xs text-slate-400">
-                      {new Date(summary.createdAt).toLocaleDateString()}
+              latestSummaries.map((summary) => {
+                const companyId = summary.company?.id ?? summary.companyId
+                const companyName = summary.company?.name ?? summary.companyId
+                return (
+                  <div
+                    key={summary.id}
+                    className="relative pl-4 border-l-2 border-slate-100 hover:border-purple-200 transition-colors"
+                  >
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="text-xs text-slate-400">
+                        {new Date(summary.createdAt).toLocaleDateString()}
+                      </div>
                     </div>
+                    <div className="font-medium text-slate-900 text-sm mb-1">{companyName}</div>
+                    <p className="line-clamp-2 text-xs text-slate-500 leading-relaxed">
+                      {summary.content}
+                    </p>
+                    <Link
+                      to={`/companies/${companyId}`}
+                      className="absolute inset-0"
+                      aria-label={`${companyName} の要約を表示`}
+                    />
                   </div>
-                  <div className="font-medium text-slate-900 text-sm mb-1">{summary.company.name}</div>
-                  <p className="line-clamp-2 text-xs text-slate-500 leading-relaxed">{summary.content}</p>
-                  <Link
-                    to={`/companies/${summary.company.id}`}
-                    className="absolute inset-0"
-                    aria-label={`${summary.company.name} の要約を表示`}
-                  />
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
@@ -251,29 +215,35 @@ function Home() {
                 <p className="text-sm">企業はまだありません</p>
               </div>
             ) : (
-              recentCompanies.map((company) => (
-                <div key={company.id} className="flex items-center justify-between group p-2 -mx-2 hover:bg-slate-50 rounded-lg transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
-                      {company.name.slice(0, 1)}
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-900 text-sm">{company.name}</div>
-                      <div className="text-xs text-slate-400">
-                        {new Date(company.updatedAt).toLocaleDateString()}
+              recentCompanies.map((company) => {
+                const updatedAtLabel = company.updatedAt
+                  ? new Date(company.updatedAt).toLocaleDateString()
+                  : '-'
+                return (
+                  <div
+                    key={company.id}
+                    className="flex items-center justify-between group p-2 -mx-2 hover:bg-slate-50 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
+                        {company.name.slice(0, 1)}
+                      </div>
+                      <div>
+                        <div className="font-medium text-slate-900 text-sm">{company.name}</div>
+                        <div className="text-xs text-slate-400">{updatedAtLabel}</div>
                       </div>
                     </div>
+                    <Link
+                      to={`/companies/${company.id}`}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-sky-600 transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
                   </div>
-                  <Link
-                    to={`/companies/${company.id}`}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-sky-600 transition-all"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
           <div className="mt-6 pt-4 border-t border-slate-100">

@@ -1,39 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Button from '../components/ui/Button'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
-import { apiRequest } from '../lib/apiClient'
-import { CompanyOptions } from '../types'
+import { useFetch } from '../hooks/useApi'
+import { apiDownload } from '../lib/apiClient'
+import { CompanyOptions, ExportCompanyFilters, ExportTaskFilters } from '../types'
 import { TARGET_TYPE_LABELS, TARGET_TYPE_OPTIONS, TASK_STATUS_LABELS, TASK_STATUS_OPTIONS } from '../constants'
-
-type CompanyFilters = {
-  from: string
-  to: string
-  status: string
-  category: string
-  tag: string
-  ownerId: string
-}
-
-type TaskFilters = {
-  dueFrom: string
-  dueTo: string
-  status: string
-  targetType: string
-  assigneeId: string
-}
 
 function Exports() {
   const [error, setError] = useState('')
   const [activeDownload, setActiveDownload] = useState<'companies' | 'tasks' | ''>('')
-  const [companyOptions, setCompanyOptions] = useState<CompanyOptions>({
-    categories: [],
-    statuses: [],
-    tags: [],
-  })
-  const [userOptions, setUserOptions] = useState<Array<{ id: string; email: string }>>([])
-  const [companyFilters, setCompanyFilters] = useState<CompanyFilters>({
+  const [companyFilters, setCompanyFilters] = useState<ExportCompanyFilters>({
     from: '',
     to: '',
     status: '',
@@ -41,7 +19,7 @@ function Exports() {
     tag: '',
     ownerId: '',
   })
-  const [taskFilters, setTaskFilters] = useState<TaskFilters>({
+  const [taskFilters, setTaskFilters] = useState<ExportTaskFilters>({
     dueFrom: '',
     dueTo: '',
     status: '',
@@ -49,22 +27,21 @@ function Exports() {
     assigneeId: '',
   })
 
-  useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        const [companyData, userData] = await Promise.all([
-          apiRequest<CompanyOptions>('/api/companies/options'),
-          apiRequest<{ users: Array<{ id: string; email: string }> }>('/api/users/options'),
-        ])
-        setCompanyOptions(companyData)
-        setUserOptions(userData.users ?? [])
-      } catch {
-        setCompanyOptions({ categories: [], statuses: [], tags: [] })
-        setUserOptions([])
-      }
+  const { data: companyOptionsData } = useFetch<CompanyOptions>('/api/companies/options', {
+    errorMessage: '候補の取得に失敗しました',
+    cacheTimeMs: 30_000,
+  })
+
+  const { data: userOptionsData } = useFetch<{ users: Array<{ id: string; email: string }> }>(
+    '/api/users/options',
+    {
+      errorMessage: '候補の取得に失敗しました',
+      cacheTimeMs: 30_000,
     }
-    loadOptions()
-  }, [])
+  )
+
+  const companyOptions = companyOptionsData ?? { categories: [], statuses: [], tags: [] }
+  const userOptions = userOptionsData?.users ?? []
 
   const buildQuery = (params: Record<string, string>) => {
     const query = new URLSearchParams()
@@ -80,22 +57,7 @@ function Exports() {
     try {
       const query = buildQuery(params)
       const url = query ? `${path}?${query}` : path
-      const response = await fetch(url, { credentials: 'include' })
-      if (!response.ok) {
-        let message = 'Download failed'
-        try {
-          const data = await response.json()
-          if (typeof data?.error === 'string') {
-            message = data.error
-          } else if (data?.error?.message) {
-            message = data.error.message
-          }
-        } catch {
-          // noop
-        }
-        throw new Error(message)
-      }
-      const blob = await response.blob()
+      const blob = await apiDownload(url)
       const blobUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = blobUrl
@@ -105,7 +67,7 @@ function Exports() {
       link.remove()
       URL.revokeObjectURL(blobUrl)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Download failed')
+      setError(err instanceof Error ? err.message : 'ダウンロードに失敗しました')
     } finally {
       setActiveDownload('')
     }
@@ -114,33 +76,33 @@ function Exports() {
   return (
     <div className="space-y-6 animate-fade-up">
       <div>
-        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Exports</p>
-        <h2 className="text-3xl font-bold text-slate-900">CSV Exports</h2>
+        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Export</p>
+        <h2 className="text-3xl font-bold text-slate-900">CSVエクスポート</h2>
       </div>
 
       {error && <ErrorAlert message={error} />}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Companies</h3>
+          <h3 className="text-lg font-semibold text-slate-900">企業</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <FormInput
               type="date"
               value={companyFilters.from}
               onChange={(e) => setCompanyFilters({ ...companyFilters, from: e.target.value })}
-              placeholder="From"
+              placeholder="開始日"
             />
             <FormInput
               type="date"
               value={companyFilters.to}
               onChange={(e) => setCompanyFilters({ ...companyFilters, to: e.target.value })}
-              placeholder="To"
+              placeholder="終了日"
             />
             <FormSelect
               value={companyFilters.status}
               onChange={(e) => setCompanyFilters({ ...companyFilters, status: e.target.value })}
             >
-              <option value="">Status</option>
+              <option value="">ステータス</option>
               {companyOptions.statuses.map((status) => (
                 <option key={status} value={status}>
                   {status}
@@ -151,7 +113,7 @@ function Exports() {
               value={companyFilters.category}
               onChange={(e) => setCompanyFilters({ ...companyFilters, category: e.target.value })}
             >
-              <option value="">Category</option>
+              <option value="">区分</option>
               {companyOptions.categories.map((category) => (
                 <option key={category} value={category}>
                   {category}
@@ -162,7 +124,7 @@ function Exports() {
               value={companyFilters.tag}
               onChange={(e) => setCompanyFilters({ ...companyFilters, tag: e.target.value })}
             >
-              <option value="">Tag</option>
+              <option value="">タグ</option>
               {companyOptions.tags.map((tag) => (
                 <option key={tag} value={tag}>
                   {tag}
@@ -173,7 +135,7 @@ function Exports() {
               value={companyFilters.ownerId}
               onChange={(e) => setCompanyFilters({ ...companyFilters, ownerId: e.target.value })}
             >
-              <option value="">Owner</option>
+              <option value="">担当者</option>
               {userOptions.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.email}
@@ -186,33 +148,33 @@ function Exports() {
               type="button"
               onClick={() => downloadFile('/api/export/companies.csv', 'companies.csv', companyFilters)}
               isLoading={activeDownload === 'companies'}
-              loadingLabel="Downloading..."
+              loadingLabel="ダウンロード中..."
             >
-              Download CSV
+              CSVをダウンロード
             </Button>
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Tasks</h3>
+          <h3 className="text-lg font-semibold text-slate-900">タスク</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <FormInput
               type="date"
               value={taskFilters.dueFrom}
               onChange={(e) => setTaskFilters({ ...taskFilters, dueFrom: e.target.value })}
-              placeholder="Due from"
+              placeholder="期日（開始）"
             />
             <FormInput
               type="date"
               value={taskFilters.dueTo}
               onChange={(e) => setTaskFilters({ ...taskFilters, dueTo: e.target.value })}
-              placeholder="Due to"
+              placeholder="期日（終了）"
             />
             <FormSelect
               value={taskFilters.status}
               onChange={(e) => setTaskFilters({ ...taskFilters, status: e.target.value })}
             >
-              <option value="">Status</option>
+              <option value="">ステータス</option>
               {TASK_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
                   {TASK_STATUS_LABELS[status]}
@@ -223,7 +185,7 @@ function Exports() {
               value={taskFilters.targetType}
               onChange={(e) => setTaskFilters({ ...taskFilters, targetType: e.target.value })}
             >
-              <option value="">Target type</option>
+              <option value="">対象タイプ</option>
               {TARGET_TYPE_OPTIONS.map((type) => (
                 <option key={type} value={type}>
                   {TARGET_TYPE_LABELS[type]}
@@ -234,7 +196,7 @@ function Exports() {
               value={taskFilters.assigneeId}
               onChange={(e) => setTaskFilters({ ...taskFilters, assigneeId: e.target.value })}
             >
-              <option value="">Assignee</option>
+              <option value="">担当者</option>
               {userOptions.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.email}
@@ -247,9 +209,9 @@ function Exports() {
               type="button"
               onClick={() => downloadFile('/api/export/tasks.csv', 'tasks.csv', taskFilters)}
               isLoading={activeDownload === 'tasks'}
-              loadingLabel="Downloading..."
+              loadingLabel="ダウンロード中..."
             >
-              Download CSV
+              CSVをダウンロード
             </Button>
           </div>
         </div>

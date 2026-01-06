@@ -22,6 +22,7 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
   REDIS_URL: z.string().optional(),
+  JOB_WORKER_ENABLED: z.string().optional(),
 })
 
 const parseTrustProxy = (value?: string) => {
@@ -31,6 +32,13 @@ const parseTrustProxy = (value?: string) => {
   const numeric = Number(value)
   if (Number.isFinite(numeric)) return numeric
   return undefined
+}
+
+const parseBoolean = (value: string | undefined, defaultValue: boolean) => {
+  if (value === undefined || value === '') return defaultValue
+  if (value === 'true' || value === '1') return true
+  if (value === 'false' || value === '0') return false
+  return defaultValue
 }
 
 const parsed = envSchema.safeParse(process.env)
@@ -43,6 +51,9 @@ const raw = parsed.data
 
 if (raw.NODE_ENV === 'production' && !raw.JWT_SECRET) {
   throw new Error('JWT_SECRET is required in production')
+}
+if (raw.NODE_ENV === 'production' && !raw.REDIS_URL) {
+  throw new Error('REDIS_URL is required in production')
 }
 
 const corsOrigins = (raw.CORS_ORIGINS ?? '')
@@ -63,4 +74,5 @@ export const env = {
   openaiApiKey: raw.OPENAI_API_KEY,
   openaiModel: raw.OPENAI_MODEL,
   redisUrl: raw.REDIS_URL,
+  jobWorkerEnabled: parseBoolean(raw.JOB_WORKER_ENABLED, true),
 }

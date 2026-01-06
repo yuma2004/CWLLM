@@ -1,47 +1,24 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CompanySearchSelect from '../components/CompanySearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import StatusBadge from '../components/ui/StatusBadge'
+import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
 import { WHOLESALE_STATUS_LABELS } from '../constants'
-import { apiRequest } from '../lib/apiClient'
 import { formatDate } from '../utils/date'
-
-interface Project {
-  id: string
-  name: string
-  status: string
-  companyId: string
-  conditions?: string | null
-  unitPrice?: number | null
-}
-
-interface Wholesale {
-  id: string
-  status: string
-  companyId: string
-  company?: { id: string; name: string }
-  unitPrice?: number | null
-  margin?: number | null
-  conditions?: string | null
-  agreedDate?: string | null
-}
+import { Project, Wholesale } from '../types'
 
 function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const { canWrite } = usePermissions()
-  const [project, setProject] = useState<Project | null>(null)
-  const [wholesales, setWholesales] = useState<Wholesale[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [form, setForm] = useState({
     companyId: '',
     status: 'active',
     unitPrice: '',
-    margin: '',
+    taxType: 'excluded' as 'excluded' | 'included',
     conditions: '',
     agreedDate: '',
   })
@@ -52,37 +29,78 @@ function ProjectDetail() {
   const [editForm, setEditForm] = useState({
     status: 'active',
     unitPrice: '',
-    margin: '',
+    taxType: 'excluded' as 'excluded' | 'included',
     conditions: '',
     agreedDate: '',
   })
   const [editError, setEditError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Wholesale | null>(null)
   const [deleteError, setDeleteError] = useState('')
-  const [isDeleting, setIsDeleting] = useState(false)
 
-  const fetchData = useCallback(async () => {
-    if (!id) return
-    setIsLoading(true)
-    setError('')
-    try {
-      const [projectData, wholesaleData] = await Promise.all([
-        apiRequest<{ project: Project }>(`/api/projects/${id}`),
-        apiRequest<{ wholesales: Wholesale[] }>(`/api/projects/${id}/wholesales`),
-      ])
+  const {
+    data: projectData,
+    error: projectError,
+    isLoading: isLoadingProject,
+    refetch: refetchProject,
+  } = useFetch<{ project: Project }>(id ? `/api/projects/${id}` : null, {
+    enabled: Boolean(id),
+    errorMessage: 'ネットワークエラー',
+    cacheTimeMs: 10_000,
+  })
 
-      setProject(projectData.project)
-      setWholesales(wholesaleData.wholesales ?? [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error')
-    } finally {
-      setIsLoading(false)
+  const {
+    data: wholesalesData,
+    error: wholesalesError,
+    isLoading: isLoadingWholesales,
+    refetch: refetchWholesales,
+  } = useFetch<{ wholesales: Wholesale[] }>(
+    id ? `/api/projects/${id}/wholesales` : null,
+    {
+      enabled: Boolean(id),
+      errorMessage: 'ネットワークエラー',
+      cacheTimeMs: 10_000,
     }
-  }, [id])
+  )
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  const project = projectData?.project ?? null
+  const wholesales = wholesalesData?.wholesales ?? []
+  const isLoading = isLoadingProject || isLoadingWholesales
+  const error = projectError || wholesalesError
+
+  const refreshData = useMemo(
+    () => () => {
+      void refetchProject(undefined, { ignoreCache: true })
+      void refetchWholesales(undefined, { ignoreCache: true })
+    },
+    [refetchProject, refetchWholesales]
+  )
+
+  const { mutate: createWholesale, isLoading: isCreatingWholesale } = useMutation<
+    { wholesale: Wholesale },
+    {
+      projectId: string
+      companyId: string
+      status: string
+      unitPrice?: number
+      conditions?: string
+      agreedDate?: string
+    }
+  >('/api/wholesales', 'POST')
+
+  const { mutate: updateWholesale } = useMutation<
+    { wholesale: Wholesale },
+    {
+      status: string
+      unitPrice?: number | null
+      conditions?: string | null
+      agreedDate?: string | null
+    }
+  >('/api/wholesales', 'PATCH')
+
+  const { mutate: removeWholesale, isLoading: isDeletingWholesale } = useMutation<
+    unknown,
+    void
+  >('/api/wholesales', 'DELETE')
 
   const handleCreateWholesale = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -94,23 +112,22 @@ function ProjectDetail() {
     }
 
     try {
-      await apiRequest('/api/wholesales', {
-        method: 'POST',
-        body: {
+      await createWholesale(
+        {
           projectId: id,
           companyId: form.companyId,
           status: form.status,
           unitPrice: form.unitPrice ? parseFloat(form.unitPrice) : undefined,
-          margin: form.margin ? parseFloat(form.margin) : undefined,
           conditions: form.conditions || undefined,
           agreedDate: form.agreedDate || undefined,
         },
-      })
-      setForm({ companyId: '', status: 'active', unitPrice: '', margin: '', conditions: '', agreedDate: '' })
+        { errorMessage: 'ネットワークエラー' }
+      )
+      setForm({ companyId: '', status: 'active', unitPrice: '', taxType: 'excluded', conditions: '', agreedDate: '' })
       setShowCreateForm(false)
-      fetchData()
+      refreshData()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Network error')
+      setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
@@ -119,7 +136,7 @@ function ProjectDetail() {
     setEditForm({
       status: wholesale.status,
       unitPrice: wholesale.unitPrice?.toString() || '',
-      margin: wholesale.margin?.toString() || '',
+      taxType: 'excluded', // 既存データには税種別がないため、デフォルトで税抜とする
       conditions: wholesale.conditions || '',
       agreedDate: wholesale.agreedDate ? wholesale.agreedDate.split('T')[0] : '',
     })
@@ -132,20 +149,22 @@ function ProjectDetail() {
     setEditError('')
 
     try {
-      await apiRequest(`/api/wholesales/${editingWholesale.id}`, {
-        method: 'PATCH',
-        body: {
+      await updateWholesale(
+        {
           status: editForm.status,
           unitPrice: editForm.unitPrice ? parseFloat(editForm.unitPrice) : null,
-          margin: editForm.margin ? parseFloat(editForm.margin) : null,
           conditions: editForm.conditions || null,
           agreedDate: editForm.agreedDate || null,
         },
-      })
+        {
+          url: `/api/wholesales/${editingWholesale.id}`,
+          errorMessage: 'ネットワークエラー',
+        }
+      )
       setEditingWholesale(null)
-      fetchData()
+      refreshData()
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Network error')
+      setEditError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
 
@@ -156,17 +175,17 @@ function ProjectDetail() {
 
   const confirmDeleteWholesale = async () => {
     if (!deleteTarget) return
-    setIsDeleting(true)
     setDeleteError('')
 
     try {
-      await apiRequest(`/api/wholesales/${deleteTarget.id}`, { method: 'DELETE' })
+      await removeWholesale(undefined, {
+        url: `/api/wholesales/${deleteTarget.id}`,
+        errorMessage: 'ネットワークエラー',
+      })
       setDeleteTarget(null)
-      fetchData()
+      refreshData()
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'ネットワークエラー')
-    } finally {
-      setIsDeleting(false)
     }
   }
 
@@ -186,9 +205,17 @@ function ProjectDetail() {
   if (!project) {
     return <div className="text-slate-500">案件が見つかりません。</div>
   }
+  const projectStatus = project.status ?? ''
 
   return (
     <div className="space-y-6 animate-fade-up">
+      <nav className="text-xs text-slate-400">
+        <Link to="/projects" className="hover:text-slate-600">
+          案件一覧
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-slate-500">{project.name}</span>
+      </nav>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.25em] text-slate-400">案件詳細</p>
@@ -208,7 +235,7 @@ function ProjectDetail() {
             <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">ステータス</dt>
             <dd className="mt-1">
               <StatusBadge
-                status={WHOLESALE_STATUS_LABELS[project.status] || project.status}
+                status={WHOLESALE_STATUS_LABELS[projectStatus] || project.status || '-'}
               />
             </dd>
           </div>
@@ -216,7 +243,7 @@ function ProjectDetail() {
             <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">企業</dt>
             <dd className="mt-1 text-slate-800">
               <Link to={`/companies/${project.companyId}`} className="text-sky-600 hover:text-sky-700 hover:underline">
-                {project.companyId}
+                {project.company?.name || project.companyId}
               </Link>
             </dd>
           </div>
@@ -274,24 +301,23 @@ function ProjectDetail() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">単価</label>
-                <input
-                  type="number"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="例: 10000"
-                  value={form.unitPrice}
-                  onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">マージン (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="例: 15"
-                  value={form.margin}
-                  onChange={(e) => setForm({ ...form, margin: e.target.value })}
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    placeholder="例: 10000"
+                    value={form.unitPrice}
+                    onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                  />
+                  <select
+                    className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    value={form.taxType}
+                    onChange={(e) => setForm({ ...form, taxType: e.target.value as 'excluded' | 'included' })}
+                  >
+                    <option value="excluded">税抜</option>
+                    <option value="included">税込</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">合意日</label>
@@ -322,8 +348,9 @@ function ProjectDetail() {
               <button
                 type="submit"
                 className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition-colors"
+                disabled={isCreatingWholesale}
               >
-                追加
+                {isCreatingWholesale ? '追加中...' : '追加'}
               </button>
             </div>
           </form>
@@ -340,7 +367,6 @@ function ProjectDetail() {
                   <th className="px-4 py-3 font-medium">卸先企業</th>
                   <th className="px-4 py-3 font-medium">ステータス</th>
                   <th className="px-4 py-3 font-medium text-right">単価</th>
-                  <th className="px-4 py-3 font-medium text-right">マージン</th>
                   <th className="px-4 py-3 font-medium">合意日</th>
                   <th className="px-4 py-3 font-medium">条件</th>
                   {canWrite && <th className="px-4 py-3 font-medium text-right">操作</th>}
@@ -364,9 +390,6 @@ function ProjectDetail() {
                       />
                     </td>
                     <td className="px-4 py-3 text-right font-mono">{formatCurrency(wholesale.unitPrice)}</td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {wholesale.margin != null ? `${wholesale.margin}%` : '-'}
-                    </td>
                     <td className="px-4 py-3">{formatDate(wholesale.agreedDate)}</td>
                     <td className="px-4 py-3 max-w-[200px] truncate" title={wholesale.conditions || undefined}>
                       {wholesale.conditions || '-'}
@@ -423,25 +446,23 @@ function ProjectDetail() {
                     <option value="closed">終了</option>
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">単価</label>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">単価</label>
+                  <div className="flex gap-2">
                     <input
                       type="number"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
                       value={editForm.unitPrice}
                       onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">マージン (%)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                      value={editForm.margin}
-                      onChange={(e) => setEditForm({ ...editForm, margin: e.target.value })}
-                    />
+                    <select
+                      className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      value={editForm.taxType}
+                      onChange={(e) => setEditForm({ ...editForm, taxType: e.target.value as 'excluded' | 'included' })}
+                    >
+                      <option value="excluded">税抜</option>
+                      <option value="included">税込</option>
+                    </select>
                   </div>
                 </div>
                 <div>
@@ -500,7 +521,7 @@ function ProjectDetail() {
         description={deleteTarget ? `${deleteTarget.company?.name || deleteTarget.companyId} の卸情報を削除します。` : undefined}
         confirmLabel="削除する"
         cancelLabel="キャンセル"
-        isLoading={isDeleting}
+        isLoading={isDeletingWholesale}
         onConfirm={confirmDeleteWholesale}
         onCancel={() => setDeleteTarget(null)}
       />

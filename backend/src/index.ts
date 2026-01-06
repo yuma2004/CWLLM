@@ -6,6 +6,12 @@ import rateLimit from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { randomUUID } from 'node:crypto'
+import {
+  ZodTypeProvider,
+  jsonSchemaTransform,
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod'
 import { registerRoutes } from './routes'
 import { env } from './config/env'
 import { normalizeErrorPayload } from './utils/errors'
@@ -35,7 +41,10 @@ fastify.register(cors, {
       ? false
       : true,
   credentials: true,
-})
+}).withTypeProvider<ZodTypeProvider>()
+
+fastify.setValidatorCompiler(validatorCompiler)
+fastify.setSerializerCompiler(serializerCompiler)
 
 fastify.register(cookie)
 
@@ -60,6 +69,7 @@ fastify.register(swagger, {
       version: '1.0.0',
     },
   },
+  transform: jsonSchemaTransform,
 })
 
 fastify.register(swaggerUi, {
@@ -111,14 +121,14 @@ fastify.setErrorHandler((error, request, reply) => {
     )
 })
 
-fastify.addHook('preSerialization', async (request, reply, payload) => {
+fastify.addHook('preSerialization', async (_request, reply, payload) => {
   if (!payload || typeof payload !== 'object') return payload
   return normalizeErrorPayload(payload, reply.statusCode)
 })
 
 registerRoutes(fastify)
 
-initJobQueue(fastify.log)
+initJobQueue(fastify.log, { enableWorker: env.jobWorkerEnabled, enableQueue: true })
 
 fastify.get('/healthz', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() }

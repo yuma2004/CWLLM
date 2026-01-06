@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { JobStatus, JobType, Prisma } from '@prisma/client'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { requireAuth } from '../middleware/rbac'
 import { prisma } from '../utils/prisma'
 import { JWTUser } from '../types/auth'
@@ -10,6 +12,42 @@ interface JobListQuery {
   status?: string
   limit?: string
 }
+
+const dateSchema = z.preprocess(
+  (value) => (value instanceof Date ? value.toISOString() : value),
+  z.string()
+)
+
+const jobSchema = z
+  .object({
+    id: z.string(),
+    type: z.nativeEnum(JobType),
+    status: z.nativeEnum(JobStatus),
+    payload: z.unknown(),
+    result: z.unknown().nullable().optional(),
+    error: z.unknown().nullable().optional(),
+    userId: z.string().nullable().optional(),
+    startedAt: dateSchema.nullable().optional(),
+    finishedAt: dateSchema.nullable().optional(),
+    createdAt: dateSchema.optional(),
+    updatedAt: dateSchema.optional(),
+  })
+  .passthrough()
+
+const jobListQuerySchema = z.object({
+  type: z.nativeEnum(JobType).optional(),
+  status: z.nativeEnum(JobStatus).optional(),
+  limit: z.string().optional(),
+})
+
+const jobParamsSchema = z.object({ id: z.string().min(1) })
+
+const jobListResponseSchema = z
+  .object({
+    jobs: z.array(jobSchema),
+  })
+  .passthrough()
+const jobResponseSchema = z.object({ job: jobSchema }).passthrough()
 
 const parseLimit = (value?: string) => {
   const limitValue = Number(value)
@@ -29,10 +67,23 @@ const normalizeJobStatus = (value?: string) => {
   return value as JobStatus
 }
 
+const terminalStatuses = new Set<JobStatus>([JobStatus.completed, JobStatus.failed])
+
 export async function jobRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Querystring: JobListQuery }>(
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
+
+  app.get<{ Querystring: JobListQuery }>(
     '/jobs',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Jobs'],
+        querystring: jobListQuerySchema,
+        response: {
+          200: jobListResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const user = request.user as JWTUser
       const isAdmin = user.role === 'admin'
@@ -67,9 +118,18 @@ export async function jobRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/jobs/:id',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Jobs'],
+        params: jobParamsSchema,
+        response: {
+          200: jobResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const user = request.user as JWTUser
       const job = await prisma.job.findUnique({
@@ -87,9 +147,18 @@ export async function jobRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.post<{ Params: { id: string } }>(
+  app.post<{ Params: { id: string } }>(
     '/jobs/:id/cancel',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Jobs'],
+        params: jobParamsSchema,
+        response: {
+          200: jobResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const user = request.user as JWTUser
       const job = await prisma.job.findUnique({ where: { id: request.params.id } })
@@ -99,7 +168,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
       if (user.role !== 'admin' && job.userId !== user.userId) {
         return reply.code(403).send({ error: 'Forbidden' })
       }
-      if ([JobStatus.completed, JobStatus.failed].includes(job.status)) {
+      if (terminalStatuses.has(job.status)) {
         return reply.code(400).send({ error: 'Job already finished' })
       }
 

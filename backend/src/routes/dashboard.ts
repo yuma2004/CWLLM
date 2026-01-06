@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify'
+import { TaskStatus } from '@prisma/client'
 import { requireAuth } from '../middleware/rbac'
+import { attachTargetInfo } from '../services/taskTargets'
 import { prisma } from '../utils/prisma'
 
 export async function dashboardRoutes(fastify: FastifyInstance) {
@@ -14,7 +16,7 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
     startOfSevenDays.setDate(startOfSevenDays.getDate() + 8)
 
     const baseTaskWhere = {
-      status: { notIn: ['done', 'cancelled'] },
+      status: { notIn: [TaskStatus.done, TaskStatus.cancelled] },
       dueDate: { not: null },
     }
 
@@ -34,6 +36,9 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         },
         orderBy: { dueDate: 'asc' },
         take: 5,
+        include: {
+          assignee: { select: { id: true, email: true } },
+        },
       }),
       prisma.task.findMany({
         where: {
@@ -42,6 +47,9 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         },
         orderBy: { dueDate: 'asc' },
         take: 5,
+        include: {
+          assignee: { select: { id: true, email: true } },
+        },
       }),
       prisma.task.findMany({
         where: {
@@ -50,6 +58,9 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         },
         orderBy: { dueDate: 'asc' },
         take: 5,
+        include: {
+          assignee: { select: { id: true, email: true } },
+        },
       }),
       prisma.task.findMany({
         where: {
@@ -58,6 +69,9 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         },
         orderBy: { dueDate: 'asc' },
         take: 5,
+        include: {
+          assignee: { select: { id: true, email: true } },
+        },
       }),
       prisma.summary.findMany({
         orderBy: { createdAt: 'desc' },
@@ -80,11 +94,26 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
       }),
     ])
 
+    const tasksWithTarget = await attachTargetInfo([
+      ...overdueTasks,
+      ...todayTasks,
+      ...soonTasks,
+      ...weekTasks,
+    ])
+    let offset = 0
+    const overdueTasksWithTarget = tasksWithTarget.slice(offset, offset + overdueTasks.length)
+    offset += overdueTasks.length
+    const todayTasksWithTarget = tasksWithTarget.slice(offset, offset + todayTasks.length)
+    offset += todayTasks.length
+    const soonTasksWithTarget = tasksWithTarget.slice(offset, offset + soonTasks.length)
+    offset += soonTasks.length
+    const weekTasksWithTarget = tasksWithTarget.slice(offset, offset + weekTasks.length)
+
     return {
-      overdueTasks,
-      todayTasks,
-      soonTasks,
-      weekTasks,
+      overdueTasks: overdueTasksWithTarget,
+      todayTasks: todayTasksWithTarget,
+      soonTasks: soonTasksWithTarget,
+      weekTasks: weekTasksWithTarget,
       latestSummaries,
       recentCompanies,
       unassignedMessageCount,

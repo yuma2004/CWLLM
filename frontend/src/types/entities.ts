@@ -35,6 +35,10 @@ export interface Wholesale {
   project?: {
     id: string
     name: string
+    company?: {
+      id: string
+      name: string
+    }
   }
   company?: {
     id: string
@@ -67,6 +71,11 @@ export interface Project {
   name: string
   companyId: string
   status?: string
+  conditions?: string | null
+  unitPrice?: number | null
+  periodStart?: string | null
+  periodEnd?: string | null
+  ownerId?: string | null
   company?: {
     id: string
     name: string
@@ -117,4 +126,112 @@ export interface CompanyOptions {
   categories: string[]
   statuses: string[]
   tags: string[]
+}
+
+export interface AuditLog {
+  id: string
+  action: string
+  userId?: string | null
+  userEmail?: string | null
+  createdAt: string
+}
+
+export interface Summary {
+  id: string
+  content: string
+  type: string
+  periodStart: string
+  periodEnd: string
+  sourceLinks: string[]
+  createdAt: string
+}
+
+export interface SummaryDraft {
+  id: string
+  content: string
+  periodStart: string
+  periodEnd: string
+  sourceLinks: string[]
+  model?: string | null
+  promptVersion?: string | null
+  sourceMessageCount?: number | null
+  tokenUsage?: unknown
+}
+
+export interface SummaryCandidate {
+  title: string
+  dueDate?: string
+}
+
+export interface JobRecord {
+  id: string
+  type?: string
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'canceled'
+  result?: Record<string, unknown> | null
+  error?: { message?: string } | null
+}
+
+export interface MessageItem {
+  id: string
+  roomId: string
+  messageId: string
+  sender: string
+  body: string
+  sentAt: string
+  labels?: string[]
+  companyId?: string | null
+}
+
+export interface LinkedRoom {
+  id: string
+  roomId: string
+  name: string
+  isActive: boolean
+}
+
+export interface AvailableRoom {
+  id: string
+  roomId: string
+  name: string
+  description?: string | null
+  isActive: boolean
+}
+
+export interface DashboardTask {
+  id: string
+  title: string
+  dueDate?: string | null
+  status: string
+  targetType: string
+  targetId: string
+  target?: {
+    id: string
+    type: string
+    name: string
+  }
+  assigneeId?: string | null
+  assignee?: {
+    id: string
+    email: string
+  } | null
+}
+
+export interface DashboardSummary {
+  id: string
+  companyId: string
+  content: string
+  type: string
+  createdAt: string
+  company?: {
+    id: string
+    name: string
+  }
+}
+
+export interface DashboardCompany {
+  id: string
+  name: string
+  status: string
+  category?: string | null
+  updatedAt?: string
 }

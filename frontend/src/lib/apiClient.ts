@@ -47,11 +47,47 @@ export const apiRequest = async <T,>(
     const message =
       typeof apiError?.error === 'string'
         ? apiError.error
-        : apiError?.error?.message ?? 'Network error'
+        : apiError?.error?.message ?? 'ネットワークエラー'
     throw new Error(message)
   }
 
   return responseData as T
+}
+
+export const apiDownload = async (
+  url: string,
+  { method = 'GET', body, headers, signal }: ApiRequestOptions = {}
+): Promise<Blob> => {
+  const requestHeaders = new Headers(headers)
+  const hasBody = body !== undefined
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+
+  let requestBody: BodyInit | undefined
+  if (hasBody) {
+    requestBody = isFormData ? (body as BodyInit) : JSON.stringify(body)
+    if (!isFormData && !requestHeaders.has('Content-Type')) {
+      requestHeaders.set('Content-Type', 'application/json')
+    }
+  }
+
+  const response = await fetch(url, {
+    method,
+    credentials: 'include',
+    headers: requestHeaders,
+    body: requestBody,
+    signal,
+  })
+
+  if (!response.ok) {
+    const apiError = await readJson<ApiError>(response)
+    const message =
+      typeof apiError?.error === 'string'
+        ? apiError.error
+        : apiError?.error?.message ?? 'ネットワークエラー'
+    throw new Error(message)
+  }
+
+  return response.blob()
 }
 
 export const apiGet = async <T,>(url: string, options?: Omit<ApiRequestOptions, 'method'>) =>

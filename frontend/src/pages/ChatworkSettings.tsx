@@ -1,143 +1,210 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/ui/Button'
 import ErrorAlert from '../components/ui/ErrorAlert'
+import JobProgressCard from '../components/ui/JobProgressCard'
+import Toast from '../components/ui/Toast'
+import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
-import { apiRequest } from '../lib/apiClient'
-
-interface ChatworkRoom {
-  id: string
-  roomId: string
-  name: string
-  description?: string | null
-  isActive: boolean
-  lastSyncAt?: string | null
-  lastErrorAt?: string | null
-  lastErrorMessage?: string | null
-  lastErrorStatus?: number | null
-}
-
-interface JobRecord {
-  id: string
-  type: string
-  status: 'queued' | 'processing' | 'completed' | 'failed' | 'canceled'
-  result?: Record<string, unknown> | null
-  error?: { message?: string } | null
-}
+import { useToast } from '../hooks/useToast'
+import { ChatworkRoom, JobRecord } from '../types'
 
 function ChatworkSettings() {
   const { isAdmin } = usePermissions()
-  const [rooms, setRooms] = useState<ChatworkRoom[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [syncMessage, setSyncMessage] = useState('')
   const [activeJob, setActiveJob] = useState<JobRecord | null>(null)
   const [isPolling, setIsPolling] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const { toast, showToast, clearToast } = useToast()
+  const statusRef = useRef<JobRecord['status'] | null>(null)
 
-  const jobProgress = activeJob?.result as
-    | { totalRooms?: number; processedRooms?: number; summary?: { rooms?: unknown[]; errors?: unknown[] } }
-    | undefined
-
-  const fetchRooms = useCallback(async () => {
-    setIsLoading(true)
-    setError('')
-    try {
-      const data = await apiRequest<{ rooms: ChatworkRoom[] }>('/api/chatwork/rooms')
-      setRooms(data.rooms ?? [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
-    } finally {
-      setIsLoading(false)
+  const {
+    data: roomsData,
+    isLoading: isLoadingRooms,
+    error: roomsError,
+    refetch: refetchRooms,
+  } = useFetch<{ rooms: ChatworkRoom[] }>(
+    isAdmin ? '/api/chatwork/rooms' : null,
+    {
+      enabled: isAdmin,
+      errorMessage: '通信エラーが発生しました',
+      cacheTimeMs: 10_000,
     }
-  }, [])
+  )
+
+  const rooms = roomsData?.rooms ?? []
+
+  const { mutate: queueRoomSync, isLoading: isQueueingRooms } = useMutation<
+    { jobId: string; status: JobRecord['status'] },
+    void
+  >('/api/chatwork/rooms/sync', 'POST')
+
+  const { mutate: queueMessageSync, isLoading: isQueueingMessages } = useMutation<
+    { jobId: string; status: JobRecord['status'] },
+    void
+  >('/api/chatwork/messages/sync', 'POST')
+
+  const { mutate: toggleRoom } = useMutation<{ room: ChatworkRoom }, { isActive: boolean }>(
+    '/api/chatwork/rooms',
+    'PATCH'
+  )
+
+  const { mutate: cancelJob } = useMutation<{ job: JobRecord }, void>('/api/jobs', 'POST')
+
+  const { data: jobData, error: jobError, refetch: refetchJob } = useFetch<{ job: JobRecord }>(
+    activeJob ? `/api/jobs/${activeJob.id}` : null,
+    {
+      enabled: false,
+      errorMessage: 'ジョブステータスの確認に失敗しました',
+    }
+  )
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchRooms()
-    }
-  }, [fetchRooms, isAdmin])
+    if (!jobData?.job) return
+    setActiveJob(jobData.job)
+  }, [jobData])
 
   useEffect(() => {
     if (activeJob?.status === 'completed') {
-      fetchRooms()
+      void refetchRooms(undefined, { ignoreCache: true })
     }
-  }, [activeJob?.status, fetchRooms])
+  }, [activeJob?.status, refetchRooms])
 
   useEffect(() => {
     if (!activeJob?.id) return
     let isMounted = true
-    let timer: number | undefined
-
     const poll = async () => {
       try {
-        const data = await apiRequest<{ job: JobRecord }>(`/api/jobs/${activeJob.id}`)
+        const data = await refetchJob(undefined, { ignoreCache: true })
         if (!isMounted) return
-        setActiveJob(data.job)
-        if (['completed', 'failed', 'canceled'].includes(data.job.status)) {
-          if (timer) window.clearInterval(timer)
-          setIsPolling(false)
+        if (data?.job) {
+          setActiveJob(data.job)
+          if (['completed', 'failed', 'canceled'].includes(data.job.status)) {
+            window.clearInterval(timer)
+            setIsPolling(false)
+          }
         }
-      } catch (err) {
+      } catch {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Failed to check job status')
-        if (timer) window.clearInterval(timer)
+        window.clearInterval(timer)
         setIsPolling(false)
       }
     }
 
     setIsPolling(true)
+    const timer = window.setInterval(poll, 2000)
     void poll()
-    timer = window.setInterval(poll, 2000)
 
     return () => {
       isMounted = false
       if (timer) window.clearInterval(timer)
       setIsPolling(false)
     }
-  }, [activeJob?.id])
+  }, [activeJob?.id, refetchJob])
+
+  useEffect(() => {
+    if (!activeJob) return
+    const previous = statusRef.current
+    if (previous && previous !== activeJob.status) {
+      if (activeJob.status === 'completed') {
+        showToast('同期が完了しました', 'success')
+      } else if (activeJob.status === 'failed') {
+        showToast('同期に失敗しました', 'error')
+      } else if (activeJob.status === 'canceled') {
+        showToast('同期をキャンセルしました', 'info')
+      }
+    }
+    statusRef.current = activeJob.status
+  }, [activeJob, showToast])
 
   const handleRoomSync = async () => {
-    setSyncMessage('')
+    setActionError('')
     try {
-      const data = await apiRequest<{ jobId: string; status: JobRecord['status'] }>(
-        '/api/chatwork/rooms/sync',
-        {
-          method: 'POST',
-        }
-      )
-      setSyncMessage('Room sync queued')
-      setActiveJob({ id: data.jobId, type: 'chatwork_rooms_sync', status: data.status })
+      const data = await queueRoomSync(undefined, {
+        errorMessage: 'ルーム同期のキューに失敗しました',
+      })
+      if (data) {
+        setActiveJob({ id: data.jobId, type: 'chatwork_rooms_sync', status: data.status })
+        showToast('ルーム同期を開始しました', 'success')
+      }
     } catch (err) {
-      setSyncMessage(err instanceof Error ? err.message : 'Failed to queue room sync')
+      setActionError(err instanceof Error ? err.message : 'ルーム同期のキューに失敗しました')
     }
   }
 
   const handleMessageSync = async () => {
-    setSyncMessage('')
+    setActionError('')
     try {
-      const data = await apiRequest<{ jobId: string; status: JobRecord['status'] }>(
-        '/api/chatwork/messages/sync',
-        {
-          method: 'POST',
-        }
-      )
-      setSyncMessage('Message sync queued')
-      setActiveJob({ id: data.jobId, type: 'chatwork_messages_sync', status: data.status })
+      const data = await queueMessageSync(undefined, {
+        errorMessage: 'メッセージ同期のキューに失敗しました',
+      })
+      if (data) {
+        setActiveJob({
+          id: data.jobId,
+          type: 'chatwork_messages_sync',
+          status: data.status,
+        })
+        showToast('メッセージ同期を開始しました', 'success')
+      }
     } catch (err) {
-      setSyncMessage(err instanceof Error ? err.message : 'Failed to queue message sync')
+      setActionError(err instanceof Error ? err.message : 'メッセージ同期のキューに失敗しました')
     }
   }
 
   const handleToggle = async (room: ChatworkRoom) => {
+    setActionError('')
     try {
-      await apiRequest(`/api/chatwork/rooms/${room.id}`, {
-        method: 'PATCH',
-        body: { isActive: !room.isActive },
-      })
-      fetchRooms()
+      await toggleRoom(
+        { isActive: !room.isActive },
+        {
+          url: `/api/chatwork/rooms/${room.id}`,
+          errorMessage: '通信エラーが発生しました',
+          onSuccess: () => {
+            void refetchRooms(undefined, { ignoreCache: true })
+          },
+        }
+      )
     } catch (err) {
-      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+      setActionError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
   }
+
+  const handleCancelJob = async () => {
+    if (!activeJob?.id) return
+    setActionError('')
+    try {
+      const data = await cancelJob(undefined, {
+        url: `/api/jobs/${activeJob.id}/cancel`,
+        errorMessage: 'ジョブのキャンセルに失敗しました',
+      })
+      if (data?.job) {
+        setActiveJob(data.job)
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'ジョブのキャンセルに失敗しました')
+    }
+  }
+
+  const jobProgress = useMemo(() => {
+    if (!activeJob?.result) return undefined
+    const result = activeJob.result as {
+      totalRooms?: number
+      processedRooms?: number
+      summary?: { rooms?: unknown[]; errors?: unknown[] }
+    }
+    if (!result) return undefined
+    const summary = result.summary
+      ? [
+          { label: '同期済み', value: result.summary.rooms?.length ?? 0 },
+          { label: 'エラー', value: result.summary.errors?.length ?? 0 },
+        ]
+      : undefined
+    return {
+      total: result.totalRooms,
+      processed: result.processedRooms,
+      summary,
+    }
+  }, [activeJob])
+
+  const errorMessage = actionError || roomsError || jobError
 
   if (!isAdmin) {
     return (
@@ -160,51 +227,38 @@ function ChatworkSettings() {
           onClick={handleRoomSync}
           data-testid="chatwork-room-sync"
           variant="primary"
+          isLoading={isQueueingRooms}
+          loadingLabel="同期中..."
         >
           ルーム同期
         </Button>
-        <Button type="button" onClick={handleMessageSync} variant="secondary">
+        <Button
+          type="button"
+          onClick={handleMessageSync}
+          variant="secondary"
+          isLoading={isQueueingMessages}
+          loadingLabel="同期中..."
+        >
           メッセージ同期
         </Button>
       </div>
-      {syncMessage && (
-        <div
-          className="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-600"
-          data-testid="chatwork-sync-message"
-        >
-          {syncMessage}
-        </div>
-      )}
       {activeJob && (
-        <div className="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-600">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span>Job: {activeJob.type}</span>
-            <span className="text-xs font-semibold uppercase">{activeJob.status}</span>
-          </div>
-          {jobProgress?.totalRooms !== undefined && (
-            <div className="mt-1 text-xs text-slate-500">
-              {jobProgress.processedRooms ?? 0}/{jobProgress.totalRooms} rooms
-            </div>
-          )}
-          {activeJob.status === 'completed' && jobProgress?.summary && (
-            <div className="mt-1 text-xs text-slate-500">
-              Synced: {jobProgress.summary.rooms?.length ?? 0} rooms / Errors: {jobProgress.summary.errors?.length ?? 0}
-            </div>
-          )}
-          {activeJob.error?.message && (
-            <div className="mt-1 text-xs text-rose-600">{activeJob.error.message}</div>
-          )}
-          {isPolling && <div className="mt-1 text-xs text-slate-500">Updating?</div>}
-        </div>
+        <JobProgressCard
+          title={`ジョブ: ${activeJob.type ?? 'chatwork'}`}
+          job={activeJob}
+          progress={jobProgress}
+          isPolling={isPolling}
+          onCancel={handleCancelJob}
+        />
       )}
 
-      {error && <ErrorAlert message={error} />}
+      {errorMessage && <ErrorAlert message={errorMessage} />}
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-slate-900">ルーム一覧</h3>
 
         <div className="mt-4">
-          {isLoading ? (
+          {isLoadingRooms ? (
             <div className="text-sm text-slate-500" data-testid="chatwork-room-loading">
               読み込み中...
             </div>
@@ -256,6 +310,13 @@ function ChatworkSettings() {
           )}
         </div>
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
+          onClose={clearToast}
+        />
+      )}
     </div>
   )
 }

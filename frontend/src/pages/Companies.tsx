@@ -1,30 +1,33 @@
-import { useMemo, useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { usePermissions } from '../hooks/usePermissions'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
+import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { usePagination } from '../hooks/usePagination'
-import { apiRequest } from '../lib/apiClient'
 import { getAvatarColor, getInitials } from '../utils/string'
-import { ApiListResponse, ChatworkRoom, Company, CompanyOptions } from '../types'
+import {
+  COMPANY_CATEGORY_DEFAULT_OPTIONS,
+  COMPANY_STATUS_DEFAULT_OPTIONS,
+} from '../constants/labels'
+import {
+  ApiListResponse,
+  ChatworkRoom,
+  CompaniesFilters,
+  Company,
+  CompanyOptions,
+} from '../types'
 
-type CompanyFilters = {
-  q: string
-  category: string
-  status: string
-  tag: string
-  ownerId: string
-}
-
-const defaultFilters: CompanyFilters = {
+const defaultFilters: CompaniesFilters = {
   q: '',
   category: '',
   status: '',
@@ -33,22 +36,30 @@ const defaultFilters: CompanyFilters = {
 }
 
 function Companies() {
-  const { canWrite } = usePermissions()
+  const { canWrite, isAdmin } = usePermissions()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [error, setError] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showChatworkSelector, setShowChatworkSelector] = useState(false)
   const [chatworkRooms, setChatworkRooms] = useState<ChatworkRoom[]>([])
   const [selectedRoomId, setSelectedRoomId] = useState('')
+  const [roomSearchQuery, setRoomSearchQuery] = useState('')
   const [options, setOptions] = useState<CompanyOptions>({
     categories: [],
     statuses: [],
     tags: [],
   })
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
+  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
 
   const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters } =
     useFilters(defaultFilters)
-  const { pagination, setPagination, setPage, setPageSize, paginationQuery } = usePagination()
+  const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
+    usePagination(initialPageSize)
+  const debouncedQuery = useDebouncedValue(filters.q, 300)
 
   const [form, setForm] = useState({
     name: '',
@@ -61,13 +72,13 @@ function Companies() {
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams(paginationQuery)
-    if (filters.q) params.set('q', filters.q)
+    if (debouncedQuery) params.set('q', debouncedQuery)
     if (filters.category) params.set('category', filters.category)
     if (filters.status) params.set('status', filters.status)
     if (filters.tag) params.set('tag', filters.tag)
     if (filters.ownerId) params.set('ownerId', filters.ownerId)
     return params.toString()
-  }, [filters, paginationQuery])
+  }, [debouncedQuery, filters.category, filters.status, filters.tag, filters.ownerId, paginationQuery])
 
   const {
     data: companiesData,
@@ -96,9 +107,9 @@ function Companies() {
   })
 
   const { isLoading: isLoadingRooms } = useFetch<{ rooms?: ChatworkRoom[] }>(
-    '/api/chatwork/rooms',
+    isAdmin && showChatworkSelector ? '/api/chatwork/rooms' : null,
     {
-      enabled: showChatworkSelector,
+      enabled: isAdmin && showChatworkSelector,
       errorMessage: 'Chatworkルーム一覧の取得に失敗しました。管理者権限が必要な場合があります。',
       onSuccess: (data) => setChatworkRooms(data.rooms ?? []),
       onError: setError,
@@ -116,7 +127,27 @@ function Companies() {
     }
   >('/api/companies', 'POST')
 
+  const { mutate: linkChatworkRoom } = useMutation<unknown, { roomId: string }>(
+    '/api/companies',
+    'POST'
+  )
+
   const companies = companiesData?.items ?? []
+
+  // 標準候補とAPIから取得した候補をマージ
+  const mergedCategories = useMemo(() => {
+    const defaultSet = new Set(COMPANY_CATEGORY_DEFAULT_OPTIONS)
+    const apiSet = new Set(options.categories)
+    // 標準候補を先に、その後APIから取得した候補を追加（重複を除去）
+    return Array.from(new Set([...COMPANY_CATEGORY_DEFAULT_OPTIONS, ...options.categories])).sort()
+  }, [options.categories])
+
+  const mergedStatuses = useMemo(() => {
+    const defaultSet = new Set(COMPANY_STATUS_DEFAULT_OPTIONS)
+    const apiSet = new Set(options.statuses)
+    // 標準候補を先に、その後APIから取得した候補を追加（重複を除去）
+    return Array.from(new Set([...COMPANY_STATUS_DEFAULT_OPTIONS, ...options.statuses])).sort()
+  }, [options.statuses])
 
   const shortcuts = useMemo(
     () => [
@@ -141,6 +172,62 @@ function Companies() {
 
   useKeyboardShortcut(shortcuts)
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const nextFilters = {
+      ...defaultFilters,
+      q: params.get('q') ?? '',
+      category: params.get('category') ?? '',
+      status: params.get('status') ?? '',
+      tag: params.get('tag') ?? '',
+      ownerId: params.get('ownerId') ?? '',
+    }
+    setFilters(nextFilters)
+    const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
+    const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
+    setPagination((prev) => ({
+      ...prev,
+      page: nextPage,
+      pageSize: nextPageSize,
+    }))
+  }, [initialPage, initialPageSize, location.search, setFilters, setPagination])
+
+  // フォームが開かれたときにデフォルトでChatworkから選択モードにする
+  useEffect(() => {
+    if (showCreateForm && isAdmin) {
+      setShowChatworkSelector(true)
+    } else if (!showCreateForm) {
+      setShowChatworkSelector(false)
+      setRoomSearchQuery('')
+    }
+  }, [showCreateForm, isAdmin])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (debouncedQuery) params.set('q', debouncedQuery)
+    if (filters.category) params.set('category', filters.category)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.tag) params.set('tag', filters.tag)
+    if (filters.ownerId) params.set('ownerId', filters.ownerId)
+    params.set('page', String(pagination.page))
+    params.set('pageSize', String(pagination.pageSize))
+    const nextSearch = params.toString()
+    const currentSearch = location.search.replace(/^\?/, '')
+    if (nextSearch !== currentSearch) {
+      navigate({ pathname: '/companies', search: nextSearch }, { replace: true })
+    }
+  }, [
+    debouncedQuery,
+    filters.category,
+    filters.ownerId,
+    filters.status,
+    filters.tag,
+    location.search,
+    navigate,
+    pagination.page,
+    pagination.pageSize,
+  ])
+
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setPage(1)
@@ -154,7 +241,19 @@ function Companies() {
       profile: room.description || '',
     }))
     setShowChatworkSelector(false)
+    setRoomSearchQuery('')
   }
+
+  const filteredChatworkRooms = useMemo(() => {
+    if (!roomSearchQuery.trim()) return chatworkRooms
+    const query = roomSearchQuery.toLowerCase()
+    return chatworkRooms.filter(
+      (room) =>
+        room.name.toLowerCase().includes(query) ||
+        room.description?.toLowerCase().includes(query) ||
+        room.roomId.toLowerCase().includes(query)
+    )
+  }, [chatworkRooms, roomSearchQuery])
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -185,10 +284,10 @@ function Companies() {
       // Chatworkルームが選択されている場合、自動的に紐づける
       if (selectedRoomId && newCompanyId) {
         try {
-          await apiRequest(`/api/companies/${newCompanyId}/chatwork-rooms`, {
-            method: 'POST',
-            body: { roomId: selectedRoomId },
-          })
+          await linkChatworkRoom(
+            { roomId: selectedRoomId },
+            { url: `/api/companies/${newCompanyId}/chatwork-rooms` }
+          )
         } catch (err) {
           console.error('ルームの紐づけに失敗しました:', err)
         }
@@ -219,7 +318,7 @@ function Companies() {
     setPageSize(newPageSize)
   }
 
-  const handleClearFilter = (key: keyof CompanyFilters) => {
+  const handleClearFilter = (key: keyof CompaniesFilters) => {
     clearFilter(key)
     setPage(1)
   }
@@ -280,40 +379,48 @@ function Companies() {
               className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               placeholder="企業名で検索 (/ で移動)"
               value={filters.q}
-              onChange={(event) => setFilters({ ...filters, q: event.target.value })}
+              onChange={(event) => {
+                setFilters({ ...filters, q: event.target.value })
+                setPage(1)
+              }}
             />
           </div>
-          <div className="relative">
-            <FormInput
-              placeholder="区分"
-              value={filters.category}
-              onChange={(event) => setFilters({ ...filters, category: event.target.value })}
-              list="category-options"
-            />
-            <datalist id="category-options">
-              {options.categories.map((category) => (
-                <option key={category} value={category} />
-              ))}
-            </datalist>
-          </div>
-          <div className="relative">
-            <FormInput
-              placeholder="ステータス"
-              value={filters.status}
-              onChange={(event) => setFilters({ ...filters, status: event.target.value })}
-              list="status-options"
-            />
-            <datalist id="status-options">
-              {options.statuses.map((status) => (
-                <option key={status} value={status} />
-              ))}
-            </datalist>
-          </div>
+          <FormSelect
+            value={filters.category}
+            onChange={(event) => {
+              setFilters({ ...filters, category: event.target.value })
+              setPage(1)
+            }}
+          >
+            <option value="">区分</option>
+            {mergedCategories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </FormSelect>
+          <FormSelect
+            value={filters.status}
+            onChange={(event) => {
+              setFilters({ ...filters, status: event.target.value })
+              setPage(1)
+            }}
+          >
+            <option value="">ステータス</option>
+            {mergedStatuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </FormSelect>
           <div className="relative">
             <FormInput
               placeholder="タグ"
               value={filters.tag}
-              onChange={(event) => setFilters({ ...filters, tag: event.target.value })}
+              onChange={(event) => {
+                setFilters({ ...filters, tag: event.target.value })
+                setPage(1)
+              }}
               list="tag-filter-options"
             />
             <datalist id="tag-filter-options">
@@ -380,8 +487,15 @@ function Companies() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setShowChatworkSelector(!showChatworkSelector)}
-                className="rounded-full bg-indigo-50 px-3 py-1 text-xs text-indigo-600 transition-colors hover:bg-indigo-100"
+                onClick={() => {
+                  setShowChatworkSelector(!showChatworkSelector)
+                  if (!showChatworkSelector) {
+                    setRoomSearchQuery('')
+                  }
+                }}
+                disabled={!isAdmin}
+                title={!isAdmin ? '管理者のみ' : undefined}
+                className="rounded-full bg-indigo-50 px-3 py-1 text-xs text-indigo-600 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {showChatworkSelector ? '手動入力に戻る' : 'Chatworkから選択'}
               </button>
@@ -399,15 +513,41 @@ function Companies() {
 
           {showChatworkSelector ? (
             <div className="space-y-4">
+              <div className="relative">
+                <svg
+                  className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                  placeholder="ルーム名、説明、Room IDで検索"
+                  value={roomSearchQuery}
+                  onChange={(e) => setRoomSearchQuery(e.target.value)}
+                />
+              </div>
               {isLoadingRooms ? (
                 <div className="py-4 text-sm text-slate-500">Chatworkルームを読み込み中...</div>
               ) : chatworkRooms.length === 0 ? (
                 <div className="py-4 text-sm text-slate-500">
                   Chatworkルームが見つかりませんでした。管理者がルーム同期を実行してください。
                 </div>
+              ) : filteredChatworkRooms.length === 0 ? (
+                <div className="py-4 text-sm text-slate-500">
+                  「{roomSearchQuery}」に一致するルームが見つかりませんでした。
+                </div>
               ) : (
                 <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-3">
-                  {chatworkRooms.map((room) => (
+                  {filteredChatworkRooms.map((room) => (
                     <button
                       key={room.id}
                       type="button"
@@ -438,32 +578,28 @@ function Companies() {
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
                   required
                 />
-                <div className="relative">
-                  <FormInput
-                    placeholder="区分"
-                    value={form.category}
-                    onChange={(event) => setForm({ ...form, category: event.target.value })}
-                    list="form-category-options"
-                  />
-                  <datalist id="form-category-options">
-                    {options.categories.map((category) => (
-                      <option key={category} value={category} />
-                    ))}
-                  </datalist>
-                </div>
-                <div className="relative">
-                  <FormInput
-                    placeholder="ステータス"
-                    value={form.status}
-                    onChange={(event) => setForm({ ...form, status: event.target.value })}
-                    list="form-status-options"
-                  />
-                  <datalist id="form-status-options">
-                    {options.statuses.map((status) => (
-                      <option key={status} value={status} />
-                    ))}
-                  </datalist>
-                </div>
+                <FormSelect
+                  value={form.category}
+                  onChange={(event) => setForm({ ...form, category: event.target.value })}
+                >
+                  <option value="">区分</option>
+                  {mergedCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </FormSelect>
+                <FormSelect
+                  value={form.status}
+                  onChange={(event) => setForm({ ...form, status: event.target.value })}
+                >
+                  <option value="">ステータス</option>
+                  {mergedStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </FormSelect>
                 <div className="relative">
                   <FormInput
                     placeholder="タグ（カンマ区切り: VIP, 休眠）"

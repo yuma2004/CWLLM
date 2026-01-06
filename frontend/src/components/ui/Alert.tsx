@@ -74,7 +74,7 @@ const Alert = ({ variant, message, onClose, className, children }: AlertProps) =
           type="button"
           onClick={handleClose}
           className={styles.button}
-          aria-label="close"
+          aria-label="閉じる"
         >
           ×
         </button>

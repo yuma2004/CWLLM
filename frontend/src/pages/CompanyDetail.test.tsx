@@ -15,6 +15,7 @@ const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
 const buildResponse = (payload: unknown) =>
   Promise.resolve({
     ok: true,
+    text: async () => JSON.stringify(payload),
     json: async () => payload,
   } as Response)
 
@@ -123,11 +124,19 @@ describe('CompanyDetail page', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Acme')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Acme' })).toBeInTheDocument()
     })
 
-    const contactHeading = await screen.findByRole('heading', { name: '担当者を追加' })
-    const form = contactHeading.closest('form')
+    const contactHeading = await screen.findByRole('heading', { name: '担当者' })
+    const contactHeader = contactHeading.closest('div')
+    if (!contactHeader) {
+      throw new Error('Contact header not found')
+    }
+    const toggleButton = within(contactHeader).getByRole('button')
+    fireEvent.click(toggleButton)
+
+    const nameInput = await screen.findByPlaceholderText('担当者名（必須）')
+    const form = nameInput.closest('form')
     if (!form) {
       throw new Error('Contact form not found')
     }
@@ -145,6 +154,9 @@ describe('CompanyDetail page', () => {
         </Routes>
       </MemoryRouter>
     )
+
+    const timelineTab = await screen.findByRole('button', { name: /タイムライン/ })
+    fireEvent.click(timelineTab)
 
     const searchInput = await screen.findByPlaceholderText('本文検索')
     fireEvent.change(searchInput, { target: { value: 'search' } })
@@ -166,11 +178,18 @@ describe('CompanyDetail page', () => {
       </MemoryRouter>
     )
 
-    const labelInputs = await screen.findAllByPlaceholderText('ラベル')
+    const timelineTab = await screen.findByRole('button', { name: /タイムライン/ })
+    fireEvent.click(timelineTab)
+
+    const labelInputs = await screen.findAllByPlaceholderText('ラベルを追加')
     const labelInput = labelInputs[labelInputs.length - 1]
     fireEvent.change(labelInput, { target: { value: 'VIP' } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'ラベル追加' }))
+    const labelRow = labelInput.closest('div')
+    if (!labelRow) {
+      throw new Error('Label input row not found')
+    }
+    fireEvent.click(within(labelRow).getByRole('button', { name: '追加' }))
 
     await waitFor(() => {
       const hasLabelPost = mockFetch.mock.calls.some(

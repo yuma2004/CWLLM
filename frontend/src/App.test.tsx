@@ -22,7 +22,11 @@ globalThis.fetch = mockFetch as unknown as typeof fetch
 
 describe('App', () => {
   it('renders login page when not authenticated', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 401 } as Response)
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: async () => '',
+    } as Response)
 
     render(
       <BrowserRouter>

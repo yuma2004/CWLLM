@@ -8,7 +8,7 @@ interface LayoutProps {
 }
 
 function Layout({ children }: LayoutProps) {
-  const { canWrite, isAdmin } = usePermissions()
+  const { isAdmin } = usePermissions()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   useEffect(() => {
@@ -23,7 +23,7 @@ function Layout({ children }: LayoutProps) {
     window.localStorage.setItem('sidebarOpen', String(isSidebarOpen))
   }, [isSidebarOpen])
 
-  const navItems = buildNavItems(canWrite, isAdmin)
+  const navItems = buildNavItems()
   const settingsItems = buildSettingsItems(isAdmin)
 
   return (
@@ -74,7 +74,7 @@ function Layout({ children }: LayoutProps) {
                 <h1 className="text-lg font-bold text-slate-900 tracking-tight">
                   CW管理システム
                 </h1>
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Management Hub</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">管理ハブ</p>
               </div>
             </div>
             <button

@@ -1,42 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Button from './ui/Button'
 import ErrorAlert from './ui/ErrorAlert'
-import { apiRequest } from '../lib/apiClient'
+import JobProgressCard from './ui/JobProgressCard'
+import Toast from './ui/Toast'
+import { useFetch, useMutation } from '../hooks/useApi'
+import { useToast } from '../hooks/useToast'
+import { JobRecord, Summary, SummaryCandidate, SummaryDraft } from '../types'
 import { formatDate, formatDateInput } from '../utils/date'
-
-interface Summary {
-  id: string
-  content: string
-  type: string
-  periodStart: string
-  periodEnd: string
-  sourceLinks: string[]
-  createdAt: string
-}
-
-interface Candidate {
-  title: string
-  dueDate?: string
-}
-
-interface JobRecord {
-  id: string
-  status: 'queued' | 'processing' | 'completed' | 'failed' | 'canceled'
-  result?: { draft?: SummaryDraft }
-  error?: { message?: string }
-}
-
-interface SummaryDraft {
-  id: string
-  content: string
-  periodStart: string
-  periodEnd: string
-  sourceLinks: string[]
-  model?: string | null
-  promptVersion?: string | null
-  sourceMessageCount?: number | null
-  tokenUsage?: unknown
-}
 
 const formatPeriod = (start: string, end: string) => `${formatDate(start)} - ${formatDate(end)}`
 
@@ -47,6 +17,26 @@ const getStartDateFromDays = (days: number) => {
   return start
 }
 
+type DraftResponse = {
+  cached?: boolean
+  draft?: SummaryDraft
+  jobId?: string
+  status?: JobRecord['status']
+}
+
+type SummarySavePayload = {
+  content: string
+  type: 'manual' | 'auto'
+  periodStart: string
+  periodEnd: string
+  sourceLinks: string[]
+  model?: string | null
+  promptVersion?: string | null
+  sourceMessageCount?: number | null
+  tokenUsage?: unknown
+  draftId?: string | null
+}
+
 function CompanySummarySection({
   companyId,
   canWrite,
@@ -55,6 +45,7 @@ function CompanySummarySection({
   canWrite: boolean
 }) {
   const today = useMemo(() => new Date(), [])
+  const { toast, showToast, clearToast } = useToast()
   const [periodStart, setPeriodStart] = useState(formatDateInput(getStartDateFromDays(30)))
   const [periodEnd, setPeriodEnd] = useState(formatDateInput(today))
   const [hasCustomPeriod, setHasCustomPeriod] = useState(false)
@@ -71,128 +62,161 @@ function CompanySummarySection({
     tokenUsage?: unknown
   } | null>(null)
   const [draftJobId, setDraftJobId] = useState<string | null>(null)
+  const [draftJob, setDraftJob] = useState<JobRecord | null>(null)
   const [isDraftPolling, setIsDraftPolling] = useState(false)
-  const [summaries, setSummaries] = useState<Summary[]>([])
-  const [summaryError, setSummaryError] = useState('')
-  const [summaryLoading, setSummaryLoading] = useState(false)
-  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [candidates, setCandidates] = useState<SummaryCandidate[]>([])
   const [candidateError, setCandidateError] = useState('')
-  const [candidateLoading, setCandidateLoading] = useState(false)
   const [isCreatingCandidates, setIsCreatingCandidates] = useState(false)
+  const draftStatusRef = useRef<JobRecord['status'] | null>(null)
 
-  const fetchSettings = useCallback(async () => {
-    try {
-      const data = await apiRequest<{ settings: { summaryDefaultPeriodDays?: number } }>(
-        '/api/settings'
-      )
-      const days = data.settings?.summaryDefaultPeriodDays ?? 30
-      if (!hasCustomPeriod) {
-        setPeriodStart(formatDateInput(getStartDateFromDays(days)))
-        setPeriodEnd(formatDateInput(new Date()))
-      }
-    } catch {
-      if (!hasCustomPeriod) {
-        setPeriodStart(formatDateInput(getStartDateFromDays(30)))
-        setPeriodEnd(formatDateInput(new Date()))
-      }
+  const { data: settingsData } = useFetch<{ settings: { summaryDefaultPeriodDays?: number } }>(
+    '/api/settings',
+    {
+      errorMessage: '設定の取得に失敗しました',
+      cacheTimeMs: 30_000,
     }
-  }, [hasCustomPeriod])
+  )
 
-  const fetchSummaries = useCallback(async () => {
-    setSummaryLoading(true)
-    setSummaryError('')
-    try {
-      const data = await apiRequest<{ summaries: Summary[] }>(
-        `/api/companies/${companyId}/summaries`
-      )
-      setSummaries(data.summaries ?? [])
-    } catch (err) {
-      setSummaryError(err instanceof Error ? err.message : '読み込みに失敗しました')
-    } finally {
-      setSummaryLoading(false)
+  const {
+    data: summariesData,
+    error: summaryError,
+    isLoading: summaryLoading,
+    refetch: refetchSummaries,
+  } = useFetch<{ summaries: Summary[] }>(
+    `/api/companies/${companyId}/summaries`,
+    {
+      errorMessage: '読み込みに失敗しました',
     }
-  }, [companyId])
+  )
+
+  const summaries = summariesData?.summaries ?? []
+
+  const { mutate: generateDraft } = useMutation<DraftResponse, { periodStart: string; periodEnd: string }>(
+    `/api/companies/${companyId}/summaries/draft`,
+    'POST'
+  )
+
+  const { mutate: saveSummary, isLoading: isSavingSummary } = useMutation<
+    { summary: Summary },
+    SummarySavePayload
+  >(`/api/companies/${companyId}/summaries`, 'POST')
+
+  const { mutate: loadCandidates, isLoading: isLoadingCandidates } = useMutation<
+    { candidates: SummaryCandidate[] },
+    void
+  >('/api/summaries', 'POST')
+
+  const { mutate: createTask } = useMutation<
+    unknown,
+    { targetType: string; targetId: string; title: string; dueDate?: string }
+  >('/api/tasks', 'POST')
+
+  const { mutate: cancelJob } = useMutation<{ job: JobRecord }, void>('/api/jobs', 'POST')
+
+  const { refetch: refetchDraftJob } = useFetch<{ job: JobRecord }>(
+    draftJobId ? `/api/jobs/${draftJobId}` : null,
+    {
+      enabled: false,
+      errorMessage: 'Failed to check draft status',
+    }
+  )
 
   useEffect(() => {
-    fetchSettings()
-  }, [fetchSettings])
-
-  useEffect(() => {
-    fetchSummaries()
-  }, [fetchSummaries])
+    if (!hasCustomPeriod) {
+      const days = settingsData?.settings?.summaryDefaultPeriodDays ?? 30
+      setPeriodStart(formatDateInput(getStartDateFromDays(days)))
+      setPeriodEnd(formatDateInput(new Date()))
+    }
+  }, [hasCustomPeriod, settingsData])
 
   useEffect(() => {
     if (!draftJobId) return
     let isMounted = true
-    let timer: number | undefined
-
     const poll = async () => {
       try {
-        const data = await apiRequest<{ job: JobRecord }>(`/api/jobs/${draftJobId}`)
+        const data = await refetchDraftJob(undefined, { ignoreCache: true })
         if (!isMounted) return
+        if (!data?.job) return
         const job = data.job
-        if (job.status === 'completed' && job.result?.draft) {
-          const draft = job.result.draft
-          setDraftContent(draft.content)
-          setDraftSourceLinks(draft.sourceLinks || [])
-          setDraftType('auto')
-          setDraftId(draft.id)
-          setDraftMeta({
-            model: draft.model ?? null,
-            promptVersion: draft.promptVersion ?? null,
-            sourceMessageCount: draft.sourceMessageCount ?? null,
-            tokenUsage: draft.tokenUsage,
-          })
+        setDraftJob(job)
+        if (job.status === 'completed') {
+          const result = job.result as { draft?: SummaryDraft } | undefined
+          const draft = result?.draft
+          if (draft) {
+            setDraftContent(draft.content)
+            setDraftSourceLinks(draft.sourceLinks || [])
+            setDraftType('auto')
+            setDraftId(draft.id)
+            setDraftMeta({
+              model: draft.model ?? null,
+              promptVersion: draft.promptVersion ?? null,
+              sourceMessageCount: draft.sourceMessageCount ?? null,
+              tokenUsage: draft.tokenUsage,
+            })
+            showToast('要約を生成しました', 'success')
+          }
           setDraftLoading(false)
           setIsDraftPolling(false)
           setDraftJobId(null)
-          if (timer) window.clearInterval(timer)
+          window.clearInterval(timer)
         }
         if (job.status === 'failed' || job.status === 'canceled') {
-          setDraftError(job.error?.message || 'Draft generation failed')
+          setDraftError(job.error?.message || '要約生成に失敗しました')
+          if (job.status === 'failed') {
+            showToast('要約生成に失敗しました', 'error')
+          } else {
+            showToast('要約生成をキャンセルしました', 'info')
+          }
           setDraftLoading(false)
           setIsDraftPolling(false)
           setDraftJobId(null)
-          if (timer) window.clearInterval(timer)
+          window.clearInterval(timer)
+        }
+        const previous = draftStatusRef.current
+        if (previous && previous !== job.status) {
+          draftStatusRef.current = job.status
+        }
+        if (!previous) {
+          draftStatusRef.current = job.status
         }
       } catch (err) {
         if (!isMounted) return
-        setDraftError(err instanceof Error ? err.message : 'Failed to check draft status')
+        setDraftError(err instanceof Error ? err.message : '要約ステータスの確認に失敗しました')
         setDraftLoading(false)
         setIsDraftPolling(false)
         setDraftJobId(null)
-        if (timer) window.clearInterval(timer)
+        window.clearInterval(timer)
       }
     }
 
     setDraftLoading(true)
     setIsDraftPolling(true)
+    const timer = window.setInterval(poll, 2000)
     void poll()
-    timer = window.setInterval(poll, 2000)
 
     return () => {
       isMounted = false
       if (timer) window.clearInterval(timer)
       setIsDraftPolling(false)
     }
-  }, [draftJobId])
+  }, [draftJobId, refetchDraftJob, showToast])
 
   const handleGenerateDraft = async () => {
     setDraftLoading(true)
     setDraftError('')
     try {
-      const data = await apiRequest<{
-        cached?: boolean
-        draft?: SummaryDraft
-        jobId?: string
-        status?: string
-      }>(`/api/companies/${companyId}/summaries/draft`, {
-        method: 'POST',
-        body: {
+      const data = await generateDraft(
+        {
           periodStart: new Date(periodStart).toISOString(),
           periodEnd: new Date(periodEnd).toISOString(),
         },
-      })
+        { errorMessage: '要約生成に失敗しました' }
+      )
+      if (!data) {
+        setDraftLoading(false)
+        setDraftError('要約生成に失敗しました')
+        return
+      }
       if (data.draft) {
         setDraftContent(data.draft.content)
         setDraftSourceLinks(data.draft.sourceLinks || [])
@@ -205,14 +229,22 @@ function CompanySummarySection({
           tokenUsage: data.draft.tokenUsage,
         })
         setDraftLoading(false)
+        setDraftJob(null)
+        setDraftJobId(null)
+        showToast('要約を生成しました', 'success')
       } else if (data.jobId) {
         setDraftJobId(data.jobId)
+        setDraftJob({
+          id: data.jobId,
+          status: data.status ?? 'queued',
+        })
+        draftStatusRef.current = data.status ?? 'queued'
       } else {
         setDraftLoading(false)
-        setDraftError('Draft generation failed')
+        setDraftError('要約生成に失敗しました')
       }
     } catch (err) {
-      setDraftError(err instanceof Error ? err.message : 'Draft generation failed')
+      setDraftError(err instanceof Error ? err.message : '要約生成に失敗しました')
       setDraftLoading(false)
     }
   }
@@ -224,9 +256,8 @@ function CompanySummarySection({
       return
     }
     try {
-      await apiRequest(`/api/companies/${companyId}/summaries`, {
-        method: 'POST',
-        body: {
+      await saveSummary(
+        {
           content: draftContent.trim(),
           type: draftType,
           periodStart: new Date(periodStart).toISOString(),
@@ -238,13 +269,15 @@ function CompanySummarySection({
           tokenUsage: draftMeta?.tokenUsage,
           draftId,
         },
-      })
+        { errorMessage: 'Failed to save summary' }
+      )
       setDraftContent('')
       setDraftSourceLinks([])
       setDraftId(null)
       setDraftMeta(null)
       setCandidates([])
-      fetchSummaries()
+      showToast('サマリーを保存しました', 'success')
+      void refetchSummaries(undefined, { ignoreCache: true })
     } catch (err) {
       setDraftError(err instanceof Error ? err.message : 'Failed to save summary')
     }
@@ -256,33 +289,31 @@ function CompanySummarySection({
       setCandidateError('サマリーがまだありません')
       return
     }
-    setCandidateLoading(true)
     setCandidateError('')
     try {
-      const data = await apiRequest<{ candidates: Candidate[] }>(
-        `/api/summaries/${latest.id}/tasks/candidates`,
-        { method: 'POST' }
-      )
-      setCandidates(data.candidates || [])
+      const data = await loadCandidates(undefined, {
+        url: `/api/summaries/${latest.id}/tasks/candidates`,
+        errorMessage: '候補の取得に失敗しました',
+      })
+      setCandidates(data?.candidates ?? [])
     } catch (err) {
       setCandidateError(err instanceof Error ? err.message : '候補の取得に失敗しました')
-    } finally {
-      setCandidateLoading(false)
     }
   }
 
-  const handleCreateTask = async (candidate: Candidate) => {
+  const handleCreateTask = async (candidate: SummaryCandidate) => {
     setCandidateError('')
     try {
-      await apiRequest('/api/tasks', {
-        method: 'POST',
-        body: {
+      await createTask(
+        {
           targetType: 'company',
           targetId: companyId,
           title: candidate.title,
           dueDate: candidate.dueDate,
         },
-      })
+        { errorMessage: 'タスク作成に失敗しました' }
+      )
+      showToast('タスクを作成しました', 'success')
     } catch (err) {
       setCandidateError(err instanceof Error ? err.message : 'タスク作成に失敗しました')
     }
@@ -294,21 +325,42 @@ function CompanySummarySection({
     setCandidateError('')
     try {
       for (const candidate of candidates) {
-        await apiRequest('/api/tasks', {
-          method: 'POST',
-          body: {
+        await createTask(
+          {
             targetType: 'company',
             targetId: companyId,
             title: candidate.title,
             dueDate: candidate.dueDate,
           },
-        })
+          { errorMessage: 'タスク作成に失敗しました' }
+        )
       }
       setCandidates([])
+      showToast('タスク候補を作成しました', 'success')
     } catch (err) {
       setCandidateError(err instanceof Error ? err.message : 'タスク作成に失敗しました')
     } finally {
       setIsCreatingCandidates(false)
+    }
+  }
+
+  const handleCancelDraftJob = async () => {
+    if (!draftJobId) return
+    setDraftError('')
+    try {
+      const data = await cancelJob(undefined, {
+        url: `/api/jobs/${draftJobId}/cancel`,
+        errorMessage: 'Failed to cancel job',
+      })
+      if (data?.job) {
+        setDraftJob(data.job)
+      }
+      setIsDraftPolling(false)
+      setDraftLoading(false)
+      setDraftJobId(null)
+      showToast('要約生成をキャンセルしました', 'info')
+    } catch (err) {
+      setDraftError(err instanceof Error ? err.message : 'Failed to cancel job')
     }
   }
 
@@ -345,11 +397,18 @@ function CompanySummarySection({
             >
               要約を生成
             </Button>
-            {isDraftPolling && (
-              <span className="text-xs text-slate-500">Generating draft...</span>
-            )}
           </div>
         </div>
+        {draftJob && (
+          <div className="mt-3">
+            <JobProgressCard
+              title="要約生成ジョブ"
+              job={draftJob}
+              isPolling={isDraftPolling}
+              onCancel={handleCancelDraftJob}
+            />
+          </div>
+        )}
         {draftError && <ErrorAlert message={draftError} className="mt-3" />}
         <div className="mt-4 space-y-3">
           <textarea
@@ -377,6 +436,8 @@ function CompanySummarySection({
                 onClick={handleSaveSummary}
                 size="sm"
                 variant="secondary"
+                isLoading={isSavingSummary}
+                loadingLabel="保存中..."
               >
                 サマリーを保存
               </Button>
@@ -417,7 +478,7 @@ function CompanySummarySection({
               type="button"
               size="sm"
               onClick={handleLoadCandidates}
-              isLoading={candidateLoading}
+              isLoading={isLoadingCandidates}
               loadingLabel="取得中..."
             >
               タスク候補を取得
@@ -487,6 +548,19 @@ function CompanySummarySection({
           </div>
         )}
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={
+            toast.variant === 'error'
+              ? 'error'
+              : toast.variant === 'success'
+                ? 'success'
+                : 'info'
+          }
+          onClose={clearToast}
+        />
+      )}
     </div>
   )
 }

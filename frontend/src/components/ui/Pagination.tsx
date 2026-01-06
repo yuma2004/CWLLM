@@ -95,7 +95,7 @@ export default function Pagination({
         )}
 
         {/* Page Numbers */}
-        <nav className="flex items-center gap-1" aria-label="Pagination">
+        <nav className="flex items-center gap-1" aria-label="ページネーション">
           {/* Previous Button */}
           <button
             onClick={() => onPageChange(page - 1)}

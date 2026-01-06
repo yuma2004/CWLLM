@@ -7,6 +7,7 @@ const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
 const queueResponse = (payload: unknown) =>
   mockFetch.mockResolvedValueOnce({
     ok: true,
+    text: async () => JSON.stringify(payload),
     json: async () => payload,
   } as Response)
 
@@ -23,15 +24,20 @@ describe('Settings page', () => {
     render(<Settings />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('30')).toBeInTheDocument()
+      expect(screen.getByLabelText('要約のデフォルト期間（日）')).toHaveValue(30)
+      expect(screen.getByLabelText('タグ候補')).toHaveValue('vip')
     })
 
-    fireEvent.change(screen.getByDisplayValue('30'), { target: { value: '14' } })
-    fireEvent.change(screen.getByDisplayValue('vip'), { target: { value: 'vip\nfocus' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    fireEvent.change(screen.getByLabelText('要約のデフォルト期間（日）'), {
+      target: { value: '14' },
+    })
+    fireEvent.change(screen.getByLabelText('タグ候補'), {
+      target: { value: 'vip\nfocus' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存する' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Settings updated')).toBeInTheDocument()
+      expect(screen.getByText('設定を保存しました')).toBeInTheDocument()
     })
   })
 })

@@ -1,45 +1,27 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import ErrorAlert from './ui/ErrorAlert'
-import { apiRequest } from '../lib/apiClient'
-import { ApiListResponse } from '../types'
-
-interface AuditLog {
-  id: string
-  action: string
-  userId?: string | null
-  userEmail?: string | null
-  createdAt: string
-}
+import { useFetch } from '../hooks/useApi'
+import { ApiListResponse, AuditLog } from '../types'
 
 function CompanyAuditSection({ companyId }: { companyId: string }) {
-  const [logs, setLogs] = useState<AuditLog[]>([])
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-
-  const fetchLogs = useCallback(async () => {
-    setIsLoading(true)
-    setError('')
-    try {
-      const params = new URLSearchParams({
-        entityType: 'Company',
-        entityId: companyId,
-        page: '1',
-        pageSize: '10',
-      })
-      const data = await apiRequest<ApiListResponse<AuditLog>>(
-        `/api/audit-logs?${params.toString()}`
-      )
-      setLogs(data.items ?? [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ネットワークエラー')
-    } finally {
-      setIsLoading(false)
-    }
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams({
+      entityType: 'Company',
+      entityId: companyId,
+      page: '1',
+      pageSize: '10',
+    })
+    return params.toString()
   }, [companyId])
 
-  useEffect(() => {
-    fetchLogs()
-  }, [fetchLogs])
+  const { data, error, isLoading } = useFetch<ApiListResponse<AuditLog>>(
+    `/api/audit-logs?${queryString}`,
+    {
+      errorMessage: 'ネットワークエラー',
+    }
+  )
+
+  const logs = data?.items ?? []
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

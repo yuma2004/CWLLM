@@ -4,7 +4,8 @@ import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
 import bcrypt from 'bcrypt'
-import { PrismaClient } from '@prisma/client'
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
+import { PrismaClient, UserRole } from '@prisma/client'
 import { projectRoutes } from './projects'
 import { wholesaleRoutes } from './wholesales'
 
@@ -12,6 +13,8 @@ const prisma = new PrismaClient()
 
 const buildTestServer = async () => {
   const app = Fastify()
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
   await app.register(cors)
   await app.register(cookie)
   await app.register(jwt, {
@@ -26,7 +29,7 @@ const buildTestServer = async () => {
   return app
 }
 
-const createUser = async (email: string, role: string) => {
+const createUser = async (email: string, role: UserRole) => {
   const hashedPassword = await bcrypt.hash('password123', 10)
   return prisma.user.create({
     data: {
@@ -58,7 +61,7 @@ describe('Project and wholesale endpoints', () => {
   })
 
   it('creates project and wholesale and lists relations', async () => {
-    const user = await createUser(`proj-owner-${Date.now()}@example.com`, 'sales')
+    const user = await createUser(`proj-owner-${Date.now()}@example.com`, UserRole.sales)
     const token = fastify.jwt.sign({ userId: user.id, role: 'admin' })
 
     const advertiser = await prisma.company.create({

@@ -4,34 +4,35 @@ import ErrorAlert from '../components/ui/ErrorAlert'
 import FormInput from '../components/ui/FormInput'
 import FormTextarea from '../components/ui/FormTextarea'
 import SuccessAlert from '../components/ui/SuccessAlert'
-import { apiRequest } from '../lib/apiClient'
+import { useFetch, useMutation } from '../hooks/useApi'
+import { SettingsPayload } from '../types'
 
 function Settings() {
   const [summaryDefaultPeriodDays, setSummaryDefaultPeriodDays] = useState(30)
   const [tagOptions, setTagOptions] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => {
-    const fetchSettings = async () => {
-      setIsLoading(true)
-      setError('')
-      try {
-        const data = await apiRequest<{ settings: { summaryDefaultPeriodDays: number; tagOptions?: string[] } }>(
-          '/api/settings'
-        )
-        setSummaryDefaultPeriodDays(data.settings.summaryDefaultPeriodDays)
-        setTagOptions((data.settings.tagOptions || []).join('\n'))
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'ネットワークエラー')
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  const {
+    data: settingsData,
+    error: fetchError,
+    isLoading: isLoadingSettings,
+  } = useFetch<{ settings: SettingsPayload }>('/api/settings', {
+    errorMessage: 'ネットワークエラー',
+    cacheTimeMs: 30_000,
+  })
 
-    fetchSettings()
-  }, [])
+  const { mutate: saveSettings, isLoading: isSaving } = useMutation<
+    { settings: SettingsPayload },
+    SettingsPayload
+  >('/api/settings', 'PATCH')
+
+  useEffect(() => {
+    if (settingsData?.settings) {
+      setSummaryDefaultPeriodDays(settingsData.settings.summaryDefaultPeriodDays)
+      setTagOptions((settingsData.settings.tagOptions || []).join('\n'))
+    }
+  }, [settingsData])
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -44,22 +45,24 @@ function Settings() {
       .filter((tag) => tag.length > 0)
 
     try {
-      const data = await apiRequest<{ settings: { summaryDefaultPeriodDays: number; tagOptions?: string[] } }>(
-        '/api/settings',
+      const data = await saveSettings(
         {
-          method: 'PATCH',
-          body: {
-            summaryDefaultPeriodDays,
-            tagOptions: tags,
-          },
-        }
+          summaryDefaultPeriodDays,
+          tagOptions: tags,
+        },
+        { errorMessage: 'ネットワークエラー' }
       )
-      setSuccess('設定を保存しました')
-      setTagOptions((data.settings.tagOptions || []).join('\n'))
+      if (data?.settings) {
+        setSuccess('設定を保存しました')
+        setTagOptions((data.settings.tagOptions || []).join('\n'))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
+
+  const isLoading = isLoadingSettings || isSaving
+  const displayError = error || fetchError
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -68,7 +71,7 @@ function Settings() {
         <h2 className="text-3xl font-bold text-slate-900">設定</h2>
       </div>
 
-      {error && <ErrorAlert message={error} />}
+      {displayError && <ErrorAlert message={displayError} />}
       {success && <SuccessAlert message={success} />}
 
       <form

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Tasks from './Tasks'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,9 +11,10 @@ vi.mock('../contexts/AuthContext', () => ({
 const mockUseAuth = vi.mocked(useAuth)
 const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
 
-const queueResponse = (payload: unknown) =>
-  mockFetch.mockResolvedValueOnce({
+const buildResponse = (payload: unknown) =>
+  Promise.resolve({
     ok: true,
+    text: async () => JSON.stringify(payload),
     json: async () => payload,
   } as Response)
 
@@ -31,7 +32,7 @@ describe('Tasks page', () => {
   })
 
   it('renders tasks from API', async () => {
-    queueResponse({
+    const initialTasks = {
       items: [
         {
           id: 't1',
@@ -42,10 +43,9 @@ describe('Tasks page', () => {
           dueDate: new Date().toISOString(),
         },
       ],
-      pagination: { page: 1, pageSize: 50, total: 1 },
-    })
-    queueResponse({ task: { id: 't1', status: 'done' } })
-    queueResponse({
+      pagination: { page: 1, pageSize: 20, total: 1 },
+    }
+    const updatedTasks = {
       items: [
         {
           id: 't1',
@@ -56,7 +56,24 @@ describe('Tasks page', () => {
           dueDate: new Date().toISOString(),
         },
       ],
-      pagination: { page: 1, pageSize: 50, total: 1 },
+      pagination: { page: 1, pageSize: 20, total: 1 },
+    }
+
+    let taskFetchCount = 0
+    mockFetch.mockImplementation((input, init) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
+      if (url === '/api/users/options') {
+        return buildResponse({ users: [] })
+      }
+      if (url === '/api/tasks/t1' && init?.method === 'PATCH') {
+        return buildResponse({ task: { id: 't1', status: 'done' } })
+      }
+      if (url.startsWith('/api/me/tasks') || url.startsWith('/api/tasks?')) {
+        taskFetchCount += 1
+        return buildResponse(taskFetchCount === 1 ? initialTasks : updatedTasks)
+      }
+      return buildResponse({})
     })
 
     render(
@@ -65,33 +82,45 @@ describe('Tasks page', () => {
       </MemoryRouter>
     )
 
-    await waitFor(() => {
-      expect(screen.getByText('Follow up')).toBeInTheDocument()
-    })
+    const titleCell = await screen.findByText('Follow up')
+    const row = titleCell.closest('tr')
+    if (!row) {
+      throw new Error('Task row not found')
+    }
+    const statusSelect = within(row).getAllByRole('combobox')[0]
+    fireEvent.change(statusSelect, { target: { value: 'done' } })
 
-    fireEvent.change(screen.getByDisplayValue('未対応'), { target: { value: 'done' } })
-
     await waitFor(() => {
-      const hasPatch = mockFetch.mock.calls.some(
-        ([url, options]) =>
-          url === '/api/tasks/t1' &&
-          typeof options === 'object' &&
-          options !== null &&
-          'method' in options &&
-          options.method === 'PATCH'
+      const calls = mockFetch.mock.calls.map(([input, options]) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof Request
+              ? input.url
+              : input.toString()
+        return { url, method: options?.method }
+      })
+      const hasPatch = calls.some(
+        (call) => call.url === '/api/tasks/t1' && call.method === 'PATCH'
       )
       expect(hasPatch).toBe(true)
     })
   })
 
   it('requests targetType filter', async () => {
-    queueResponse({
-      items: [],
-      pagination: { page: 1, pageSize: 20, total: 0 },
-    })
-    queueResponse({
-      items: [],
-      pagination: { page: 1, pageSize: 20, total: 0 },
+    mockFetch.mockImplementation((input) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
+      if (url === '/api/users/options') {
+        return buildResponse({ users: [] })
+      }
+      if (url.startsWith('/api/me/tasks') || url.startsWith('/api/tasks?')) {
+        return buildResponse({
+          items: [],
+          pagination: { page: 1, pageSize: 20, total: 0 },
+        })
+      }
+      return buildResponse({})
     })
 
     render(

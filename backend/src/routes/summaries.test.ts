@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { PrismaClient } from '@prisma/client'
 import { summaryRoutes } from './summaries'
 
@@ -10,6 +11,8 @@ const prisma = new PrismaClient()
 
 const buildTestServer = async () => {
   const app = Fastify()
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
   await app.register(cors)
   await app.register(cookie)
   await app.register(jwt, {
@@ -25,21 +28,36 @@ const buildTestServer = async () => {
 
 describe('Summary endpoints', () => {
   let fastify: FastifyInstance
+  let userId: string
 
   beforeEach(async () => {
     fastify = await buildTestServer()
+    const user = await prisma.user.create({
+      data: {
+        email: `summary-test-${Date.now()}@example.com`,
+        password: 'password',
+        role: 'admin',
+      },
+    })
+    userId = user.id
   })
 
   afterEach(async () => {
     await prisma.summary.deleteMany()
+    await prisma.summaryDraft.deleteMany()
     await prisma.message.deleteMany()
     await prisma.chatworkRoom.deleteMany()
     await prisma.company.deleteMany()
+    await prisma.user.deleteMany({
+      where: {
+        email: { contains: 'summary-test-' },
+      },
+    })
     await fastify.close()
   })
 
   it('creates draft, saves summary, and extracts candidates', async () => {
-    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
 
     const company = await prisma.company.create({
       data: {
@@ -70,6 +88,20 @@ describe('Summary endpoints', () => {
       },
     })
 
+    const periodStart = new Date(sentAt.getTime() - 1000)
+    const periodEnd = new Date(sentAt.getTime() + 1000)
+
+    await prisma.summaryDraft.create({
+      data: {
+        companyId: company.id,
+        periodStart,
+        periodEnd,
+        content: '## Summary\n- Seed draft content',
+        sourceLinks: ['m-1'],
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    })
+
     const draftResponse = await fastify.inject({
       method: 'POST',
       url: `/api/companies/${company.id}/summaries/draft`,
@@ -77,8 +109,8 @@ describe('Summary endpoints', () => {
         authorization: `Bearer ${token}`,
       },
       payload: {
-        periodStart: new Date(sentAt.getTime() - 1000).toISOString(),
-        periodEnd: new Date(sentAt.getTime() + 1000).toISOString(),
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
       },
     })
 

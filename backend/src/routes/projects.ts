@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { Prisma, ProjectStatus } from '@prisma/client'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
 import { parsePagination } from '../utils/pagination'
@@ -54,10 +56,175 @@ interface ProjectListQuery {
   pageSize?: string
 }
 
+interface ProjectSearchQuery {
+  q?: string
+  companyId?: string
+  limit?: string
+}
+
+const dateSchema = z.preprocess(
+  (value) => (value instanceof Date ? value.toISOString() : value),
+  z.string()
+)
+const paginationSchema = z.object({
+  page: z.number(),
+  pageSize: z.number(),
+  total: z.number(),
+})
+
+const projectSchema = z
+  .object({
+    id: z.string(),
+    companyId: z.string(),
+    name: z.string(),
+    conditions: z.string().nullable().optional(),
+    unitPrice: z.number().nullable().optional(),
+    periodStart: dateSchema.nullable().optional(),
+    periodEnd: dateSchema.nullable().optional(),
+    status: z.nativeEnum(ProjectStatus).optional(),
+    ownerId: z.string().nullable().optional(),
+    createdAt: dateSchema.optional(),
+    updatedAt: dateSchema.optional(),
+    company: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+      })
+      .optional(),
+  })
+  .passthrough()
+
+const wholesaleSchema = z
+  .object({
+    id: z.string(),
+    projectId: z.string(),
+    companyId: z.string(),
+    conditions: z.string().nullable().optional(),
+    unitPrice: z.number().nullable().optional(),
+    margin: z.number().nullable().optional(),
+    status: z.string(),
+    agreedDate: dateSchema.nullable().optional(),
+    ownerId: z.string().nullable().optional(),
+    createdAt: dateSchema.optional(),
+    updatedAt: dateSchema.optional(),
+    company: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+      })
+      .optional(),
+    owner: z
+      .object({
+        id: z.string(),
+        email: z.string(),
+      })
+      .nullable()
+      .optional(),
+    project: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+        company: z
+          .object({
+            id: z.string(),
+            name: z.string(),
+          })
+          .optional(),
+      })
+      .optional(),
+  })
+  .passthrough()
+
+const projectListQuerySchema = z.object({
+  q: z.string().optional(),
+  companyId: z.string().optional(),
+  status: z.nativeEnum(ProjectStatus).optional(),
+  sort: z.string().optional(),
+  page: z.string().optional(),
+  pageSize: z.string().optional(),
+})
+
+const projectSearchQuerySchema = z.object({
+  q: z.string().min(1),
+  companyId: z.string().optional(),
+  limit: z.string().optional(),
+})
+
+const projectCreateBodySchema = z.object({
+  companyId: z.string().min(1),
+  name: z.string().min(1),
+  conditions: z.string().optional(),
+  unitPrice: z.number().optional(),
+  periodStart: z.string().optional(),
+  periodEnd: z.string().optional(),
+  status: z.nativeEnum(ProjectStatus).optional(),
+  ownerId: z.string().optional(),
+})
+
+const projectUpdateBodySchema = z.object({
+  name: z.string().min(1).optional(),
+  conditions: z.string().nullable().optional(),
+  unitPrice: z.number().nullable().optional(),
+  periodStart: z.string().nullable().optional(),
+  periodEnd: z.string().nullable().optional(),
+  status: z.nativeEnum(ProjectStatus).optional(),
+  ownerId: z.string().nullable().optional(),
+})
+
+const projectParamsSchema = z.object({ id: z.string().min(1) })
+
+const projectResponseSchema = z.object({ project: projectSchema }).passthrough()
+const projectListResponseSchema = z
+  .object({
+    items: z.array(projectSchema),
+    pagination: paginationSchema,
+  })
+  .passthrough()
+const projectSearchResponseSchema = z
+  .object({
+    items: z.array(
+      z
+        .object({
+          id: z.string(),
+          name: z.string(),
+          companyId: z.string().optional(),
+          company: z
+            .object({
+              id: z.string(),
+              name: z.string(),
+            })
+            .optional(),
+        })
+        .passthrough()
+    ),
+  })
+  .passthrough()
+const projectWholesalesResponseSchema = z
+  .object({
+    wholesales: z.array(wholesaleSchema),
+  })
+  .passthrough()
+const companyProjectsResponseSchema = z
+  .object({
+    projects: z.array(projectSchema),
+  })
+  .passthrough()
+
 export async function projectRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Querystring: ProjectListQuery }>(
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
+
+  app.get<{ Querystring: ProjectListQuery }>(
     '/projects',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Projects'],
+        querystring: projectListQuerySchema,
+        response: {
+          200: projectListResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { q, companyId } = request.query
       const status = normalizeProjectStatus(request.query.status)
@@ -103,9 +270,66 @@ export async function projectRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.post<{ Body: ProjectCreateBody }>(
+  app.get<{ Querystring: ProjectSearchQuery }>(
+    '/projects/search',
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Projects'],
+        querystring: projectSearchQuerySchema,
+        response: {
+          200: projectSearchResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const rawQuery = request.query.q?.trim() ?? ''
+      if (!rawQuery) {
+        return reply.code(400).send(badRequest('q is required'))
+      }
+
+      const limitValue = Number(request.query.limit)
+      const limit = Number.isFinite(limitValue)
+        ? Math.min(Math.max(Math.floor(limitValue), 1), 50)
+        : 20
+
+      const where: Prisma.ProjectWhereInput = {
+        name: { contains: rawQuery, mode: 'insensitive' },
+      }
+      if (request.query.companyId) {
+        where.companyId = request.query.companyId
+      }
+
+      const items = await prisma.project.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          companyId: true,
+          company: {
+            select: { id: true, name: true },
+          },
+        },
+      })
+
+      return { items }
+    }
+  )
+
+  app.post<{ Body: ProjectCreateBody }>(
     '/projects',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Projects'],
+        body: projectCreateBodySchema,
+        response: {
+          201: projectResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { companyId, name, conditions, ownerId } = request.body
       const unitPrice = parseNumber(request.body.unitPrice)
@@ -170,11 +394,25 @@ export async function projectRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/projects/:id',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Projects'],
+        params: projectParamsSchema,
+        response: {
+          200: projectResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
-      const project = await prisma.project.findUnique({ where: { id: request.params.id } })
+      const project = await prisma.project.findUnique({
+        where: { id: request.params.id },
+        include: {
+          company: { select: { id: true, name: true } },
+        },
+      })
       if (!project) {
         return reply.code(404).send(notFound('Project'))
       }
@@ -182,9 +420,19 @@ export async function projectRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.patch<{ Params: { id: string }; Body: ProjectUpdateBody }>(
+  app.patch<{ Params: { id: string }; Body: ProjectUpdateBody }>(
     '/projects/:id',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Projects'],
+        params: projectParamsSchema,
+        body: projectUpdateBodySchema,
+        response: {
+          200: projectResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const { name, conditions, ownerId } = request.body
       const unitPrice = parseNumber(request.body.unitPrice)
@@ -238,7 +486,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
       if (request.body.periodEnd !== undefined) {
         data.periodEnd = periodEnd ?? null
       }
-      if (normalizedStatus !== undefined) {
+      if (normalizedStatus !== undefined && normalizedStatus !== null) {
         data.status = normalizedStatus
       }
       if (ownerId !== undefined) {
@@ -268,9 +516,18 @@ export async function projectRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string } }>(
     '/projects/:id',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        tags: ['Projects'],
+        params: projectParamsSchema,
+        response: {
+          204: z.undefined(),
+        },
+      },
+    },
     async (request, reply) => {
       const existing = await prisma.project.findUnique({ where: { id: request.params.id } })
       if (!existing) {
@@ -296,9 +553,18 @@ export async function projectRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/projects/:id/wholesales',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Projects'],
+        params: projectParamsSchema,
+        response: {
+          200: projectWholesalesResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const project = await prisma.project.findUnique({ where: { id: request.params.id } })
       if (!project) {
@@ -318,9 +584,18 @@ export async function projectRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/companies/:id/projects',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        tags: ['Projects'],
+        params: projectParamsSchema,
+        response: {
+          200: companyProjectsResponseSchema,
+        },
+      },
+    },
     async (request, reply) => {
       const company = await prisma.company.findUnique({ where: { id: request.params.id } })
       if (!company) {

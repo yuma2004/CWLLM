@@ -271,7 +271,7 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
       if (request.body.agreedDate !== undefined) {
         data.agreedDate = agreedDate ?? null
       }
-      if (status !== undefined) {
+      if (status !== undefined && status !== null) {
         data.status = status
       }
       if (ownerId !== undefined) {

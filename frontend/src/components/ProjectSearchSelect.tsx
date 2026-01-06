@@ -1,51 +1,51 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFetch } from '../hooks/useApi'
 
-type CompanyOption = {
+type ProjectOption = {
   id: string
   name: string
 }
 
-type CompanySearchSelectProps = {
+type ProjectSearchSelectProps = {
   value: string
-  onChange: (companyId: string, option?: CompanyOption) => void
+  onChange: (projectId: string, option?: ProjectOption) => void
   label?: string
   placeholder?: string
   disabled?: boolean
 }
 
-const CompanySearchSelect = ({
+const ProjectSearchSelect = ({
   value,
   onChange,
   label,
-  placeholder = '企業名で検索',
+  placeholder = '案件名で検索',
   disabled = false,
-}: CompanySearchSelectProps) => {
+}: ProjectSearchSelectProps) => {
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<CompanyOption | null>(null)
+  const [selected, setSelected] = useState<ProjectOption | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { data: selectedData } = useFetch<{ company: CompanyOption }>(
-    value ? `/api/companies/${value}` : null,
+  const { data: selectedData } = useFetch<{ project: ProjectOption }>(
+    value ? `/api/projects/${value}` : null,
     {
       enabled: Boolean(value),
-      errorMessage: '企業の取得に失敗しました',
+      errorMessage: '案件の取得に失敗しました',
       cacheTimeMs: 30_000,
     }
   )
 
   const searchUrl =
     isOpen && debouncedQuery
-      ? `/api/companies/search?${new URLSearchParams({
+      ? `/api/projects/search?${new URLSearchParams({
           q: debouncedQuery,
           limit: '20',
         }).toString()}`
       : null
 
   const { data: searchData, isLoading: isSearching } = useFetch<{
-    items: CompanyOption[]
+    items: ProjectOption[]
   }>(searchUrl, {
     enabled: Boolean(searchUrl),
     errorMessage: '検索に失敗しました',
@@ -60,9 +60,9 @@ const CompanySearchSelect = ({
       return
     }
     if (selected?.id === value) return
-    if (selectedData?.company) {
-      setSelected(selectedData.company)
-      setQuery(selectedData.company.name)
+    if (selectedData?.project) {
+      setSelected(selectedData.project)
+      setQuery(selectedData.project.name)
     }
   }, [selected?.id, selectedData, value])
 
@@ -115,8 +115,7 @@ const CompanySearchSelect = ({
           }}
           aria-label="clear"
         >
-          ×
-        </button>
+          ﾃ・        </button>
       )}
       {isOpen && (
         <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-lg">
@@ -150,4 +149,4 @@ const CompanySearchSelect = ({
   )
 }
 
-export default CompanySearchSelect
+export default ProjectSearchSelect

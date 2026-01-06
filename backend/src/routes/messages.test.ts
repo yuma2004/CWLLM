@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { PrismaClient } from '@prisma/client'
 import { messageRoutes } from './messages'
 
@@ -10,6 +11,8 @@ const prisma = new PrismaClient()
 
 const buildTestServer = async () => {
   const app = Fastify()
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
   await app.register(cors)
   await app.register(cookie)
   await app.register(jwt, {

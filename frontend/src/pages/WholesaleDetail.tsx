@@ -5,10 +5,10 @@ import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import Toast from '../components/ui/Toast'
-import { useFetch } from '../hooks/useApi'
+import { useFetch, useMutation } from '../hooks/useApi'
 import { usePagination } from '../hooks/usePagination'
 import { usePermissions } from '../hooks/usePermissions'
-import { apiRequest } from '../lib/apiClient'
+import { useToast } from '../hooks/useToast'
 import { formatDate, formatDateInput } from '../utils/date'
 import { ApiListResponse, Task, Wholesale } from '../types'
 import { TASK_STATUS_LABELS, WHOLESALE_STATUS_LABELS, WHOLESALE_STATUS_OPTIONS } from '../constants'
@@ -26,7 +26,7 @@ function WholesaleDetail() {
     agreedDate: '',
     conditions: '',
   })
-  const [toast, setToast] = useState<{ message: string; variant?: 'success' | 'error' } | null>(null)
+  const { toast, showToast, clearToast } = useToast()
 
   const {
     data: wholesaleData,
@@ -36,6 +36,17 @@ function WholesaleDetail() {
   } = useFetch<{ wholesale: Wholesale }>(id ? `/api/wholesales/${id}` : null, {
     errorMessage: '卸情報の取得に失敗しました',
   })
+
+  const { mutate: updateWholesale, isLoading: isUpdatingWholesale } = useMutation<
+    { wholesale: Wholesale },
+    {
+      status: string
+      unitPrice?: number | undefined
+      margin?: number | undefined
+      agreedDate?: string | null
+      conditions?: string | null
+    }
+  >('/api/wholesales', 'PATCH')
 
   const {
     data: tasksData,
@@ -74,12 +85,6 @@ function WholesaleDetail() {
     setForm(buildFormState(wholesale))
   }, [wholesale])
 
-  useEffect(() => {
-    if (!toast) return
-    const timer = window.setTimeout(() => setToast(null), 2000)
-    return () => window.clearTimeout(timer)
-  }, [toast])
-
   const handleCancelEdit = () => {
     if (wholesale) {
       setForm(buildFormState(wholesale))
@@ -112,22 +117,24 @@ function WholesaleDetail() {
     }
 
     try {
-      const { wholesale: updated } = await apiRequest<{ wholesale: Wholesale }>(
-        `/api/wholesales/${id}`,
+      const data = await updateWholesale(
         {
-          method: 'PATCH',
-          body: {
-            status: form.status,
-            unitPrice,
-            margin,
-            agreedDate: form.agreedDate ? form.agreedDate : null,
-            conditions: form.conditions.trim() || null,
-          },
+          status: form.status,
+          unitPrice,
+          margin,
+          agreedDate: form.agreedDate ? form.agreedDate : null,
+          conditions: form.conditions.trim() || null,
+        },
+        {
+          url: `/api/wholesales/${id}`,
+          errorMessage: '更新に失敗しました',
         }
       )
-      setWholesaleData({ wholesale: updated })
+      if (data?.wholesale) {
+        setWholesaleData({ wholesale: data.wholesale })
+      }
       setIsEditing(false)
-      setToast({ message: '卸情報を更新しました', variant: 'success' })
+      showToast('卸情報を更新しました', 'success')
     } catch (err) {
       setFormError(err instanceof Error ? err.message : '更新に失敗しました')
     }
@@ -239,8 +246,9 @@ function WholesaleDetail() {
                 <button
                   type="submit"
                   className="rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-700"
+                  disabled={isUpdatingWholesale}
                 >
-                  保存
+                  {isUpdatingWholesale ? '保存中...' : '保存'}
                 </button>
               </div>
             </form>
@@ -351,7 +359,7 @@ function WholesaleDetail() {
         <Toast
           message={toast.message}
           variant={toast.variant === 'error' ? 'error' : 'success'}
-          onClose={() => setToast(null)}
+          onClose={clearToast}
           className="fixed bottom-6 right-6 z-50"
         />
       )}

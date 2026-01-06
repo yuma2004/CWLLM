@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import CompanyAuditSection from '../components/CompanyAuditSection'
-import CompanyRelationsSection from '../components/CompanyRelationsSection'
-import CompanySummarySection from '../components/CompanySummarySection'
 import CompanyTasksSection from '../components/CompanyTasksSection'
 import Badge from '../components/ui/Badge'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -14,55 +11,24 @@ import Tabs, { Tab } from '../components/ui/Tabs'
 import Toast from '../components/ui/Toast'
 import { usePagination } from '../hooks/usePagination'
 import { usePermissions } from '../hooks/usePermissions'
-import { apiRequest } from '../lib/apiClient'
-import { ApiListResponse } from '../types'
+import { useFetch, useMutation } from '../hooks/useApi'
+import { useToast } from '../hooks/useToast'
+import {
+  ApiListResponse,
+  AvailableRoom,
+  Company,
+  Contact,
+  LinkedRoom,
+  MessageItem,
+} from '../types'
 import { formatDateGroup } from '../utils/date'
 import { getAvatarColor, getInitials } from '../utils/string'
+import {
+  COMPANY_CATEGORY_DEFAULT_OPTIONS,
+  COMPANY_STATUS_DEFAULT_OPTIONS,
+} from '../constants/labels'
+import FormSelect from '../components/ui/FormSelect'
 
-interface Company {
-  id: string
-  name: string
-  category?: string | null
-  status: string
-  tags: string[]
-  profile?: string | null
-  ownerId?: string | null
-}
-
-interface Contact {
-  id: string
-  name: string
-  role?: string | null
-  email?: string | null
-  phone?: string | null
-  memo?: string | null
-  sortOrder?: number | null
-}
-
-interface MessageItem {
-  id: string
-  roomId: string
-  messageId: string
-  sender: string
-  body: string
-  sentAt: string
-  labels?: string[]
-}
-
-interface LinkedRoom {
-  id: string
-  roomId: string
-  name: string
-  isActive: boolean
-}
-
-interface AvailableRoom {
-  id: string
-  roomId: string
-  name: string
-  description?: string | null
-  isActive: boolean
-}
 
 // Group messages by date
 function groupMessagesByDate(messages: MessageItem[]): Map<string, MessageItem[]> {
@@ -98,8 +64,6 @@ function CompanyDetail() {
   const { canWrite, isAdmin } = usePermissions()
   const [company, setCompany] = useState<Company | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
   const [contactError, setContactError] = useState('')
   const [companyError, setCompanyError] = useState('')
   const [messages, setMessages] = useState<MessageItem[]>([])
@@ -107,17 +71,16 @@ function CompanyDetail() {
   const [messageFrom, setMessageFrom] = useState('')
   const [messageTo, setMessageTo] = useState('')
   const [messageLabel, setMessageLabel] = useState('')
-  const [messageLoading, setMessageLoading] = useState(false)
   const [messageError, setMessageError] = useState('')
   const [labelInputs, setLabelInputs] = useState<Record<string, string>>({})
   const [linkedRooms, setLinkedRooms] = useState<LinkedRoom[]>([])
-  const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([])
   const [roomInput, setRoomInput] = useState('')
   const [roomError, setRoomError] = useState('')
-  const [isLoadingRooms, setIsLoadingRooms] = useState(false)
   const [showContactForm, setShowContactForm] = useState(false)
   const [isEditingTags, setIsEditingTags] = useState(false)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [isEditingCategory, setIsEditingCategory] = useState(false)
+  const [isEditingStatus, setIsEditingStatus] = useState(false)
   const [form, setForm] = useState({
     name: '',
     role: '',
@@ -137,16 +100,19 @@ function CompanyDetail() {
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const [isDedupeConfirmOpen, setIsDedupeConfirmOpen] = useState(false)
   const [isDedupeWorking, setIsDedupeWorking] = useState(false)
-  const [isReorderWorking, setIsReorderWorking] = useState(false)
-  const [isDeletingContact, setIsDeletingContact] = useState(false)
-  const [companyForm, setCompanyForm] = useState<{ tags: string[]; profile: string }>({
+  const [companyForm, setCompanyForm] = useState<{
+    tags: string[]
+    profile: string
+    category: string
+    status: string
+  }>({
     tags: [],
     profile: '',
+    category: '',
+    status: '',
   })
   const [tagInput, setTagInput] = useState('')
-  const [tagOptions, setTagOptions] = useState<string[]>([])
-  const [labelOptions, setLabelOptions] = useState<string[]>([])
-  const [toast, setToast] = useState<{ message: string; variant?: 'success' | 'error' } | null>(null)
+  const { toast, showToast, clearToast } = useToast()
 
   const {
     pagination: messagePagination,
@@ -154,6 +120,34 @@ function CompanyDetail() {
     setPage: setMessagePage,
     setPageSize: setMessagePageSize,
   } = usePagination(30)
+
+  const {
+    error: companyFetchError,
+    isLoading: isLoadingCompany,
+    refetch: refetchCompany,
+  } = useFetch<{ company: Company }>(id ? `/api/companies/${id}` : null, {
+    enabled: Boolean(id),
+    errorMessage: '通信エラーが発生しました',
+    onSuccess: (data) => {
+      setCompany(data.company)
+      setCompanyForm({
+        tags: data.company.tags ?? [],
+        profile: data.company.profile || '',
+        category: data.company.category || '',
+        status: data.company.status || '',
+      })
+    },
+  })
+
+  const {
+    error: contactsFetchError,
+    isLoading: isLoadingContacts,
+    refetch: refetchContacts,
+  } = useFetch<{ contacts: Contact[] }>(id ? `/api/companies/${id}/contacts` : null, {
+    enabled: Boolean(id),
+    errorMessage: '通信エラーが発生しました',
+    onSuccess: (data) => setContacts(data.contacts ?? []),
+  })
 
 
   // Group messages by date
@@ -177,159 +171,165 @@ function CompanyDetail() {
       { id: 'overview', label: '概要' },
       { id: 'timeline', label: 'タイムライン', count: messagePagination.total },
       { id: 'tasks', label: 'タスク' },
-      { id: 'summary', label: 'AIサマリー' },
-      { id: 'relations', label: '関連データ' },
-      { id: 'audit', label: '変更履歴' },
     ],
     [messagePagination.total]
   )
 
-  const fetchData = useCallback(async () => {
-    if (!id) return
-    setIsLoading(true)
-    setError('')
-    try {
-      const [companyData, contactsData] = await Promise.all([
-        apiRequest<{ company: Company }>(`/api/companies/${id}`),
-        apiRequest<{ contacts: Contact[] }>(`/api/companies/${id}/contacts`),
-      ])
 
-      setCompany(companyData.company)
-      setContacts(contactsData.contacts ?? [])
-      setCompanyForm({
-        tags: companyData.company.tags ?? [],
-        profile: companyData.company.profile || '',
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
-    } finally {
-      setIsLoading(false)
+  const messagesUrl = useMemo(() => {
+    if (!id) return null
+    const params = new URLSearchParams()
+    params.set('page', String(messagePagination.page))
+    params.set('pageSize', String(messagePagination.pageSize))
+    if (messageFrom) params.set('from', messageFrom)
+    if (messageTo) params.set('to', messageTo)
+    if (messageLabel.trim()) params.set('label', messageLabel.trim())
+    const trimmedQuery = messageQuery.trim()
+    if (trimmedQuery) {
+      params.set('q', trimmedQuery)
+      params.set('companyId', id)
+      return `/api/messages/search?${params.toString()}`
     }
-  }, [id])
+    return `/api/companies/${id}/messages?${params.toString()}`
+  }, [
+    id,
+    messageFrom,
+    messageTo,
+    messageQuery,
+    messageLabel,
+    messagePagination.page,
+    messagePagination.pageSize,
+  ])
 
-  const fetchMessages = useCallback(
-    async (pageOverride?: number) => {
-      if (!id) return
-      setMessageLoading(true)
-      setMessageError('')
-      try {
-        const params = new URLSearchParams()
-        params.set('page', String(pageOverride ?? messagePagination.page))
-        params.set('pageSize', String(messagePagination.pageSize))
-        if (messageFrom) params.set('from', messageFrom)
-        if (messageTo) params.set('to', messageTo)
-        if (messageLabel.trim()) params.set('label', messageLabel.trim())
-
-        const trimmedQuery = messageQuery.trim()
-        const url = trimmedQuery
-          ? `/api/messages/search?${params.toString()}&q=${encodeURIComponent(trimmedQuery)}&companyId=${id}`
-          : `/api/companies/${id}/messages?${params.toString()}`
-
-        const data = await apiRequest<ApiListResponse<MessageItem>>(url)
-        setMessages(data.items ?? [])
-        setMessagePagination((prev) => ({ ...prev, ...data.pagination }))
-      } catch (err) {
-        setMessageError(err instanceof Error ? err.message : '通信エラーが発生しました')
-      } finally {
-        setMessageLoading(false)
-      }
+  const { isLoading: isLoadingMessages, refetch: refetchMessages } =
+    useFetch<ApiListResponse<MessageItem>>(messagesUrl, {
+    enabled: Boolean(messagesUrl),
+    errorMessage: '通信エラーが発生しました',
+    onStart: () => setMessageError(''),
+    onSuccess: (data) => {
+      setMessages(data.items ?? [])
+      setMessagePagination((prev) => ({ ...prev, ...data.pagination }))
     },
-    [
-      id,
-      messageFrom,
-      messageTo,
-      messageQuery,
-      messageLabel,
-      messagePagination.page,
-      messagePagination.pageSize,
-      setMessagePagination,
-    ]
+    onError: setMessageError,
+  })
+
+  const { error: linkedRoomsFetchError, refetch: refetchLinkedRooms } = useFetch<{
+    rooms: LinkedRoom[]
+  }>(id ? `/api/companies/${id}/chatwork-rooms` : null, {
+    enabled: Boolean(id),
+    errorMessage: '通信エラーが発生しました',
+    onSuccess: (data) => setLinkedRooms(data.rooms ?? []),
+    onError: setRoomError,
+  })
+
+  const {
+    data: availableRoomsData,
+    isLoading: isLoadingRooms,
+    error: availableRoomsFetchError,
+  } = useFetch<{ rooms: AvailableRoom[] }>('/api/chatwork/rooms', {
+    enabled: isAdmin,
+    errorMessage: 'Chatworkルーム一覧の取得に失敗しました。管理者権限が必要な場合があります。',
+  })
+
+  const availableRooms = useMemo(() => {
+    const rooms = availableRoomsData?.rooms ?? []
+    if (rooms.length === 0) return []
+    const linkedRoomIds = new Set(linkedRooms.map((room) => room.roomId))
+    return rooms.filter((room) => !linkedRoomIds.has(room.roomId))
+  }, [availableRoomsData, linkedRooms])
+
+  const { data: companyOptionsData } = useFetch<{
+    categories: string[]
+    statuses: string[]
+    tags: string[]
+  }>('/api/companies/options', {
+    errorMessage: '候補の取得に失敗しました',
+    cacheTimeMs: 30_000,
+  })
+
+  const { data: labelOptionsData } = useFetch<{ items: Array<{ label: string }> }>(
+    '/api/messages/labels?limit=20',
+    {
+      errorMessage: 'ラベル候補の取得に失敗しました',
+      cacheTimeMs: 30_000,
+    }
   )
 
-  const fetchRooms = useCallback(async () => {
-    if (!id) return
-    setRoomError('')
-    try {
-      const data = await apiRequest<{ rooms: LinkedRoom[] }>(
-        `/api/companies/${id}/chatwork-rooms`
-      )
-      setLinkedRooms(data.rooms ?? [])
-    } catch (err) {
-      setRoomError(err instanceof Error ? err.message : '通信エラーが発生しました')
+
+  const tagOptions = companyOptionsData?.tags ?? []
+  const labelOptions = labelOptionsData?.items?.map((item) => item.label) ?? []
+
+  // 標準候補とAPIから取得した候補をマージ
+  const mergedCategories = useMemo(() => {
+    return Array.from(
+      new Set([...COMPANY_CATEGORY_DEFAULT_OPTIONS, ...(companyOptionsData?.categories ?? [])])
+    ).sort()
+  }, [companyOptionsData?.categories])
+
+  const mergedStatuses = useMemo(() => {
+    return Array.from(
+      new Set([...COMPANY_STATUS_DEFAULT_OPTIONS, ...(companyOptionsData?.statuses ?? [])])
+    ).sort()
+  }, [companyOptionsData?.statuses])
+
+  const { mutate: addContact } = useMutation<
+    { contact: Contact },
+    { name: string; role?: string; email?: string; phone?: string; memo?: string }
+  >(id ? `/api/companies/${id}/contacts` : '', 'POST')
+
+  const { mutate: updateContact } = useMutation<
+    { contact: Contact },
+    {
+      name?: string
+      role?: string | null
+      email?: string | null
+      phone?: string | null
+      memo?: string | null
+      sortOrder?: number | null
     }
-  }, [id])
+  >('/api/contacts', 'PATCH')
 
-  const fetchAvailableRooms = useCallback(async () => {
-    setIsLoadingRooms(true)
-    try {
-      const data = await apiRequest<{ rooms: AvailableRoom[] }>('/api/chatwork/rooms')
-      const linkedRoomIds = new Set(linkedRooms.map((r) => r.roomId))
-      const available = (data?.rooms ?? []).filter(
-        (room: AvailableRoom) => !linkedRoomIds.has(room.roomId)
-      )
-      setAvailableRooms(available)
-    } catch (err) {
-      console.error('利用可能なルーム一覧の取得エラー:', err)
-    } finally {
-      setIsLoadingRooms(false)
-    }
-  }, [linkedRooms])
+  const { mutate: deleteContact, isLoading: isDeletingContact } = useMutation<unknown, void>(
+    '/api/contacts',
+    'DELETE'
+  )
 
-  const fetchTagOptions = useCallback(async () => {
-    try {
-      const data = await apiRequest<{ tags: string[] }>('/api/companies/options')
-      setTagOptions(data.tags ?? [])
-    } catch {
-      setTagOptions([])
-    }
-  }, [])
+  const { mutate: reorderContactsMutation, isLoading: isReorderWorking } = useMutation<
+    unknown,
+    { orderedIds: string[] }
+  >(id ? `/api/companies/${id}/contacts/reorder` : '', 'PATCH')
 
-  const fetchLabelOptions = useCallback(async () => {
-    try {
-      const data = await apiRequest<{ items: Array<{ label: string }> }>(
-        '/api/messages/labels?limit=20'
-      )
-      setLabelOptions(data.items.map((item) => item.label))
-    } catch {
-      setLabelOptions([])
-    }
-  }, [])
+  const { mutate: updateCompany } = useMutation<
+    { company: Company },
+    { tags?: string[]; profile?: string | null; category?: string | null; status?: string }
+  >(id ? `/api/companies/${id}` : '', 'PATCH')
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  const { mutate: addRoom } = useMutation<unknown, { roomId: string }>(
+    id ? `/api/companies/${id}/chatwork-rooms` : '',
+    'POST'
+  )
 
-  useEffect(() => {
-    fetchMessages()
-  }, [fetchMessages])
+  const { mutate: removeRoom } = useMutation<unknown, void>(
+    id ? `/api/companies/${id}/chatwork-rooms` : '',
+    'DELETE'
+  )
+
+  const { mutate: addLabel } = useMutation<unknown, { label: string }>(
+    '/api/messages',
+    'POST'
+  )
+
+  const { mutate: removeLabel } = useMutation<unknown, void>('/api/messages', 'DELETE')
+
+  const isLoading = isLoadingCompany || isLoadingContacts
+  const pageError = companyFetchError || contactsFetchError
+  const roomErrorMessage = roomError || linkedRoomsFetchError || availableRoomsFetchError
+
+
 
   useEffect(() => {
     setMessagePage(1)
   }, [messageQuery, messageFrom, messageTo, messageLabel, setMessagePage])
-
-  useEffect(() => {
-    fetchRooms()
-  }, [fetchRooms])
-
-  useEffect(() => {
-    fetchTagOptions()
-  }, [fetchTagOptions])
-
-  useEffect(() => {
-    fetchLabelOptions()
-  }, [fetchLabelOptions])
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchAvailableRooms()
-    }
-  }, [linkedRooms, isAdmin, fetchAvailableRooms])
-
-  useEffect(() => {
-    if (!toast) return
-    const timer = window.setTimeout(() => setToast(null), 2000)
-    return () => window.clearTimeout(timer)
-  }, [toast])
 
   const handleAddContact = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -341,20 +341,20 @@ function CompanyDetail() {
     if (!id) return
 
     try {
-      await apiRequest(`/api/companies/${id}/contacts`, {
-        method: 'POST',
-        body: {
+      await addContact(
+        {
           name: form.name,
           role: form.role || undefined,
           email: form.email || undefined,
           phone: form.phone || undefined,
           memo: form.memo || undefined,
         },
-      })
+        { errorMessage: '騾壻ｿ｡繧ｨ繝ｩ繝ｼ縺檎匱逕溘＠縺ｾ縺励◆' }
+      )
 
       setForm({ name: '', role: '', email: '', phone: '', memo: '' })
       setShowContactForm(false)
-      fetchData()
+      void refetchContacts(undefined, { ignoreCache: true })
     } catch (err) {
       setContactError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
@@ -391,48 +391,55 @@ function CompanyDetail() {
     }
     setContactActionError('')
     try {
-      const { contact } = await apiRequest<{ contact: Contact }>(`/api/contacts/${editingContactId}`, {
-        method: 'PATCH',
-        body: {
+      const data = await updateContact(
+        {
           name,
           role: editContactForm.role.trim() || null,
           email: editContactForm.email.trim() || null,
           phone: editContactForm.phone.trim() || null,
           memo: editContactForm.memo.trim() || null,
         },
-      })
-      setContacts((prev) => prev.map((item) => (item.id === contact.id ? { ...item, ...contact } : item)))
-      setToast({ message: '担当者を更新しました', variant: 'success' })
+        {
+          url: `/api/contacts/${editingContactId}`,
+          errorMessage: '担当者の更新に失敗しました',
+        }
+      )
+      if (data?.contact) {
+        const contact = data.contact
+        setContacts((prev) =>
+          prev.map((item) => (item.id === contact.id ? { ...item, ...contact } : item))
+        )
+      } else {
+        void refetchContacts(undefined, { ignoreCache: true })
+      }
+      showToast('担当者を更新しました', 'success')
       setEditingContactId(null)
       resetEditContactForm()
     } catch (err) {
       setContactActionError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
     }
   }
-
   const handleConfirmDeleteContact = async () => {
     if (!confirmDelete) return
-    setIsDeletingContact(true)
     setContactActionError('')
     try {
-      await apiRequest(`/api/contacts/${confirmDelete.id}`, { method: 'DELETE' })
+      await deleteContact(undefined, {
+        url: `/api/contacts/${confirmDelete.id}`,
+        errorMessage: '担当者の削除に失敗しました',
+      })
       setContacts((prev) => prev.filter((contact) => contact.id !== confirmDelete.id))
       if (editingContactId === confirmDelete.id) {
         setEditingContactId(null)
         resetEditContactForm()
       }
-      setToast({ message: '担当者を削除しました', variant: 'success' })
+      showToast('担当者を削除しました', 'success')
       setConfirmDelete(null)
     } catch (err) {
       setContactActionError(err instanceof Error ? err.message : '担当者の削除に失敗しました')
-    } finally {
-      setIsDeletingContact(false)
     }
   }
-
   const reorderContacts = async (nextContacts: Contact[]) => {
     if (!id) return
-    setIsReorderWorking(true)
     setContactActionError('')
     const previous = contacts
     const orderedContacts = nextContacts.map((contact, index) => ({
@@ -441,18 +448,15 @@ function CompanyDetail() {
     }))
     setContacts(orderedContacts)
     try {
-      await apiRequest(`/api/companies/${id}/contacts/reorder`, {
-        method: 'PATCH',
-        body: { orderedIds: orderedContacts.map((contact) => contact.id) },
-      })
+      await reorderContactsMutation(
+        { orderedIds: orderedContacts.map((contact) => contact.id) },
+        { errorMessage: '並び替えに失敗しました' }
+      )
     } catch (err) {
       setContacts(previous)
       setContactActionError(err instanceof Error ? err.message : '並び替えに失敗しました')
-    } finally {
-      setIsReorderWorking(false)
     }
   }
-
   const moveContact = (index: number, direction: -1 | 1) => {
     const nextIndex = index + direction
     if (nextIndex < 0 || nextIndex >= contacts.length) return
@@ -504,17 +508,22 @@ function CompanyDetail() {
 
         let updatedPrimary = primary
         if (needsUpdate) {
-          const { contact } = await apiRequest<{ contact: Contact }>(`/api/contacts/${primary.id}`, {
-            method: 'PATCH',
-            body: {
+          const data = await updateContact(
+            {
               name: merged.name,
               role: merged.role || null,
               email: merged.email || null,
               phone: merged.phone || null,
               memo: merged.memo || null,
             },
-          })
-          updatedPrimary = contact
+            {
+              url: `/api/contacts/${primary.id}`,
+              errorMessage: '担当者の削除に失敗しました',
+            }
+          )
+          if (data?.contact) {
+            updatedPrimary = data.contact
+          }
         }
 
         nextContacts = nextContacts.map((contact) =>
@@ -523,7 +532,10 @@ function CompanyDetail() {
 
         const duplicateContacts = group.filter((contact) => contact.id !== primary.id)
         for (const duplicate of duplicateContacts) {
-          await apiRequest(`/api/contacts/${duplicate.id}`, { method: 'DELETE' })
+          await deleteContact(undefined, {
+            url: `/api/contacts/${duplicate.id}`,
+            errorMessage: '担当者の削除に失敗しました',
+          })
         }
         if (duplicateContacts.length > 0) {
           const duplicateIds = new Set(duplicateContacts.map((contact) => contact.id))
@@ -536,7 +548,7 @@ function CompanyDetail() {
       }
 
       setContacts(nextContacts)
-      setToast({ message: '重複した担当者を統合しました', variant: 'success' })
+      showToast('重複した担当者を統合しました', 'success')
     } catch (err) {
       setContactActionError(err instanceof Error ? err.message : '重複統合に失敗しました')
     } finally {
@@ -544,63 +556,85 @@ function CompanyDetail() {
       setIsDedupeConfirmOpen(false)
     }
   }
-
-  const handleUpdateCompany = async (field: 'tags' | 'profile') => {
+  const handleUpdateCompany = async (
+    field: 'tags' | 'profile' | 'category' | 'status'
+  ) => {
     setCompanyError('')
     if (!id) return
 
-    const tags =
-      field === 'tags' ? companyForm.tags : company?.tags || []
+    const tags = field === 'tags' ? companyForm.tags : company?.tags || []
+    const profile = field === 'profile' ? companyForm.profile || null : company?.profile
+    const category =
+      field === 'category'
+        ? companyForm.category.trim() || null
+        : company?.category || undefined
+    const status =
+      field === 'status'
+        ? companyForm.status.trim() || undefined
+        : company?.status || undefined
 
     try {
-      await apiRequest(`/api/companies/${id}`, {
-        method: 'PATCH',
-        body: {
+      const data = await updateCompany(
+        {
           tags,
-          profile: field === 'profile' ? companyForm.profile || null : company?.profile,
+          profile,
+          category,
+          status,
         },
-      })
+        { errorMessage: '通信エラーが発生しました' }
+      )
+
+      if (data?.company) {
+        setCompany(data.company)
+        setCompanyForm({
+          tags: data.company.tags ?? [],
+          profile: data.company.profile || '',
+          category: data.company.category || '',
+          status: data.company.status || '',
+        })
+      } else {
+        void refetchCompany(undefined, { ignoreCache: true })
+      }
 
       if (field === 'tags') setIsEditingTags(false)
       if (field === 'profile') setIsEditingProfile(false)
-      fetchData()
+      if (field === 'category') setIsEditingCategory(false)
+      if (field === 'status') setIsEditingStatus(false)
     } catch (err) {
       setCompanyError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
   }
-
   const handleAddRoom = async (event: React.FormEvent) => {
     event.preventDefault()
     setRoomError('')
     if (!roomInput.trim() || !id) {
-      setRoomError('ルームを選択してください')
+      setRoomError('')
       return
     }
     try {
-      await apiRequest(`/api/companies/${id}/chatwork-rooms`, {
-        method: 'POST',
-        body: { roomId: roomInput.trim() },
-      })
+      await addRoom(
+        { roomId: roomInput.trim() },
+        { errorMessage: '通信エラーが発生しました' }
+      )
       setRoomInput('')
-      fetchRooms()
+      void refetchLinkedRooms(undefined, { ignoreCache: true })
     } catch (err) {
       setRoomError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
   }
-
   const handleRemoveRoom = async (roomId: string) => {
     if (!id) return
     setRoomError('')
     try {
-      await apiRequest(`/api/companies/${id}/chatwork-rooms/${roomId}`, {
-        method: 'DELETE',
+      await removeRoom(undefined, {
+        url: `/api/companies/${id}/chatwork-rooms/${roomId}`,
+        errorMessage: '通信エラーが発生しました',
       })
-      fetchRooms()
+      void refetchLinkedRooms(undefined, { ignoreCache: true })
     } catch (err) {
       setRoomError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
   }
-
   const handleAddLabel = async (messageId: string) => {
     const label = (labelInputs[messageId] || '').trim()
     if (!label) {
@@ -609,38 +643,39 @@ function CompanyDetail() {
     }
     setMessageError('')
     try {
-      await apiRequest(`/api/messages/${messageId}/labels`, {
-        method: 'POST',
-        body: { label },
-      })
+      await addLabel(
+        { label },
+        {
+          url: `/api/messages/${messageId}/labels`,
+          errorMessage: 'ネットワークエラー',
+        }
+      )
       setLabelInputs((prev) => ({ ...prev, [messageId]: '' }))
-      fetchMessages()
+      void refetchMessages(undefined, { ignoreCache: true })
     } catch (err) {
       setMessageError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
-
   const handleRemoveLabel = async (messageId: string, label: string) => {
     setMessageError('')
     try {
-      await apiRequest(`/api/messages/${messageId}/labels/${encodeURIComponent(label)}`, {
-        method: 'DELETE',
+      await removeLabel(undefined, {
+        url: `/api/messages/${messageId}/labels/${encodeURIComponent(label)}`,
+        errorMessage: 'ネットワークエラー',
       })
-      fetchMessages()
+      void refetchMessages(undefined, { ignoreCache: true })
     } catch (err) {
       setMessageError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
   }
-
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      setToast({ message: 'コピーしました', variant: 'success' })
+      showToast('コピーしました', 'success')
     } catch (err) {
-      setToast({ message: 'コピーに失敗しました', variant: 'error' })
+      showToast('コピーに失敗しました', 'error')
     }
   }
-
   // Loading skeleton
   if (isLoading) {
     return (
@@ -663,8 +698,8 @@ function CompanyDetail() {
     )
   }
 
-  if (error) {
-    return <ErrorAlert message={error} />
+  if (pageError) {
+    return <ErrorAlert message={pageError} />
   }
 
   if (!company) {
@@ -673,6 +708,13 @@ function CompanyDetail() {
 
   return (
     <div className="space-y-6 animate-fade-up">
+      <nav className="text-xs text-slate-400">
+        <Link to="/companies" className="hover:text-slate-600">
+          企業一覧
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-slate-500">{company.name}</span>
+      </nav>
       {/* Simple Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -712,10 +754,134 @@ function CompanyDetail() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-slate-900">基本情報</h3>
                     <dl className="space-y-3 text-sm">
-                      <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-                        <dt className="text-slate-500">区分</dt>
-                        <dd className="font-medium text-slate-900">{company.category || '-'}</dd>
+                      {/* Category - Inline Edit */}
+                      <div className="rounded-lg bg-slate-50 px-4 py-3">
+                        <div className="flex items-center justify-between">
+                          <dt className="text-slate-500">区分</dt>
+                          {canWrite && !isEditingCategory && (
+                            <button
+                              onClick={() => {
+                                setCompanyForm((prev) => ({
+                                  ...prev,
+                                  category: company.category || '',
+                                }))
+                                setIsEditingCategory(true)
+                              }}
+                              className="text-xs text-sky-600 hover:text-sky-700"
+                            >
+                              編集
+                            </button>
+                          )}
+                        </div>
+                        {isEditingCategory ? (
+                          <div className="mt-2 space-y-2">
+                            <FormSelect
+                              value={companyForm.category}
+                              onChange={(e) =>
+                                setCompanyForm((prev) => ({ ...prev, category: e.target.value }))
+                              }
+                              className="text-sm"
+                            >
+                              <option value="">区分を選択</option>
+                              {mergedCategories.map((category) => (
+                                <option key={category} value={category}>
+                                  {category}
+                                </option>
+                              ))}
+                            </FormSelect>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleUpdateCompany('category')}
+                                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white"
+                              >
+                                保存
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditingCategory(false)
+                                  setCompanyForm((prev) => ({
+                                    ...prev,
+                                    category: company.category || '',
+                                  }))
+                                }}
+                                className="text-xs text-slate-500 hover:text-slate-700"
+                              >
+                                キャンセル
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <dd className="mt-2 font-medium text-slate-900">
+                            {company.category || '-'}
+                          </dd>
+                        )}
                       </div>
+
+                      {/* Status - Inline Edit */}
+                      <div className="rounded-lg bg-slate-50 px-4 py-3">
+                        <div className="flex items-center justify-between">
+                          <dt className="text-slate-500">ステータス</dt>
+                          {canWrite && !isEditingStatus && (
+                            <button
+                              onClick={() => {
+                                setCompanyForm((prev) => ({
+                                  ...prev,
+                                  status: company.status || '',
+                                }))
+                                setIsEditingStatus(true)
+                              }}
+                              className="text-xs text-sky-600 hover:text-sky-700"
+                            >
+                              編集
+                            </button>
+                          )}
+                        </div>
+                        {isEditingStatus ? (
+                          <div className="mt-2 space-y-2">
+                            <FormSelect
+                              value={companyForm.status}
+                              onChange={(e) =>
+                                setCompanyForm((prev) => ({ ...prev, status: e.target.value }))
+                              }
+                              className="text-sm"
+                            >
+                              <option value="">ステータスを選択</option>
+                              {mergedStatuses.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </FormSelect>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleUpdateCompany('status')}
+                                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white"
+                              >
+                                保存
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditingStatus(false)
+                                  setCompanyForm((prev) => ({
+                                    ...prev,
+                                    status: company.status || '',
+                                  }))
+                                }}
+                                className="text-xs text-slate-500 hover:text-slate-700"
+                              >
+                                キャンセル
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <dd className="mt-2">
+                            <StatusBadge status={company.status} size="sm" />
+                          </dd>
+                        )}
+                      </div>
+
                       <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
                         <dt className="text-slate-500">担当者</dt>
                         <dd className="font-medium text-slate-900">{company.ownerId || '-'}</dd>
@@ -1187,7 +1353,7 @@ function CompanyDetail() {
                       <h4 className="font-medium text-slate-900">Chatworkルーム</h4>
                       <span className="text-xs text-slate-500">{linkedRooms.length}件</span>
                     </div>
-                    {roomError && <ErrorAlert message={roomError} className="mb-3" />}
+                    {roomErrorMessage && <ErrorAlert message={roomErrorMessage} className="mb-3" />}
                     <div className="flex flex-wrap gap-2">
                       {linkedRooms.length === 0 ? (
                         <span className="text-sm text-slate-500">ルームが紐づいていません</span>
@@ -1283,7 +1449,7 @@ function CompanyDetail() {
                   {messageError && <ErrorAlert message={messageError} />}
 
                   {/* Messages Timeline */}
-                  {messageLoading ? (
+                  {isLoadingMessages ? (
                     <div className="space-y-4">
                       {[1, 2, 3].map((i) => (
                         <div key={i} className="flex gap-4">
@@ -1398,15 +1564,6 @@ function CompanyDetail() {
 
               {/* Tasks Tab */}
               {activeTab === 'tasks' && id && <CompanyTasksSection companyId={id} canWrite={canWrite} />}
-
-              {/* Summary Tab */}
-              {activeTab === 'summary' && id && <CompanySummarySection companyId={id} canWrite={canWrite} />}
-
-              {/* Relations Tab */}
-              {activeTab === 'relations' && id && <CompanyRelationsSection companyId={id} />}
-
-              {/* Audit Tab */}
-              {activeTab === 'audit' && id && <CompanyAuditSection companyId={id} />}
             </>
           )}
         </Tabs>
@@ -1434,8 +1591,8 @@ function CompanyDetail() {
       {toast && (
         <Toast
           message={toast.message}
-          variant={toast.variant === 'error' ? 'error' : 'success'}
-          onClose={() => setToast(null)}
+          variant={toast.variant || 'success'}
+          onClose={clearToast}
           className="fixed bottom-6 right-6 z-50"
         />
       )}

@@ -6,7 +6,7 @@ type NavItem = {
   end?: boolean
 }
 
-export const buildNavItems = (canWrite: boolean, isAdmin: boolean): NavItem[] => [
+export const buildNavItems = (): NavItem[] => [
   {
     to: '/',
     label: 'ダッシュボード',
