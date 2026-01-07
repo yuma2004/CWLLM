@@ -109,8 +109,8 @@ function ProjectDetail() {
         status: project.status || 'active',
         unitPrice: project.unitPrice?.toString() || '',
         conditions: project.conditions || '',
-        periodStart: project.periodStart ? formatDateInput(new Date(project.periodStart)) : '',
-        periodEnd: project.periodEnd ? formatDateInput(new Date(project.periodEnd)) : '',
+        periodStart: project.periodStart ? formatDateInput(project.periodStart) : '',
+        periodEnd: project.periodEnd ? formatDateInput(project.periodEnd) : '',
         ownerId: project.ownerId || '',
       })
     }
@@ -160,8 +160,8 @@ function ProjectDetail() {
         status: project.status || 'active',
         unitPrice: project.unitPrice?.toString() || '',
         conditions: project.conditions || '',
-        periodStart: project.periodStart ? formatDateInput(new Date(project.periodStart)) : '',
-        periodEnd: project.periodEnd ? formatDateInput(new Date(project.periodEnd)) : '',
+        periodStart: project.periodStart ? formatDateInput(project.periodStart) : '',
+        periodEnd: project.periodEnd ? formatDateInput(project.periodEnd) : '',
         ownerId: project.ownerId || '',
       })
     }

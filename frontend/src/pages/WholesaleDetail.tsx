@@ -84,7 +84,7 @@ function WholesaleDetail() {
     status: data.status,
     unitPrice: data.unitPrice != null ? String(data.unitPrice) : '',
     margin: data.margin != null ? String(data.margin) : '',
-    agreedDate: data.agreedDate ? formatDateInput(new Date(data.agreedDate)) : '',
+    agreedDate: data.agreedDate ? formatDateInput(data.agreedDate) : '',
     conditions: data.conditions ?? '',
   })
 
