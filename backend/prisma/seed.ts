@@ -4,13 +4,21 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
+  console.log('=== Seed script starting ===')
+  console.log('NODE_ENV:', process.env.NODE_ENV)
+
   // 初期adminユーザーを作成（既に存在する場合はスキップ）
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com'
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
   const adminRole = (process.env.ADMIN_ROLE || 'admin') as 'admin' | 'sales' | 'ops' | 'readonly'
+
+  console.log('Admin email:', adminEmail)
+  console.log('Admin role:', adminRole)
+
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
   })
+  console.log('Existing admin found:', !!existingAdmin)
 
   const hashedPassword = await bcrypt.hash(adminPassword, 10)
   if (!existingAdmin) {
@@ -60,7 +68,11 @@ async function main() {
 }
 
 main()
+  .then(() => {
+    console.log('=== Seed script completed successfully ===')
+  })
   .catch((e) => {
+    console.error('=== Seed script failed ===')
     console.error(e)
     process.exit(1)
   })
