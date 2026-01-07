@@ -35,6 +35,42 @@ describe('RBAC middleware', () => {
     expect(response.statusCode).toBe(200)
   })
 
+  it('should return 401 when role is missing', async () => {
+    const token = fastify.jwt.sign({ userId: '123' })
+
+    fastify.get('/protected', { preHandler: requireAuth() }, async () => {
+      return { message: 'ok' }
+    })
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  it('should return 401 with invalid role', async () => {
+    const token = fastify.jwt.sign({ userId: '123', role: 'invalid-role' })
+
+    fastify.get('/protected', { preHandler: requireAuth() }, async () => {
+      return { message: 'ok' }
+    })
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(401)
+  })
+
   it('should return 401 without token', async () => {
     fastify.get('/protected', { preHandler: requireAuth() }, async () => {
       return { message: 'ok' }

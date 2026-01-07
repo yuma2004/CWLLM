@@ -90,6 +90,40 @@ describe('Auth endpoints', () => {
     expect(message).toBe('Invalid credentials')
   })
 
+  it('should return 400 with missing body fields', async () => {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: {},
+    })
+
+    expect(response.statusCode).toBe(400)
+  })
+
+  it('should return 401 with wrong password', async () => {
+    const hashedPassword = await bcrypt.hash('password123', 10)
+    const testUser = await prisma.user.create({
+      data: {
+        email: 'wrongpass@example.com',
+        password: hashedPassword,
+        role: 'admin',
+      },
+    })
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: {
+        email: 'wrongpass@example.com',
+        password: 'incorrect',
+      },
+    })
+
+    expect(response.statusCode).toBe(401)
+
+    await prisma.user.delete({ where: { id: testUser.id } })
+  })
+
   it('should logout successfully', async () => {
     const response = await fastify.inject({
       method: 'POST',

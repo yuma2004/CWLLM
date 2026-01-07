@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { Prisma, TaskStatus, TargetType } from '@prisma/client'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { requireAdmin } from '../middleware/rbac'
 import { prisma } from '../utils/prisma'
 import { parseDate } from '../utils/validation'
@@ -14,37 +16,24 @@ interface CompanyExportQuery {
 }
 
 interface TaskExportQuery {
-  status?: string
-  targetType?: string
+  status?: TaskStatus
+  targetType?: TargetType
   targetId?: string
   assigneeId?: string
   dueFrom?: string
   dueTo?: string
 }
 
-const TASK_STATUSES = new Set(Object.values(TaskStatus))
-const TARGET_TYPES = new Set(Object.values(TargetType))
-
-const normalizeTaskStatus = (value?: string) => {
-  if (value === undefined) return undefined
-  if (!TASK_STATUSES.has(value as TaskStatus)) return null
-  return value as TaskStatus
-}
-
-const normalizeTargetType = (value?: string) => {
-  if (value === undefined) return undefined
-  if (!TARGET_TYPES.has(value as TargetType)) return null
-  return value as TargetType
-}
-
 const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`
+const sanitizeCsvCell = (value: string) =>
+  /^[=+\-@]/.test(value) ? `'${value}` : value
 
 const toCsv = (rows: Array<Array<string | number | null | undefined>>) => {
   const lines = rows.map((row) =>
     row
       .map((cell) => {
         if (cell === null || cell === undefined) return '""'
-        return escapeCsv(String(cell))
+        return escapeCsv(sanitizeCsvCell(String(cell)))
       })
       .join(',')
   )
@@ -52,9 +41,22 @@ const toCsv = (rows: Array<Array<string | number | null | undefined>>) => {
 }
 
 export async function exportRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Querystring: CompanyExportQuery }>(
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
+  app.get<{ Querystring: CompanyExportQuery }>(
     '/export/companies.csv',
-    { preHandler: requireAdmin() },
+    {
+      preHandler: requireAdmin(),
+      schema: {
+        querystring: z.object({
+          from: z.string().min(1).optional(),
+          to: z.string().min(1).optional(),
+          status: z.string().min(1).optional(),
+          category: z.string().min(1).optional(),
+          ownerId: z.string().min(1).optional(),
+          tag: z.string().min(1).optional(),
+        }),
+      },
+    },
     async (request, reply) => {
       const fromDate = parseDate(request.query.from)
       const toDate = parseDate(request.query.to)
@@ -90,20 +92,30 @@ export async function exportRoutes(fastify: FastifyInstance) {
         orderBy: { createdAt: 'desc' },
       })
 
-    const csv = toCsv([
-      ['id', 'name', 'category', 'status', 'tags', 'profile', 'ownerId', 'createdAt', 'updatedAt'],
-      ...companies.map((company) => [
-        company.id,
-        company.name,
-        company.category ?? '',
-        company.status,
-        (company.tags ?? []).join(';'),
-        company.profile ?? '',
-        company.ownerId ?? '',
-        company.createdAt.toISOString(),
-        company.updatedAt.toISOString(),
-      ]),
-    ])
+      const csv = toCsv([
+        [
+          'id',
+          'name',
+          'category',
+          'status',
+          'tags',
+          'profile',
+          'ownerId',
+          'createdAt',
+          'updatedAt',
+        ],
+        ...companies.map((company) => [
+          company.id,
+          company.name,
+          company.category ?? '',
+          company.status,
+          (company.tags ?? []).join(';'),
+          company.profile ?? '',
+          company.ownerId ?? '',
+          company.createdAt.toISOString(),
+          company.updatedAt.toISOString(),
+        ]),
+      ])
 
       reply
         .header('Content-Type', 'text/csv; charset=utf-8')
@@ -112,18 +124,23 @@ export async function exportRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get<{ Querystring: TaskExportQuery }>(
+  app.get<{ Querystring: TaskExportQuery }>(
     '/export/tasks.csv',
-    { preHandler: requireAdmin() },
+    {
+      preHandler: requireAdmin(),
+      schema: {
+        querystring: z.object({
+          status: z.nativeEnum(TaskStatus).optional(),
+          targetType: z.nativeEnum(TargetType).optional(),
+          targetId: z.string().min(1).optional(),
+          assigneeId: z.string().min(1).optional(),
+          dueFrom: z.string().min(1).optional(),
+          dueTo: z.string().min(1).optional(),
+        }),
+      },
+    },
     async (request, reply) => {
-      const status = normalizeTaskStatus(request.query.status)
-      if (request.query.status !== undefined && status === null) {
-        return reply.code(400).send({ error: 'Invalid status' })
-      }
-      const targetType = normalizeTargetType(request.query.targetType)
-      if (request.query.targetType !== undefined && targetType === null) {
-        return reply.code(400).send({ error: 'Invalid targetType' })
-      }
+      const { status, targetType } = request.query
 
       const dueFrom = parseDate(request.query.dueFrom)
       const dueTo = parseDate(request.query.dueTo)
@@ -159,32 +176,32 @@ export async function exportRoutes(fastify: FastifyInstance) {
         orderBy: { createdAt: 'desc' },
       })
 
-    const csv = toCsv([
-      [
-        'id',
-        'targetType',
-        'targetId',
-        'title',
-        'description',
-        'dueDate',
-        'status',
-        'assigneeId',
-        'createdAt',
-        'updatedAt',
-      ],
-      ...tasks.map((task) => [
-        task.id,
-        task.targetType,
-        task.targetId,
-        task.title,
-        task.description ?? '',
-        task.dueDate ? task.dueDate.toISOString() : '',
-        task.status,
-        task.assigneeId ?? '',
-        task.createdAt.toISOString(),
-        task.updatedAt.toISOString(),
-      ]),
-    ])
+      const csv = toCsv([
+        [
+          'id',
+          'targetType',
+          'targetId',
+          'title',
+          'description',
+          'dueDate',
+          'status',
+          'assigneeId',
+          'createdAt',
+          'updatedAt',
+        ],
+        ...tasks.map((task) => [
+          task.id,
+          task.targetType,
+          task.targetId,
+          task.title,
+          task.description ?? '',
+          task.dueDate ? task.dueDate.toISOString() : '',
+          task.status,
+          task.assigneeId ?? '',
+          task.createdAt.toISOString(),
+          task.updatedAt.toISOString(),
+        ]),
+      ])
 
       reply
         .header('Content-Type', 'text/csv; charset=utf-8')

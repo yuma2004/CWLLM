@@ -5,6 +5,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const prismaBin = path.resolve(__dirname, '../../node_modules/.bin/prisma')
+const tsxBin = path.resolve(__dirname, '../../node_modules/.bin/tsx')
 
 const loadEnv = () => {
   // Prefer backend/.env, but also fall back to repo root .env so tests work without duplication
@@ -46,7 +48,7 @@ export default async function globalSetup() {
 
   await ensureTestDatabase(process.env.DATABASE_URL_TEST)
 
-  execSync('npx prisma migrate reset --force --skip-seed --skip-generate', {
+  execSync(`"${prismaBin}" migrate reset --force --skip-seed --skip-generate`, {
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -54,7 +56,7 @@ export default async function globalSetup() {
     },
   })
 
-  execSync('npx tsx prisma/seed.ts', {
+  execSync(`"${tsxBin}" prisma/seed.ts`, {
     stdio: 'inherit',
     env: {
       ...process.env,

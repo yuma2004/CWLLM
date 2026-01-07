@@ -6,6 +6,7 @@ import rateLimit from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { randomUUID } from 'node:crypto'
+import { Prisma } from '@prisma/client'
 import {
   ZodTypeProvider,
   jsonSchemaTransform,
@@ -17,9 +18,17 @@ import { env } from './config/env'
 import { normalizeErrorPayload } from './utils/errors'
 import { JWTUser } from './types/auth'
 import { initJobQueue } from './services/jobQueue'
+import { prisma } from './utils/prisma'
 
 const fastify = Fastify({
-  logger: true,
+  logger: {
+    redact: [
+      'req.headers.authorization',
+      'req.headers.cookie',
+      'req.cookies.token',
+      'request.cookies.token',
+    ],
+  },
   trustProxy: env.trustProxy,
   genReqId: (req) => {
     const headerId = req.headers['x-request-id']
@@ -117,7 +126,20 @@ fastify.addHook('onResponse', async (request, reply) => {
 
 fastify.setErrorHandler((error, request, reply) => {
   const user = request.user as JWTUser | undefined
-  const statusCode = error.statusCode ?? 500
+  let statusCode = error.statusCode ?? 500
+  let message = error.message || 'Request failed'
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    const codeMap: Record<string, { status: number; message: string }> = {
+      P2025: { status: 404, message: 'Not found' },
+      P2002: { status: 409, message: 'Conflict' },
+      P2003: { status: 400, message: 'Invalid relation' },
+    }
+    const mapped = codeMap[error.code]
+    if (mapped) {
+      statusCode = mapped.status
+      message = mapped.message
+    }
+  }
   request.log.error(
     {
       requestId: request.id,
@@ -130,11 +152,8 @@ fastify.setErrorHandler((error, request, reply) => {
     },
     'request failed'
   )
-  reply
-    .code(statusCode)
-    .send(
-      normalizeErrorPayload({ error: error.message || 'Internal server error' }, statusCode)
-    )
+  message = statusCode >= 500 ? 'Internal server error' : message
+  reply.code(statusCode).send(normalizeErrorPayload({ error: message }, statusCode))
 })
 
 fastify.addHook('preSerialization', async (_request, reply, payload) => {
@@ -150,6 +169,10 @@ fastify.get('/healthz', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() }
 })
 
+fastify.addHook('onClose', async () => {
+  await prisma.$disconnect()
+})
+
 const start = async () => {
   try {
     await fastify.listen({ port: env.port, host: '0.0.0.0' })
@@ -159,5 +182,23 @@ const start = async () => {
     process.exit(1)
   }
 }
+
+const shutdown = async (signal: string) => {
+  fastify.log.info({ signal }, 'received shutdown signal')
+  try {
+    await fastify.close()
+  } catch (err) {
+    fastify.log.error(err, 'failed to close fastify')
+  } finally {
+    process.exit(0)
+  }
+}
+
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM')
+})
+process.on('SIGINT', () => {
+  void shutdown('SIGINT')
+})
 
 start()

@@ -10,16 +10,24 @@ export interface AuditPayload {
 }
 
 export const logAudit = async (prisma: PrismaClient, payload: AuditPayload) => {
-  await prisma.auditLog.create({
-    data: {
-      entityType: payload.entityType,
-      entityId: payload.entityId,
-      action: payload.action,
-      userId: payload.userId ?? null,
-      changes: {
-        before: payload.before ?? null,
-        after: payload.after ?? null,
+  try {
+    await prisma.auditLog.create({
+      data: {
+        entityType: payload.entityType,
+        entityId: payload.entityId,
+        action: payload.action,
+        userId: payload.userId ?? null,
+        changes: {
+          before: payload.before ?? null,
+          after: payload.after ?? null,
+        },
       },
-    },
-  })
+    })
+  } catch (error) {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('Failed to write audit log', error)
+      return
+    }
+    throw error
+  }
 }

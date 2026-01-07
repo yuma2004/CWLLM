@@ -26,11 +26,6 @@ Chatworkの会話を企業単位で統合し、企業/案件/卸/タスク/要�
 
 ```bash
 cp env.example .env
-# .envファイルを編集して必要な値を設定
-```
-
-`DATABASE_URL_TEST` はテスト用DBの接続先です（`npm test` 実行時に使用）。
-
 2. **データベースの起動**
 
 ```bash
@@ -38,18 +33,7 @@ cd infra
 docker compose up -d
 ```
 
-3. **バックエンドのセットアップと起動**
-
-```bash
-cd backend
-npm install
-npm run migrate:dev  # 初回のみ（DBマイグレーション）
-npm run dev
-```
-
-バックエンドは `http://localhost:3000` で起動します。
-
-本番反映時は `npm run migrate:deploy` を利用します。
+Dockerで起動する場合は `RUN_MIGRATIONS=true` を指定すると起動時にマイグレーションが実行されます。
 
 4. **フロントエンドのセットアップと起動**
 
@@ -63,17 +47,24 @@ npm run dev
 
 ## 開発
 
-### テスト実行
 
-```bash
-# バックエンド
-cd backend
-npm test
 
 # フロントエンド
 cd frontend
 npm test
 ```
+
+
+### シード実行
+
+起動時の自動シードは無効です。必要な場合のみ実行してください。
+
+```bash
+cd backend
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=your-strong-password npm run seed
+```
+
+Dockerの場合は `RUN_SEED=true` を指定すると起動時にシードが走ります。
 
 ### リント・フォーマット
 
@@ -92,6 +83,33 @@ npm run format
 ## ドキュメント
 
 詳細な実装プランは `Docs/実装プラン.md` を参照してください。
+
+### API ドキュメント
+
+バックエンド起動後に `http://localhost:3000/api/docs` でOpenAPIを確認できます。
+
+```
+- OAPIˑ̂߁A[gʐMG[Ŏs邱Ƃ
+npm test
+```
+
+### 繝ｪ繝ｳ繝医�繝輔か繝ｼ繝槭ャ繝
+
+```bash
+# 繝舌ャ繧ｯ繧ｨ繝ｳ繝
+cd backend
+npm run lint
+npm run format
+
+# 繝輔Ο繝ｳ繝医お繝ｳ繝
+cd frontend
+npm run lint
+npm run format
+```
+
+## 繝峨く繝･繝｡繝ｳ繝
+
+隧ｳ邏ｰ縺ｪ螳溯｣��繝ｩ繝ｳ縺ｯ `Docs/螳溯｣��繝ｩ繝ｳ.md` 繧貞盾辣ｧ縺励※縺上□縺輔＞縲
 
 ## Production (Docker)
 
@@ -131,14 +149,14 @@ PowerShell helper:
 pwsh infra/scripts/restore.ps1 -DatabaseUrl $env:DATABASE_URL -BackupPath backup.dump
 ```
 
-## E2E�i��API�j
+## E2E（実API）
 
 ```bash
 cd frontend
 npm run test:e2e
 ```
 
-- `.env` �� `CHATWORK_API_TOKEN` / `CHATWORK_API_BASE_URL` ���g�p
-- `DATABASE_URL_TEST`�i���ݒ�Ȃ� `DATABASE_URL`�j�� migrate/seed �����s
-- `ADMIN_EMAIL` / `ADMIN_PASSWORD` ���g���ă��O�C��
-- �O��API�ˑ��̂��߁A���[�g������ʐM�G���[�Ŏ��s���邱�Ƃ���
+- `.env` の `CHATWORK_API_TOKEN` / `CHATWORK_API_BASE_URL` を使用
+- `DATABASE_URL_TEST`（未設定なら `DATABASE_URL`）で migrate/seed を実行
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` を使ってログイン
+- 外部API依存のため、レート制限や通信エラーで失敗することあり
