@@ -12,24 +12,75 @@ type ModalProps = {
 const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalProps) => {
   const dialogId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+  const previousOverflowRef = useRef<string>('')
+
+  const getFocusableElements = (container: HTMLElement) =>
+    Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.tabIndex >= 0 && !element.hasAttribute('disabled'))
 
   useEffect(() => {
     if (!isOpen) return
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    previousOverflowRef.current = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         onClose()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const container = containerRef.current
+      if (!container) return
+
+      const focusableElements = getFocusableElements(container)
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        container.focus()
+        return
+      }
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+      const activeElement = document.activeElement
+
+      if (activeElement && !container.contains(activeElement)) {
+        event.preventDefault()
+        if (event.shiftKey) {
+          lastElement.focus()
+        } else {
+          firstElement.focus()
+        }
+        return
+      }
+
+      if (event.shiftKey) {
+        if (activeElement === firstElement || activeElement === container) {
+          event.preventDefault()
+          lastElement.focus()
+        }
+      } else if (activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
+    document.addEventListener('keydown', handleKeyDown)
+    containerRef.current?.focus()
 
-  useEffect(() => {
-    if (isOpen) {
-      containerRef.current?.focus()
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflowRef.current
+      previousFocusRef.current?.focus()
     }
-  }, [isOpen])
+  }, [isOpen, onClose])
 
   if (!isOpen) return null
 
