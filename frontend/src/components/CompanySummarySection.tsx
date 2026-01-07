@@ -9,12 +9,42 @@ import { JobRecord, Summary, SummaryCandidate, SummaryDraft } from '../types'
 import { formatDate, formatDateInput } from '../utils/date'
 
 const formatPeriod = (start: string, end: string) => `${formatDate(start)} - ${formatDate(end)}`
+const useLegacyPeriodConversion = import.meta.env.VITE_SUMMARY_PERIOD_USE_LEGACY === 'true'
+const usePeriodEndOfDay = import.meta.env.VITE_SUMMARY_PERIOD_END_OF_DAY === 'true'
 
 const getStartDateFromDays = (days: number) => {
   const start = new Date()
   const diff = Math.max(days - 1, 0)
   start.setDate(start.getDate() - diff)
   return start
+}
+
+const parseDateInput = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map((item) => Number(item))
+  if (!year || !month || !day) return null
+  return { year, month, day }
+}
+
+const getUtcTimestampFromDateInput = (value: string) => {
+  const parsed = parseDateInput(value)
+  if (!parsed) return null
+  return Date.UTC(parsed.year, parsed.month - 1, parsed.day)
+}
+
+const toUtcIsoFromDateInput = (value: string, options?: { endOfDay?: boolean }) => {
+  if (useLegacyPeriodConversion) {
+    return new Date(value).toISOString()
+  }
+  const parsed = parseDateInput(value)
+  if (!parsed) return null
+  const hours = options?.endOfDay ? 23 : 0
+  const minutes = options?.endOfDay ? 59 : 0
+  const seconds = options?.endOfDay ? 59 : 0
+  const milliseconds = options?.endOfDay ? 999 : 0
+  return new Date(
+    Date.UTC(parsed.year, parsed.month - 1, parsed.day, hours, minutes, seconds, milliseconds)
+  ).toISOString()
 }
 
 type DraftResponse = {
@@ -201,14 +231,46 @@ function CompanySummarySection({
     }
   }, [draftJobId, refetchDraftJob, showToast])
 
+  const getPeriodValidationError = () => {
+    if (!periodStart || !periodEnd) {
+      return '期間を入力してください'
+    }
+    const startUtc = getUtcTimestampFromDateInput(periodStart)
+    const endUtc = getUtcTimestampFromDateInput(periodEnd)
+    if (startUtc === null || endUtc === null) {
+      return '期間を正しい形式で入力してください'
+    }
+    if (startUtc > endUtc) {
+      return '開始日は終了日以前に設定してください'
+    }
+    return null
+  }
+
+  const buildPeriodPayload = () => {
+    const validationError = getPeriodValidationError()
+    if (validationError) {
+      setDraftError(validationError)
+      return null
+    }
+    const startIso = toUtcIsoFromDateInput(periodStart)
+    const endIso = toUtcIsoFromDateInput(periodEnd, { endOfDay: usePeriodEndOfDay })
+    if (!startIso || !endIso) {
+      setDraftError('期間の変換に失敗しました')
+      return null
+    }
+    return { periodStart: startIso, periodEnd: endIso }
+  }
+
   const handleGenerateDraft = async () => {
-    setDraftLoading(true)
     setDraftError('')
+    const payload = buildPeriodPayload()
+    if (!payload) return
+    setDraftLoading(true)
     try {
       const data = await generateDraft(
         {
-          periodStart: new Date(periodStart).toISOString(),
-          periodEnd: new Date(periodEnd).toISOString(),
+          periodStart: payload.periodStart,
+          periodEnd: payload.periodEnd,
         },
         { errorMessage: '要約生成に失敗しました' }
       )
@@ -255,13 +317,15 @@ function CompanySummarySection({
       setDraftError('Summary content is required')
       return
     }
+    const payload = buildPeriodPayload()
+    if (!payload) return
     try {
       await saveSummary(
         {
           content: draftContent.trim(),
           type: draftType,
-          periodStart: new Date(periodStart).toISOString(),
-          periodEnd: new Date(periodEnd).toISOString(),
+          periodStart: payload.periodStart,
+          periodEnd: payload.periodEnd,
           sourceLinks: draftSourceLinks,
           model: draftMeta?.model,
           promptVersion: draftMeta?.promptVersion,
