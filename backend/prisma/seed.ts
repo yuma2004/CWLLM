@@ -7,7 +7,7 @@ async function main() {
   // 初期adminユーザーを作成（既に存在する場合はスキップ）
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com'
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
-  const adminRole = process.env.ADMIN_ROLE || 'admin'
+  const adminRole = (process.env.ADMIN_ROLE || 'admin') as 'admin' | 'sales' | 'ops' | 'readonly'
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
   })
