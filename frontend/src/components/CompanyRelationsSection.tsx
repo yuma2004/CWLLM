@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import StatusBadge from './ui/StatusBadge'
-import { WHOLESALE_STATUS_LABELS } from '../constants'
+import { PROJECT_STATUS_LABELS, WHOLESALE_STATUS_LABELS } from '../constants'
 import { formatDate } from '../utils/date'
+import { formatCurrency } from '../utils/format'
 import { useFetch } from '../hooks/useApi'
 import { Project, Wholesale } from '../types'
 
@@ -25,11 +26,6 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
   const projects = projectsData?.projects ?? []
   const wholesales = wholesalesData?.wholesales ?? []
   const errorMessage = projectsError || wholesalesError
-
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) return null
-    return `¥${value.toLocaleString()}`
-  }
 
   const hasError = useMemo(() => Boolean(errorMessage), [errorMessage])
 
@@ -56,28 +52,26 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
               projects.map((project) => {
                 const projectStatus = project.status ?? ''
                 return (
-                <div
-                  key={project.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm"
-                >
+                  <div
+                    key={project.id}
+                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm"
+                  >
                     <div className="flex-1">
                       <div className="font-semibold text-slate-900">{project.name}</div>
                       <div className="mt-1">
                         <StatusBadge
-                          status={
-                            WHOLESALE_STATUS_LABELS[projectStatus] || project.status || '-'
-                          }
+                          status={PROJECT_STATUS_LABELS[projectStatus] || project.status || '-'}
                           size="sm"
                         />
                       </div>
                     </div>
-                  <Link
-                    to={`/projects/${project.id}`}
-                    className="text-xs font-semibold text-sky-600 hover:text-sky-700"
-                  >
-                    詳細
-                  </Link>
-                </div>
+                    <Link
+                      to={`/projects/${project.id}`}
+                      className="text-xs font-semibold text-sky-600 hover:text-sky-700"
+                    >
+                      詳細
+                    </Link>
+                  </div>
                 )
               })
             )}
@@ -122,7 +116,7 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
                     />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                    {formatCurrency(wholesale.unitPrice) && (
+                    {wholesale.unitPrice != null && (
                       <span>単価: {formatCurrency(wholesale.unitPrice)}</span>
                     )}
                     {wholesale.margin != null && (
