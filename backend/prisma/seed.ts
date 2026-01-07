@@ -12,8 +12,8 @@ async function main() {
     where: { email: adminEmail },
   })
 
+  const hashedPassword = await bcrypt.hash(adminPassword, 10)
   if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash(adminPassword, 10)
     await prisma.user.create({
       data: {
         email: adminEmail,
@@ -23,7 +23,12 @@ async function main() {
     })
     console.log('Created admin user:', adminEmail)
   } else {
-    console.log('Admin user already exists')
+    // パスワードを更新（bcrypt→bcryptjs移行対応）
+    await prisma.user.update({
+      where: { email: adminEmail },
+      data: { password: hashedPassword },
+    })
+    console.log('Updated admin user password:', adminEmail)
   }
 
   // テスト用ユーザー（開発環境のみ）
