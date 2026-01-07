@@ -18,6 +18,15 @@ export type WholesalesFilters = {
   status: string
   projectId: string
   companyId: string
+  unitPriceMin: string
+  unitPriceMax: string
+}
+
+export type ProjectsFilters = {
+  q: string
+  status: string
+  companyId: string
+  ownerId: string
 }
 
 export type ExportCompanyFilters = {

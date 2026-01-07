@@ -9,6 +9,16 @@ export const TASK_STATUS_LABELS: Record<string, string> = {
   cancelled: 'キャンセル',
 }
 
+// 案件ステータス
+export const PROJECT_STATUS_OPTIONS = ['active', 'paused', 'closed'] as const
+export type ProjectStatus = (typeof PROJECT_STATUS_OPTIONS)[number]
+
+export const PROJECT_STATUS_LABELS: Record<string, string> = {
+  active: '稼働中',
+  paused: '停止中',
+  closed: '終了',
+}
+
 // 卸ステータス
 export const WHOLESALE_STATUS_OPTIONS = ['active', 'paused', 'closed'] as const
 export type WholesaleStatus = (typeof WHOLESALE_STATUS_OPTIONS)[number]

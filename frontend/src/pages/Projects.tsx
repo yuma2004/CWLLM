@@ -1,63 +1,137 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import CompanySearchSelect from '../components/CompanySearchSelect'
-import Pagination from '../components/ui/Pagination'
+import ErrorAlert from '../components/ui/ErrorAlert'
+import FilterBadge from '../components/ui/FilterBadge'
+import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
+import FormTextarea from '../components/ui/FormTextarea'
+import Pagination from '../components/ui/Pagination'
+import { SkeletonTable } from '../components/ui/Skeleton'
+import StatusBadge from '../components/ui/StatusBadge'
 import { usePermissions } from '../hooks/usePermissions'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { useFilters } from '../hooks/useFilters'
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { usePagination } from '../hooks/usePagination'
-import { ApiListResponse, Project } from '../types'
+import { PROJECT_STATUS_OPTIONS, PROJECT_STATUS_LABELS } from '../constants/labels'
+import { ApiListResponse, Project, ProjectsFilters, User } from '../types'
+import { formatCurrency } from '../utils/format'
+
+type ProjectCreatePayload = {
+  companyId: string
+  name: string
+  status?: string
+  unitPrice?: number
+  conditions?: string
+  periodStart?: string
+  periodEnd?: string
+  ownerId?: string
+}
+
+const defaultFilters: ProjectsFilters = {
+  q: '',
+  status: '',
+  companyId: '',
+  ownerId: '',
+}
 
 function Projects() {
   const { canWrite } = usePermissions()
   const location = useLocation()
   const navigate = useNavigate()
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState('')
+  const [showCreateForm, setShowCreateForm] = useState(false)
   const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const initialQuery = initialParams.get('q') ?? ''
-  const initialSortParam = initialParams.get('sort') ?? 'createdAt'
-  const initialSort = ['createdAt', 'updatedAt', 'status', 'name'].includes(initialSortParam)
-    ? initialSortParam
-    : 'createdAt'
   const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
   const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
-  const [query, setQuery] = useState(initialQuery)
-  const [sort, setSort] = useState(initialSort)
-  const [form, setForm] = useState({ companyId: '', name: '' })
-  const [formError, setFormError] = useState('')
+
+  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters } =
+    useFilters(defaultFilters)
   const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
     usePagination(initialPageSize)
-  const debouncedQuery = useDebouncedValue(query, 300)
+  const debouncedQuery = useDebouncedValue(filters.q, 300)
+
+  const [form, setForm] = useState({
+    companyId: '',
+    name: '',
+    status: 'active',
+    unitPrice: '',
+    conditions: '',
+    periodStart: '',
+    periodEnd: '',
+    ownerId: '',
+  })
+
+  const { data: usersData } = useFetch<{ users: User[] }>('/api/users', {
+    cacheTimeMs: 30_000,
+  })
+  const userOptions = usersData?.users ?? []
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams(paginationQuery)
     if (debouncedQuery.trim()) params.set('q', debouncedQuery.trim())
-    if (sort) params.set('sort', sort)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.companyId) params.set('companyId', filters.companyId)
+    if (filters.ownerId) params.set('ownerId', filters.ownerId)
     return params.toString()
-  }, [debouncedQuery, paginationQuery, sort])
+  }, [debouncedQuery, filters.status, filters.companyId, filters.ownerId, paginationQuery])
 
   const {
     data: projectsData,
     isLoading: isLoadingProjects,
-    error: fetchError,
     refetch: refetchProjects,
   } = useFetch<ApiListResponse<Project>>(`/api/projects?${queryString}`, {
-    errorMessage: 'ネットワークエラー',
+    errorMessage: '案件一覧の取得に失敗しました',
+    onStart: () => setError(''),
     onSuccess: (data) => {
       setPagination((prev) => ({ ...prev, ...data.pagination }))
     },
+    onError: setError,
   })
 
   const projects = projectsData?.items ?? []
 
+  const { mutate: createProject, isLoading: isCreating } = useMutation<
+    { project: Project },
+    ProjectCreatePayload
+  >('/api/projects', 'POST')
+
+  const shortcuts = useMemo(
+    () => [
+      {
+        key: '/',
+        handler: () => searchInputRef.current?.focus(),
+        preventDefault: true,
+        ctrlKey: false,
+        metaKey: false,
+      },
+      {
+        key: 'n',
+        handler: () => setShowCreateForm(true),
+        preventDefault: true,
+        ctrlKey: false,
+        metaKey: false,
+        enabled: canWrite,
+      },
+    ],
+    [canWrite]
+  )
+
+  useKeyboardShortcut(shortcuts)
+
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    setQuery(params.get('q') ?? '')
-    const nextSortParam = params.get('sort') ?? 'createdAt'
-    const nextSort = ['createdAt', 'updatedAt', 'status', 'name'].includes(nextSortParam)
-      ? nextSortParam
-      : 'createdAt'
-    setSort(nextSort)
+    const nextFilters = {
+      ...defaultFilters,
+      q: params.get('q') ?? '',
+      status: params.get('status') ?? '',
+      companyId: params.get('companyId') ?? '',
+      ownerId: params.get('ownerId') ?? '',
+    }
+    setFilters(nextFilters)
     const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
     const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
     setPagination((prev) => ({
@@ -65,12 +139,14 @@ function Projects() {
       page: nextPage,
       pageSize: nextPageSize,
     }))
-  }, [initialPage, initialPageSize, location.search, setPagination])
+  }, [initialPage, initialPageSize, location.search, setFilters, setPagination])
 
   useEffect(() => {
     const params = new URLSearchParams()
     if (debouncedQuery.trim()) params.set('q', debouncedQuery.trim())
-    if (sort) params.set('sort', sort)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.companyId) params.set('companyId', filters.companyId)
+    if (filters.ownerId) params.set('ownerId', filters.ownerId)
     params.set('page', String(pagination.page))
     params.set('pageSize', String(pagination.pageSize))
     const nextSearch = params.toString()
@@ -78,110 +154,429 @@ function Projects() {
     if (nextSearch !== currentSearch) {
       navigate({ pathname: '/projects', search: nextSearch }, { replace: true })
     }
-  }, [debouncedQuery, location.search, navigate, pagination.page, pagination.pageSize, sort])
+  }, [
+    debouncedQuery,
+    filters.status,
+    filters.companyId,
+    filters.ownerId,
+    location.search,
+    navigate,
+    pagination.page,
+    pagination.pageSize,
+  ])
 
-  const { mutate: createProject, isLoading: isCreating } = useMutation<
-    { project: Project },
-    { companyId: string; name: string }
-  >('/api/projects', 'POST')
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    setPage(1)
+  }
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()
-    setFormError('')
+    setError('')
     if (!form.companyId.trim() || !form.name.trim()) {
-      setFormError('企業IDと案件名は必須です')
+      setError('企業と案件名は必須です')
       return
     }
     try {
-      await createProject(
-        {
-          companyId: form.companyId.trim(),
-          name: form.name.trim(),
-        },
-        { errorMessage: 'ネットワークエラー' }
-      )
-      setForm({ companyId: '', name: '' })
+      const payload: ProjectCreatePayload = {
+        companyId: form.companyId.trim(),
+        name: form.name.trim(),
+      }
+      if (form.status) payload.status = form.status
+      if (form.unitPrice) payload.unitPrice = Number(form.unitPrice)
+      if (form.conditions.trim()) payload.conditions = form.conditions.trim()
+      if (form.periodStart) payload.periodStart = form.periodStart
+      if (form.periodEnd) payload.periodEnd = form.periodEnd
+      if (form.ownerId) payload.ownerId = form.ownerId
+
+      await createProject(payload, { errorMessage: '案件の作成に失敗しました' })
+      setForm({
+        companyId: '',
+        name: '',
+        status: 'active',
+        unitPrice: '',
+        conditions: '',
+        periodStart: '',
+        periodEnd: '',
+        ownerId: '',
+      })
+      setShowCreateForm(false)
       void refetchProjects(undefined, { ignoreCache: true })
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
+      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
+  }
+
+  const handleClearFilter = (key: keyof ProjectsFilters) => {
+    clearFilter(key)
+    setPage(1)
+  }
+
+  const handleClearAllFilters = () => {
+    clearAllFilters()
+    setPage(1)
+  }
+
+  const getCompanyName = (companyId: string) => {
+    const project = projects.find((p) => p.companyId === companyId)
+    return project?.company?.name ?? companyId
+  }
+
+  const getOwnerName = (ownerId: string) => {
+    const user = userOptions.find((u) => u.id === ownerId)
+    return user?.email ?? ownerId
   }
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <div>
-        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Project</p>
-        <h2 className="text-3xl font-bold text-slate-900">案件管理</h2>
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Project</p>
+          <h2 className="text-3xl font-bold text-slate-900">案件管理</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-slate-500">
+            登録数: <span className="font-semibold text-slate-700">{pagination.total}</span>
+          </span>
+          {canWrite && (
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              案件を追加
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap gap-2 text-xs">
-          <input
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="案件名で検索"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value)
-              setPage(1)
-            }}
-          />
+      {/* Search & Filter */}
+      <form
+        onSubmit={handleSearchSubmit}
+        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+      >
+        <div className="grid gap-3 md:grid-cols-5">
+          <div className="relative md:col-span-2">
+            <svg
+              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              ref={searchInputRef}
+              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              placeholder="案件名で検索 (/ で移動)"
+              value={filters.q}
+              onChange={(event) => {
+                setFilters({ ...filters, q: event.target.value })
+                setPage(1)
+              }}
+            />
+          </div>
           <FormSelect
-            value={sort}
+            value={filters.status}
             onChange={(event) => {
-              setSort(event.target.value)
+              setFilters({ ...filters, status: event.target.value })
               setPage(1)
             }}
           >
-            <option value="createdAt">作成日</option>
-            <option value="updatedAt">更新日</option>
-            <option value="status">ステータス</option>
-            <option value="name">名前</option>
+            <option value="">ステータス</option>
+            {PROJECT_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {PROJECT_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </FormSelect>
+          <FormSelect
+            value={filters.ownerId}
+            onChange={(event) => {
+              setFilters({ ...filters, ownerId: event.target.value })
+              setPage(1)
+            }}
+          >
+            <option value="">担当者</option>
+            {userOptions.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.email}
+              </option>
+            ))}
           </FormSelect>
           <button
-            type="button"
-            onClick={() => {
-              setPage(1)
-              void refetchProjects(undefined, { ignoreCache: true })
-            }}
-            className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white"
+            type="submit"
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
           >
             検索
           </button>
         </div>
-      </div>
 
-      {fetchError && (
-        <div className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{fetchError}</div>
-      )}
-
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        {isLoadingProjects ? (
-          <div className="text-sm text-slate-500">案件を読み込み中...</div>
-        ) : projects.length === 0 ? (
-          <div className="text-sm text-slate-500">案件はありません。</div>
-        ) : (
-          <div className="space-y-3">
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm"
-              >
-                <div>
-                  <div className="font-semibold text-slate-900">{project.name}</div>
-                  <div className="text-xs text-slate-500">{project.status}</div>
-                </div>
-                <Link
-                  to={`/projects/${project.id}`}
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                >
-                  詳細へ
-                </Link>
-              </div>
-            ))}
+        {/* Active Filters */}
+        {hasActiveFilters && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-500">絞り込み中:</span>
+            {filters.q && (
+              <FilterBadge label={`検索: ${filters.q}`} onRemove={() => handleClearFilter('q')} />
+            )}
+            {filters.status && (
+              <FilterBadge
+                label={`ステータス: ${PROJECT_STATUS_LABELS[filters.status] || filters.status}`}
+                onRemove={() => handleClearFilter('status')}
+              />
+            )}
+            {filters.companyId && (
+              <FilterBadge
+                label={`企業: ${getCompanyName(filters.companyId)}`}
+                onRemove={() => handleClearFilter('companyId')}
+              />
+            )}
+            {filters.ownerId && (
+              <FilterBadge
+                label={`担当者: ${getOwnerName(filters.ownerId)}`}
+                onRemove={() => handleClearFilter('ownerId')}
+              />
+            )}
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="text-xs text-rose-600 hover:text-rose-700"
+            >
+              すべてクリア
+            </button>
           </div>
         )}
-      </div>
+      </form>
 
+      {/* Create Form (Collapsible) */}
+      {canWrite && showCreateForm && (
+        <div className="animate-fade-up rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-900">案件を追加</h3>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(false)}
+              className="text-slate-400 transition-colors hover:text-slate-600"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form onSubmit={handleCreate} className="space-y-4">
+            {/* 必須項目 */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">
+                  企業 <span className="text-rose-500">*</span>
+                </label>
+                <CompanySearchSelect
+                  value={form.companyId}
+                  onChange={(companyId) => setForm({ ...form, companyId })}
+                  placeholder="企業を選択"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">
+                  案件名 <span className="text-rose-500">*</span>
+                </label>
+                <FormInput
+                  placeholder="案件名を入力"
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                />
+              </div>
+            </div>
+            {/* オプション項目 */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">ステータス</label>
+                <FormSelect
+                  value={form.status}
+                  onChange={(event) => setForm({ ...form, status: event.target.value })}
+                >
+                  {PROJECT_STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {PROJECT_STATUS_LABELS[status]}
+                    </option>
+                  ))}
+                </FormSelect>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">単価</label>
+                <FormInput
+                  type="number"
+                  placeholder="例: 50000"
+                  value={form.unitPrice}
+                  onChange={(event) => setForm({ ...form, unitPrice: event.target.value })}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">担当者</label>
+                <FormSelect
+                  value={form.ownerId}
+                  onChange={(event) => setForm({ ...form, ownerId: event.target.value })}
+                >
+                  <option value="">未設定</option>
+                  {userOptions.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.email}
+                    </option>
+                  ))}
+                </FormSelect>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">期間開始</label>
+                <FormInput
+                  type="date"
+                  value={form.periodStart}
+                  onChange={(event) => setForm({ ...form, periodStart: event.target.value })}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">期間終了</label>
+                <FormInput
+                  type="date"
+                  value={form.periodEnd}
+                  onChange={(event) => setForm({ ...form, periodEnd: event.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">条件・備考</label>
+              <FormTextarea
+                placeholder="条件や備考を入力"
+                value={form.conditions}
+                onChange={(event) => setForm({ ...form, conditions: event.target.value })}
+                className="min-h-[80px]"
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(false)}
+                className="rounded-full px-6 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-700"
+                disabled={isCreating}
+              >
+                {isCreating ? '作成中...' : '追加'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Readonly Notice */}
+      {!canWrite && (
+        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+          閲覧専用ロールのため、案件の追加・編集はできません。
+        </div>
+      )}
+
+      {/* Error */}
+      <ErrorAlert message={error} onClose={() => setError('')} />
+
+      {/* Table */}
+      {isLoadingProjects ? (
+        <SkeletonTable rows={5} columns={5} />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-slate-100 text-sm">
+            <thead className="bg-slate-50/80 text-left text-xs uppercase tracking-wider text-slate-500">
+              <tr>
+                <th className="px-5 py-3">案件名</th>
+                <th className="px-5 py-3">企業</th>
+                <th className="px-5 py-3">ステータス</th>
+                <th className="px-5 py-3">単価</th>
+                <th className="px-5 py-3">担当者</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {projects.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <svg
+                        className="h-12 w-12 text-slate-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      <p className="text-slate-500">案件がまだ登録されていません</p>
+                      {canWrite && (
+                        <button
+                          onClick={() => setShowCreateForm(true)}
+                          className="mt-2 text-sm text-sky-600 hover:text-sky-700"
+                        >
+                          最初の案件を追加する
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                projects.map((project) => (
+                  <tr key={project.id} className="group transition-colors hover:bg-slate-50/80">
+                    <td className="px-5 py-4">
+                      <Link
+                        to={`/projects/${project.id}`}
+                        className="font-semibold text-slate-900 group-hover:text-sky-600"
+                      >
+                        {project.name}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-4">
+                      {project.company ? (
+                        <Link
+                          to={`/companies/${project.companyId}`}
+                          className="text-slate-600 hover:text-sky-600"
+                        >
+                          {project.company.name}
+                        </Link>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusBadge status={project.status ?? 'active'} size="sm" />
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {project.unitPrice ? formatCurrency(project.unitPrice) : '-'}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {project.owner?.email ?? '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
       {pagination.total > 0 && (
         <Pagination
           page={pagination.page}
@@ -192,45 +587,16 @@ function Projects() {
         />
       )}
 
-      {canWrite ? (
-        <form
-          onSubmit={handleCreate}
-          className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h3 className="text-lg font-semibold text-slate-900">案件を作成</h3>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <CompanySearchSelect
-              value={form.companyId}
-              onChange={(companyId) => setForm({ ...form, companyId })}
-              placeholder="企業名で検索"
-            />
-            <input
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="案件名"
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-            />
-          </div>
-          {formError && (
-            <div className="mt-3 rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">
-              {formError}
-            </div>
-          )}
-          <div className="mt-4 flex justify-end">
-            <button
-              type="submit"
-              className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white"
-              disabled={isCreating}
-            >
-              {isCreating ? '作成中...' : '作成'}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-          案件を作成するには書き込み権限が必要です。
-        </div>
-      )}
+      {/* Keyboard Shortcuts Hint */}
+      <div className="text-center text-xs text-slate-400">
+        <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">/</kbd> 検索
+        {canWrite && (
+          <>
+            {' '}
+            <kbd className="ml-2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">n</kbd> 新規追加
+          </>
+        )}
+      </div>
     </div>
   )
 }

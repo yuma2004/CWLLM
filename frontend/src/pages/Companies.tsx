@@ -136,15 +136,11 @@ function Companies() {
 
   // 標準候補とAPIから取得した候補をマージ
   const mergedCategories = useMemo(() => {
-    const defaultSet = new Set(COMPANY_CATEGORY_DEFAULT_OPTIONS)
-    const apiSet = new Set(options.categories)
     // 標準候補を先に、その後APIから取得した候補を追加（重複を除去）
     return Array.from(new Set([...COMPANY_CATEGORY_DEFAULT_OPTIONS, ...options.categories])).sort()
   }, [options.categories])
 
   const mergedStatuses = useMemo(() => {
-    const defaultSet = new Set(COMPANY_STATUS_DEFAULT_OPTIONS)
-    const apiSet = new Set(options.statuses)
     // 標準候補を先に、その後APIから取得した候補を追加（重複を除去）
     return Array.from(new Set([...COMPANY_STATUS_DEFAULT_OPTIONS, ...options.statuses])).sort()
   }, [options.statuses])

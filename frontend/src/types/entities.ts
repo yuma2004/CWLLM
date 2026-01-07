@@ -80,8 +80,19 @@ export interface Project {
     id: string
     name: string
   }
+  owner?: {
+    id: string
+    email: string
+  } | null
   createdAt?: string
   updatedAt?: string
+}
+
+// User 型
+export interface User {
+  id: string
+  email: string
+  role?: string
 }
 
 export interface ChatworkRoom {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { usePermissions } from '../hooks/usePermissions'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
@@ -8,6 +9,7 @@ import FormSelect from '../components/ui/FormSelect'
 import StatusBadge from '../components/ui/StatusBadge'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
+import KanbanBoard from '../components/KanbanBoard'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
@@ -52,6 +54,7 @@ function Tasks() {
   const [bulkAssigneeId, setBulkAssigneeId] = useState('')
   const [bulkDueDate, setBulkDueDate] = useState('')
   const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams(paginationQuery)
@@ -96,6 +99,11 @@ function Tasks() {
     { updated: number },
     { taskIds: string[]; status?: string; assigneeId?: string | null; dueDate?: string | null }
   >('/api/tasks/bulk', 'PATCH')
+
+  const { mutate: deleteTask, isLoading: isDeleting } = useMutation<void, void>(
+    '/api/tasks',
+    'DELETE'
+  )
 
   const { data: userOptionsData } = useFetch<{
     users: Array<{ id: string; email: string; role: string }>
@@ -320,6 +328,21 @@ function Tasks() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!deleteTarget || !canWrite) return
+    setError('')
+    try {
+      await deleteTask(undefined, {
+        url: `/api/tasks/${deleteTarget.id}`,
+        errorMessage: 'タスクの削除に失敗しました',
+      })
+      setDeleteTarget(null)
+      void refetchTasks()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'タスクの削除に失敗しました')
+    }
+  }
+
   const allSelected = tasks.length > 0 && selectedIds.length === tasks.length
 
   const toggleSelectAll = () => {
@@ -368,31 +391,6 @@ function Tasks() {
     return `/wholesales/${task.targetId}`
   }
 
-  const kanbanColumns = useMemo(
-    () => [
-      { key: 'todo', label: TASK_STATUS_LABELS.todo },
-      { key: 'in_progress', label: TASK_STATUS_LABELS.in_progress },
-      { key: 'done', label: TASK_STATUS_LABELS.done },
-      { key: 'cancelled', label: TASK_STATUS_LABELS.cancelled },
-    ],
-    []
-  )
-
-  const tasksByStatus = useMemo(() => {
-    const groups: Record<string, Task[]> = {
-      todo: [],
-      in_progress: [],
-      done: [],
-      cancelled: [],
-    }
-    tasks.forEach((task) => {
-      if (groups[task.status]) {
-        groups[task.status].push(task)
-      }
-    })
-    return groups
-  }, [tasks])
-
   return (
     <div className="space-y-6 animate-fade-up">
       {/* Header */}
@@ -415,14 +413,14 @@ function Tasks() {
             onClick={() => handleScopeChange('me')}
             className={`rounded-full px-3 py-1 ${scope === 'me' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
           >
-            My Tasks
+            マイタスク
           </button>
           <button
             type="button"
             onClick={() => handleScopeChange('all')}
             className={`rounded-full px-3 py-1 ${scope === 'all' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
           >
-            All Tasks
+            すべてのタスク
           </button>
         </div>
         <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold text-slate-600 shadow-sm">
@@ -431,14 +429,14 @@ function Tasks() {
             onClick={() => setViewMode('list')}
             className={`rounded-full px-3 py-1 ${viewMode === 'list' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
           >
-            List
+            リスト
           </button>
           <button
             type="button"
             onClick={() => setViewMode('kanban')}
             className={`rounded-full px-3 py-1 ${viewMode === 'kanban' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
           >
-            Kanban
+            カンバン
           </button>
         </div>
       </div>
@@ -489,7 +487,7 @@ function Tasks() {
               value={filters.assigneeId}
               onChange={(e) => setFilters({ ...filters, assigneeId: e.target.value })}
             >
-              <option value="">Assignee</option>
+              <option value="">担当者</option>
               {userOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.email}
@@ -535,7 +533,7 @@ function Tasks() {
             )}
             {filters.assigneeId && (
               <FilterBadge
-                label={`Assignee: ${userOptions.find((option) => option.id === filters.assigneeId)?.email || filters.assigneeId}`}
+                label={`担当者: ${userOptions.find((option) => option.id === filters.assigneeId)?.email || filters.assigneeId}`}
                 onRemove={() => handleClearFilter('assigneeId')}
               />
             )}
@@ -561,14 +559,14 @@ function Tasks() {
                 className="rounded border-slate-300"
                 disabled={isBulkUpdating}
               />
-              Select all
+              すべて選択
             </label>
-            <span>{selectedIds.length} selected</span>
+            <span>{selectedIds.length}件選択中</span>
             <FormSelect
               value={bulkStatus}
               onChange={(e) => setBulkStatus(e.target.value)}
             >
-              <option value="">Status</option>
+              <option value="">ステータス</option>
               {TASK_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
                   {TASK_STATUS_LABELS[status]}
@@ -622,6 +620,18 @@ function Tasks() {
         </div>
       )}
 
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="タスクの削除"
+        description={`「${deleteTarget?.title}」を削除しますか？この操作は取り消せません。`}
+        confirmLabel="削除"
+        cancelLabel="キャンセル"
+        isLoading={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
       {/* Error */}
       <ErrorAlert message={error} onClose={() => setError('')} />
 
@@ -642,12 +652,12 @@ function Tasks() {
                     disabled={isBulkUpdating}
                   />
                 </th>
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Target</th>
-                <th className="px-4 py-3">Due</th>
-                <th className="px-4 py-3">Assignee</th>
-                <th className="px-4 py-3">Link</th>
+                <th className="px-4 py-3">タイトル</th>
+                <th className="px-4 py-3">ステータス</th>
+                <th className="px-4 py-3">対象</th>
+                <th className="px-4 py-3">期日</th>
+                <th className="px-4 py-3">担当者</th>
+                <th className="px-4 py-3">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -668,7 +678,7 @@ function Tasks() {
                           d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
                         />
                       </svg>
-                      <p className="text-slate-500">No tasks found</p>
+                      <p className="text-slate-500">タスクがありません</p>
                     </div>
                   </td>
                 </tr>
@@ -686,7 +696,12 @@ function Tasks() {
                     </td>
                     <td className="px-4 py-4">
                       <div>
-                        <div className="font-semibold text-slate-900">{task.title}</div>
+                        <Link
+                          to={`/tasks/${task.id}`}
+                          className="font-semibold text-slate-900 hover:text-sky-600"
+                        >
+                          {task.title}
+                        </Link>
                         {task.description && (
                           <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">
                             {task.description}
@@ -746,7 +761,7 @@ function Tasks() {
                           value={task.assigneeId ?? '__unassigned__'}
                           onChange={(e) => handleAssigneeChange(task.id, e.target.value)}
                         >
-                          <option value="__unassigned__">Unassigned</option>
+                          <option value="__unassigned__">未割り当て</option>
                           {userOptions.map((option) => (
                             <option key={option.id} value={option.id}>
                               {option.email}
@@ -760,12 +775,23 @@ function Tasks() {
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <Link
-                        to={targetLink(task)}
-                        className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={targetLink(task)}
+                          className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                        >
+                          詳細
+                        </Link>
+                        {canWrite && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(task)}
+                            className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                          >
+                            削除
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -774,80 +800,14 @@ function Tasks() {
           </table>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {kanbanColumns.map((column) => (
-            <div
-              key={column.key}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-                <span>{column.label}</span>
-                <span>{tasksByStatus[column.key]?.length ?? 0}</span>
-              </div>
-              {tasksByStatus[column.key]?.length ? (
-                <div className="mt-3 space-y-3">
-                  {tasksByStatus[column.key].map((task) => (
-                    <div key={task.id} className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="text-sm font-semibold text-slate-900">{task.title}</div>
-                          {task.description && (
-                            <div className="mt-1 text-xs text-slate-500 line-clamp-2">
-                              {task.description}
-                            </div>
-                          )}
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(task.id)}
-                          onChange={() => toggleSelected(task.id)}
-                          className="rounded border-slate-300"
-                          disabled={isBulkUpdating}
-                        />
-                      </div>
-                      <div className="mt-2 text-xs text-slate-500">Due: {formatDate(task.dueDate)}</div>
-                      <Link
-                        to={targetLink(task)}
-                        className="mt-2 inline-flex text-xs font-semibold text-slate-600 hover:text-slate-900"
-                      >
-                        {task.target?.name || task.targetId}
-                      </Link>
-                      {canWrite && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <select
-                            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs"
-                            value={task.status}
-                            onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                          >
-                            {TASK_STATUS_OPTIONS.map((status) => (
-                              <option key={status} value={status}>
-                                {TASK_STATUS_LABELS[status]}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs"
-                            value={task.assigneeId ?? '__unassigned__'}
-                            onChange={(e) => handleAssigneeChange(task.id, e.target.value)}
-                          >
-                            <option value="__unassigned__">Unassigned</option>
-                            {userOptions.map((option) => (
-                              <option key={option.id} value={option.id}>
-                                {option.email}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-4 text-xs text-slate-400">No tasks</div>
-              )}
-            </div>
-          ))}
-        </div>
+        <KanbanBoard
+          tasks={tasks}
+          canWrite={canWrite}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelected}
+          onStatusChange={handleStatusChange}
+          disabled={isBulkUpdating}
+        />
       )}
 
       {/* Pagination */}

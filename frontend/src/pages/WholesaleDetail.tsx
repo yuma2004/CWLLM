@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
@@ -15,10 +16,12 @@ import { TASK_STATUS_LABELS, WHOLESALE_STATUS_LABELS, WHOLESALE_STATUS_OPTIONS }
 
 function WholesaleDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { canWrite } = usePermissions()
   const { pagination, setPagination, setPage, setPageSize, paginationQuery } = usePagination(10)
   const [isEditing, setIsEditing] = useState(false)
   const [formError, setFormError] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [form, setForm] = useState({
     status: '',
     unitPrice: '',
@@ -47,6 +50,11 @@ function WholesaleDetail() {
       conditions?: string | null
     }
   >('/api/wholesales', 'PATCH')
+
+  const { mutate: deleteWholesale, isLoading: isDeletingWholesale } = useMutation<void, void>(
+    '/api/wholesales',
+    'DELETE'
+  )
 
   const {
     data: tasksData,
@@ -140,6 +148,19 @@ function WholesaleDetail() {
     }
   }
 
+  const handleDeleteWholesale = async () => {
+    if (!id || !canWrite) return
+    try {
+      await deleteWholesale(undefined, {
+        url: `/api/wholesales/${id}`,
+        errorMessage: '卸情報の削除に失敗しました',
+      })
+      navigate('/wholesales')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '削除に失敗しました', 'error')
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -164,16 +185,25 @@ function WholesaleDetail() {
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-900">卸情報</h3>
           {canWrite && wholesale && !isEditing && (
-            <button
-              type="button"
-              onClick={() => {
-                setFormError('')
-                setIsEditing(true)
-              }}
-              className="text-xs font-medium text-sky-600 hover:text-sky-700"
-            >
-              編集
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setFormError('')
+                  setIsEditing(true)
+                }}
+                className="text-xs font-medium text-sky-600 hover:text-sky-700"
+              >
+                編集
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-xs font-medium text-rose-600 hover:text-rose-700"
+              >
+                削除
+              </button>
+            </div>
           )}
         </div>
         {isLoadingWholesale ? (
@@ -354,6 +384,16 @@ function WholesaleDetail() {
         total={pagination.total}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
+      />
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="卸情報の削除"
+        description={`この卸情報を削除しますか？この操作は取り消せません。`}
+        confirmLabel="削除"
+        cancelLabel="キャンセル"
+        isLoading={isDeletingWholesale}
+        onConfirm={handleDeleteWholesale}
+        onCancel={() => setShowDeleteConfirm(false)}
       />
       {toast && (
         <Toast

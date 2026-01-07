@@ -8,6 +8,7 @@ import Companies from './pages/Companies'
 import CompanyDetail from './pages/CompanyDetail'
 import ChatworkSettings from './pages/ChatworkSettings'
 import Tasks from './pages/Tasks'
+import TaskDetail from './pages/TaskDetail'
 import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
 import Wholesales from './pages/Wholesales'
@@ -27,6 +28,7 @@ const protectedRoutes: ProtectedRouteConfig[] = [
   { path: '/companies/:id', element: <CompanyDetail /> },
   { path: '/settings/chatwork', element: <ChatworkSettings />, allowedRoles: ['admin'] },
   { path: '/tasks', element: <Tasks /> },
+  { path: '/tasks/:id', element: <TaskDetail /> },
   { path: '/projects', element: <Projects /> },
   { path: '/projects/:id', element: <ProjectDetail /> },
   { path: '/wholesales', element: <Wholesales /> },
