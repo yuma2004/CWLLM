@@ -18,3 +18,7 @@ export const getCache = <T>(key: string): T | null => {
 export const setCache = <T>(key: string, value: T, ttlMs: number) => {
   cache.set(key, { value, expiresAt: Date.now() + ttlMs })
 }
+
+export const deleteCache = (key: string) => {
+  cache.delete(key)
+}

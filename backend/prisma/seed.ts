@@ -9,7 +9,7 @@ async function main() {
 
   // 初期adminユーザーを作成（既に存在する場合はスキップ）
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com'
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
+  const adminPassword = process.env.ADMIN_PASSWORD
   const adminRole = (process.env.ADMIN_ROLE || 'admin') as 'admin' | 'sales' | 'ops' | 'readonly'
 
   console.log('Admin email:', adminEmail)
@@ -20,23 +20,20 @@ async function main() {
   })
   console.log('Existing admin found:', !!existingAdmin)
 
-  const hashedPassword = await bcrypt.hash(adminPassword, 10)
   if (!existingAdmin) {
-    await prisma.user.create({
-      data: {
-        email: adminEmail,
-        password: hashedPassword,
-        role: adminRole,
-      },
-    })
-    console.log('Created admin user:', adminEmail)
-  } else {
-    // パスワードを更新（bcrypt→bcryptjs移行対応）
-    await prisma.user.update({
-      where: { email: adminEmail },
-      data: { password: hashedPassword },
-    })
-    console.log('Updated admin user password:', adminEmail)
+    if (!adminPassword) {
+      console.log('ADMIN_PASSWORD is not set. Skipping admin user creation.')
+    } else {
+      const hashedPassword = await bcrypt.hash(adminPassword, 10)
+      await prisma.user.create({
+        data: {
+          email: adminEmail,
+          password: hashedPassword,
+          role: adminRole,
+        },
+      })
+      console.log('Created admin user:', adminEmail)
+    }
   }
 
   // テスト用ユーザー（開発環境のみ）

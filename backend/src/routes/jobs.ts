@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { JobStatus, JobType, Prisma } from '@prisma/client'
+import { JobStatus, JobType, Prisma, Job } from '@prisma/client'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { requireAuth } from '../middleware/rbac'
@@ -8,9 +8,9 @@ import { JWTUser } from '../types/auth'
 import { cancelJob } from '../services/jobQueue'
 
 interface JobListQuery {
-  type?: string
-  status?: string
-  limit?: string
+  type?: JobType
+  status?: JobStatus
+  limit: number
 }
 
 const dateSchema = z.preprocess(
@@ -37,7 +37,7 @@ const jobSchema = z
 const jobListQuerySchema = z.object({
   type: z.nativeEnum(JobType).optional(),
   status: z.nativeEnum(JobStatus).optional(),
-  limit: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 const jobParamsSchema = z.object({ id: z.string().min(1) })
@@ -49,25 +49,23 @@ const jobListResponseSchema = z
   .passthrough()
 const jobResponseSchema = z.object({ job: jobSchema }).passthrough()
 
-const parseLimit = (value?: string) => {
-  const limitValue = Number(value)
-  if (!Number.isFinite(limitValue)) return 20
-  return Math.min(Math.max(Math.floor(limitValue), 1), 100)
-}
+const terminalStatuses = new Set<JobStatus>([
+  JobStatus.completed,
+  JobStatus.failed,
+  JobStatus.canceled,
+])
 
-const normalizeJobType = (value?: string) => {
-  if (value === undefined) return undefined
-  if (!Object.values(JobType).includes(value as JobType)) return null
-  return value as JobType
+const sanitizeJobError = (job: Job, isAdmin: boolean) => {
+  if (isAdmin || !job.error || typeof job.error !== 'object') return job
+  const error = job.error as { name?: unknown; message?: unknown }
+  return {
+    ...job,
+    error: {
+      name: typeof error.name === 'string' ? error.name : 'Error',
+      message: typeof error.message === 'string' ? error.message : 'Unknown error',
+    },
+  }
 }
-
-const normalizeJobStatus = (value?: string) => {
-  if (value === undefined) return undefined
-  if (!Object.values(JobStatus).includes(value as JobStatus)) return null
-  return value as JobStatus
-}
-
-const terminalStatuses = new Set<JobStatus>([JobStatus.completed, JobStatus.failed])
 
 export async function jobRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
@@ -87,14 +85,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const user = request.user as JWTUser
       const isAdmin = user.role === 'admin'
-      const type = normalizeJobType(request.query.type)
-      if (request.query.type !== undefined && type === null) {
-        return reply.code(400).send({ error: 'Invalid type' })
-      }
-      const status = normalizeJobStatus(request.query.status)
-      if (request.query.status !== undefined && status === null) {
-        return reply.code(400).send({ error: 'Invalid status' })
-      }
+      const { type, status } = request.query
 
       const where: Prisma.JobWhereInput = {}
       if (!isAdmin) {
@@ -107,14 +98,15 @@ export async function jobRoutes(fastify: FastifyInstance) {
         where.status = status
       }
 
-      const limit = parseLimit(request.query.limit)
       const jobs = await prisma.job.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        take: limit,
+        take: request.query.limit,
       })
 
-      return { jobs }
+      return {
+        jobs: jobs.map((job) => sanitizeJobError(job, isAdmin)),
+      }
     }
   )
 
@@ -143,7 +135,9 @@ export async function jobRoutes(fastify: FastifyInstance) {
         return reply.code(403).send({ error: 'Forbidden' })
       }
 
-      return { job }
+      return {
+        job: sanitizeJobError(job, user.role === 'admin'),
+      }
     }
   )
 
@@ -173,7 +167,9 @@ export async function jobRoutes(fastify: FastifyInstance) {
       }
 
       const updated = await cancelJob(request.params.id)
-      return { job: updated }
+      return {
+        job: sanitizeJobError(updated, user.role === 'admin'),
+      }
     }
   )
 }

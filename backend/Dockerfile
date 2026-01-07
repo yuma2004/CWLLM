@@ -26,12 +26,14 @@ RUN apk add --no-cache curl openssl
 ENV NODE_ENV=production
 
 COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
+COPY docker ./docker
 COPY package.json ./
 
 EXPOSE 3000
 
-# マイグレーション→シード→サーバー起動
 # --experimental-specifier-resolution=node でディレクトリインポートを許可
-CMD ["sh", "-c", "npx prisma migrate deploy && node --experimental-specifier-resolution=node dist/prisma/seed.js && node --experimental-specifier-resolution=node dist/index.js"]
+RUN chmod +x /app/docker/entrypoint.sh
+ENTRYPOINT ["/app/docker/entrypoint.sh"]

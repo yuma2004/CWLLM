@@ -1,4 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { JWTUser } from '../types/auth'
 import { env } from '../config/env'
@@ -11,10 +13,17 @@ interface LoginBody {
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
   // ログイン
-  fastify.post<{ Body: LoginBody }>(
+  app.post<{ Body: LoginBody }>(
     '/auth/login',
     {
+      schema: {
+        body: z.object({
+          email: z.string().email(),
+          password: z.string().min(1),
+        }),
+      },
       config: {
         rateLimit: {
           max: env.rateLimitMax,
@@ -56,7 +65,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   )
 
   // ログアウト
-  fastify.post('/auth/logout', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/auth/logout', async (request: FastifyRequest, reply: FastifyReply) => {
     void request
     reply.clearCookie('token', {
       path: '/',
@@ -67,7 +76,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   })
 
   // 現在のユーザー情報取得
-  fastify.get('/auth/me', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/auth/me', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify()
       const { userId } = request.user as JWTUser

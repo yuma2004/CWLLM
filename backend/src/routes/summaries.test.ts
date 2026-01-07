@@ -50,7 +50,7 @@ describe('Summary endpoints', () => {
     await prisma.company.deleteMany()
     await prisma.user.deleteMany({
       where: {
-        email: { contains: 'summary-test-' },
+        email: { contains: 'summary-' },
       },
     })
     await fastify.close()
@@ -157,5 +157,40 @@ describe('Summary endpoints', () => {
 
     const candidates = JSON.parse(candidateResponse.body).candidates
     expect(candidates.length).toBeGreaterThan(0)
+  })
+
+  it('returns 403 for readonly user when requesting draft', async () => {
+    const readonlyUser = await prisma.user.create({
+      data: {
+        email: `summary-readonly-${Date.now()}@example.com`,
+        password: 'password',
+        role: 'readonly',
+      },
+    })
+
+    const token = fastify.jwt.sign({ userId: readonlyUser.id, role: 'readonly' })
+
+    const company = await prisma.company.create({
+      data: {
+        name: 'Readonly Co',
+        normalizedName: 'readonlyco',
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/companies/${company.id}/summaries/draft`,
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        periodStart: new Date().toISOString(),
+        periodEnd: new Date().toISOString(),
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
   })
 })

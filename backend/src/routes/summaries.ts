@@ -65,7 +65,7 @@ const extractCandidates = (content: string) => {
 export async function summaryRoutes(fastify: FastifyInstance) {
   fastify.post<{ Params: { id: string }; Body: DraftBody }>(
     '/companies/:id/summaries/draft',
-    { preHandler: requireAuth() },
+    { preHandler: requireWriteAccess() },
     async (request, reply) => {
       const periodStart = parseDate(request.body.periodStart)
       const periodEnd = parseDate(request.body.periodEnd)
