@@ -28,7 +28,7 @@ const MOCK_USER: User = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(MOCK_AUTH ? MOCK_USER : null)
-  const { data: authData, error: authError, isLoading: isAuthLoading, refetch: refetchAuth } =
+  const { data: authData, error: authError, setError: setAuthError, isLoading: isAuthLoading } =
     useFetch<{ user: User }>('/api/auth/me', {
       enabled: !MOCK_AUTH,
       errorMessage: '認証に失敗しました',
@@ -63,8 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('auth_token', data.token)
     }
     if (data?.user) {
+      // エラー状態をクリアしてからユーザーを設定
+      // （初回ロード時のauthErrorが残っていると useEffect で user が null に戻される）
+      setAuthError('')
       setUser(data.user)
-      void refetchAuth(undefined, { ignoreCache: true })
     }
   }
 
