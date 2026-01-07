@@ -27,6 +27,9 @@ type MutationOptions<T> = {
   onError?: (message: string) => void
 }
 
+const isAbortError = (err: unknown) =>
+  err instanceof Error && 'name' in err && err.name === 'AbortError'
+
 export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
   const {
     enabled = true,
@@ -44,31 +47,63 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const callbacksRef = useRef({ onStart, onSuccess, onError })
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const requestIdRef = useRef(0)
+  const isMountedRef = useRef(true)
 
   useEffect(() => {
     callbacksRef.current = { onStart, onSuccess, onError }
   }, [onStart, onSuccess, onError])
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+      abortControllerRef.current?.abort()
+    }
+  }, [])
 
   const fetchData = useCallback(
     async (
       overrideInit?: RequestInit,
       options?: { ignoreCache?: boolean }
     ) => {
-      if (!url) return null
+      if (!url) {
+        abortControllerRef.current?.abort()
+        return null
+      }
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+      const mergedInit = { ...init, ...overrideInit }
+      const externalSignal = mergedInit.signal
+      let externalAbortHandler: (() => void) | undefined
+      if (externalSignal) {
+        if (externalSignal.aborted) {
+          controller.abort()
+        } else {
+          externalAbortHandler = () => controller.abort()
+          externalSignal.addEventListener('abort', externalAbortHandler, { once: true })
+        }
+      }
       const resolvedCacheKey = cacheKey ?? url
       if (!options?.ignoreCache && cacheTimeMs > 0 && resolvedCacheKey) {
         const cached = getCache<T>(resolvedCacheKey)
         if (cached) {
-          setData(cached)
+          if (isMountedRef.current) {
+            setData(cached)
+          }
           callbacksRef.current.onSuccess?.(cached)
           return cached
         }
       }
-      setIsLoading(true)
-      setError('')
+      requestIdRef.current += 1
+      const requestId = requestIdRef.current
+      if (isMountedRef.current) {
+        setIsLoading(true)
+        setError('')
+      }
       callbacksRef.current.onStart?.()
       try {
-        const mergedInit = { ...init, ...overrideInit }
         let responseData: T | null = null
         for (let attempt = 0; attempt <= retry; attempt += 1) {
           try {
@@ -76,10 +111,13 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
               method: (mergedInit.method as string | undefined) ?? 'GET',
               body: mergedInit.body,
               headers: mergedInit.headers,
-              signal: mergedInit.signal ?? undefined,
+              signal: controller.signal,
             })
             break
           } catch (err) {
+            if (isAbortError(err)) {
+              throw err
+            }
             if (attempt >= retry) {
               throw err
             }
@@ -87,7 +125,9 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
           }
         }
         if (responseData !== null) {
-          setData(responseData)
+          if (isMountedRef.current && requestId === requestIdRef.current) {
+            setData(responseData)
+          }
           if (resolvedCacheKey && cacheTimeMs > 0) {
             setCache(resolvedCacheKey, responseData, cacheTimeMs)
           }
@@ -95,12 +135,22 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
         }
         return responseData
       } catch (err) {
+        if (isAbortError(err)) {
+          return null
+        }
         const message = err instanceof Error ? err.message : errorMessage || 'ネットワークエラー'
-        setError(message)
+        if (isMountedRef.current && requestId === requestIdRef.current) {
+          setError(message)
+        }
         callbacksRef.current.onError?.(message)
         return null
       } finally {
-        setIsLoading(false)
+        if (externalSignal && externalAbortHandler) {
+          externalSignal.removeEventListener('abort', externalAbortHandler)
+        }
+        if (isMountedRef.current && requestId === requestIdRef.current) {
+          setIsLoading(false)
+        }
       }
     },
     [url, init, errorMessage, cacheKey, cacheTimeMs, retry, retryDelayMs]
@@ -118,14 +168,41 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
 export function useMutation<T, D>(url: string, method: HttpMethod) {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const requestIdRef = useRef(0)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+      abortControllerRef.current?.abort()
+    }
+  }, [])
 
   const mutate = useCallback(
     async (payload?: D, options: MutationOptions<T> = {}) => {
       const targetUrl = options.url ?? url
       if (!targetUrl) return null
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+      const externalSignal = options.init?.signal
+      let externalAbortHandler: (() => void) | undefined
+      if (externalSignal) {
+        if (externalSignal.aborted) {
+          controller.abort()
+        } else {
+          externalAbortHandler = () => controller.abort()
+          externalSignal.addEventListener('abort', externalAbortHandler, { once: true })
+        }
+      }
 
-      setIsLoading(true)
-      setError('')
+      requestIdRef.current += 1
+      const requestId = requestIdRef.current
+      if (isMountedRef.current) {
+        setIsLoading(true)
+        setError('')
+      }
 
       try {
         const retryCount = options.retry ?? 0
@@ -137,10 +214,13 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
               method,
               body: payload ?? options.init?.body,
               headers: options.init?.headers,
-              signal: options.init?.signal ?? undefined,
+              signal: controller.signal,
             })
             break
           } catch (err) {
+            if (isAbortError(err)) {
+              throw err
+            }
             if (attempt >= retryCount) {
               throw err
             }
@@ -152,13 +232,23 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
         }
         return responseData
       } catch (err) {
+        if (isAbortError(err)) {
+          return null
+        }
         const message =
           err instanceof Error ? err.message : options.errorMessage || 'ネットワークエラー'
-        setError(message)
+        if (isMountedRef.current && requestId === requestIdRef.current) {
+          setError(message)
+        }
         options.onError?.(message)
         throw err
       } finally {
-        setIsLoading(false)
+        if (externalSignal && externalAbortHandler) {
+          externalSignal.removeEventListener('abort', externalAbortHandler)
+        }
+        if (isMountedRef.current && requestId === requestIdRef.current) {
+          setIsLoading(false)
+        }
       }
     },
     [method, url]
