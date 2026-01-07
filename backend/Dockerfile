@@ -30,4 +30,5 @@ COPY package.json ./
 EXPOSE 3000
 
 # マイグレーションを実行してからサーバー起動
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# --experimental-specifier-resolution=node でディレクトリインポートを許可
+CMD ["sh", "-c", "npx prisma migrate deploy && node --experimental-specifier-resolution=node dist/index.js"]

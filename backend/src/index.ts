@@ -12,7 +12,7 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from 'fastify-type-provider-zod'
-import { registerRoutes } from './routes'
+import { registerRoutes } from './routes/index.js'
 import { env } from './config/env'
 import { normalizeErrorPayload } from './utils/errors'
 import { JWTUser } from './types/auth'
