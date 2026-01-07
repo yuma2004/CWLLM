@@ -115,7 +115,8 @@ const ProjectSearchSelect = ({
           }}
           aria-label="clear"
         >
-          ﾃ・        </button>
+          ×
+        </button>
       )}
       {isOpen && (
         <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-lg">
