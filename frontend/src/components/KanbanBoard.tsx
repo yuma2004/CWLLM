@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   DragOverlay,
   DragStartEvent,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -45,7 +45,8 @@ function KanbanBoard({
       activationConstraint: {
         distance: 8,
       },
-    })
+    }),
+    useSensor(KeyboardSensor)
   )
 
   const tasksByStatus = useMemo(() => {
@@ -71,10 +72,6 @@ function KanbanBoard({
     }
   }
 
-  const handleDragOver = (_event: DragOverEvent) => {
-    // カラム間のドラッグオーバー処理（必要に応じて視覚的フィードバックを追加）
-  }
-
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveTask(null)
@@ -86,18 +83,9 @@ function KanbanBoard({
     if (!task) return
 
     // ドロップ先のカラムを特定
-    let newStatus: string | null = null
-
-    // over.id がカラムのキー（todo, in_progress, etc.）の場合
-    if (columns.some((col) => col.key === over.id)) {
-      newStatus = over.id as string
-    } else {
-      // over.id が別のタスクIDの場合、そのタスクのステータスを取得
-      const overTask = tasks.find((t) => t.id === over.id)
-      if (overTask) {
-        newStatus = overTask.status
-      }
-    }
+    const newStatus = columns.some((col) => col.key === over.id)
+      ? (over.id as string)
+      : null
 
     // ステータスが変わる場合のみ更新
     if (newStatus && newStatus !== task.status) {
@@ -109,7 +97,6 @@ function KanbanBoard({
     <DndContext
       sensors={sensors}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="grid gap-4 lg:grid-cols-4">

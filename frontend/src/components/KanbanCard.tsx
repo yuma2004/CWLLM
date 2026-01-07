@@ -1,4 +1,4 @@
-import { useSortable } from '@dnd-kit/sortable'
+import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
 import { Task } from '../types'
@@ -23,10 +23,11 @@ function KanbanCard({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
-  } = useSortable({
+  } = useDraggable({
     id: task.id,
     disabled: !canWrite || disabled,
   })
@@ -50,9 +51,7 @@ function KanbanCard({
         isDragging
           ? 'border-sky-300 shadow-lg opacity-90'
           : 'border-slate-200 hover:shadow-md'
-      } ${canWrite ? 'cursor-grab active:cursor-grabbing' : ''}`}
-      {...attributes}
-      {...listeners}
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -69,16 +68,34 @@ function KanbanCard({
             </p>
           )}
         </div>
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={(e) => {
-            e.stopPropagation()
-            onToggleSelect()
-          }}
-          className="mt-0.5 rounded border-slate-300"
-          disabled={disabled}
-        />
+        <div className="flex items-start gap-2">
+          <button
+            ref={setActivatorNodeRef}
+            type="button"
+            aria-label="drag"
+            className={`rounded border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-500 shadow-sm transition ${
+              canWrite && !disabled
+                ? 'cursor-grab hover:border-slate-300 active:cursor-grabbing'
+                : 'cursor-not-allowed opacity-50'
+            }`}
+            disabled={!canWrite || disabled}
+            onClick={(event) => event.stopPropagation()}
+            {...attributes}
+            {...listeners}
+          >
+            ⠿
+          </button>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation()
+              onToggleSelect()
+            }}
+            className="mt-0.5 rounded border-slate-300"
+            disabled={disabled}
+          />
+        </div>
       </div>
       <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
         <span>期日: {formatDate(task.dueDate)}</span>
