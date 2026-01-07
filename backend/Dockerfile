@@ -14,6 +14,9 @@ COPY src ./src
 
 RUN npm run prisma:generate
 RUN npm run build
+
+# シードスクリプトをビルド
+RUN npx tsc prisma/seed.ts --outDir dist/prisma --esModuleInterop --module ESNext --moduleResolution node --target ES2020
 RUN npm prune --omit=dev
 
 FROM node:18-alpine
@@ -29,6 +32,6 @@ COPY package.json ./
 
 EXPOSE 3000
 
-# マイグレーションを実行してからサーバー起動
+# マイグレーション→シード→サーバー起動
 # --experimental-specifier-resolution=node でディレクトリインポートを許可
-CMD ["sh", "-c", "npx prisma migrate deploy && node --experimental-specifier-resolution=node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && node --experimental-specifier-resolution=node dist/index.js"]
