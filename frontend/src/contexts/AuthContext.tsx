@@ -58,9 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { email, password },
       { errorMessage: 'ログインに失敗しました' }
     )
+    console.log('[AuthContext] Login response:', JSON.stringify(data))
     if (data?.token) {
       // トークンをlocalStorageに保存（クロスドメイン対応）
       localStorage.setItem('auth_token', data.token)
+      console.log('[AuthContext] Token saved, verify:', localStorage.getItem('auth_token')?.substring(0, 20))
+    } else {
+      console.log('[AuthContext] No token in response!')
     }
     if (data?.user) {
       // エラー状態をクリアしてからユーザーを設定
