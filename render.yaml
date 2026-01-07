@@ -10,6 +10,7 @@ services:
     plan: free
     region: singapore
     maxmemoryPolicy: noeviction
+    ipAllowList: []  # 全てのIPを許可
 
   # Backend API
   - type: web
@@ -52,7 +53,6 @@ services:
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
-    region: singapore
     headers:
       - path: /*
         name: Cache-Control
