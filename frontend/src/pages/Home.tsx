@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useFetch } from '../hooks/useApi'
 import { TARGET_TYPE_LABELS, TASK_STATUS_LABELS } from '../constants'
 import { DashboardResponse, DashboardTask } from '../types'
+import { formatDate } from '../utils/date'
 
 function Home() {
   const { user, logout } = useAuth()
@@ -120,7 +121,7 @@ function Home() {
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                             <span>
-                              期限: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}
+                              期限: {formatDate(task.dueDate)}
                             </span>
                             <span>
                               状態: {TASK_STATUS_LABELS[task.status] || task.status}
