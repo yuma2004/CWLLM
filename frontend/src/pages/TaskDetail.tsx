@@ -46,7 +46,7 @@ function TaskDetail() {
           title: data.task.title,
           description: data.task.description || '',
           status: data.task.status,
-          dueDate: data.task.dueDate ? formatDateInput(new Date(data.task.dueDate)) : '',
+          dueDate: data.task.dueDate ? formatDateInput(data.task.dueDate) : '',
           assigneeId: data.task.assigneeId || '',
         })
       }
@@ -117,7 +117,7 @@ function TaskDetail() {
         title: task.title,
         description: task.description || '',
         status: task.status,
-        dueDate: task.dueDate ? formatDateInput(new Date(task.dueDate)) : '',
+        dueDate: task.dueDate ? formatDateInput(task.dueDate) : '',
         assigneeId: task.assigneeId || '',
       })
     }

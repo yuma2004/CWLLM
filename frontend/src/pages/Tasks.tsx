@@ -747,7 +747,7 @@ function Tasks() {
                         <input
                           type="date"
                           className="rounded border border-slate-200 px-2 py-1 text-xs"
-                          value={task.dueDate ? formatDateInput(new Date(task.dueDate)) : ''}
+                          value={task.dueDate ? formatDateInput(task.dueDate) : ''}
                           onChange={(e) => handleDueDateChange(task.id, e.target.value)}
                         />
                       ) : (
