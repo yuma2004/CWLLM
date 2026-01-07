@@ -44,10 +44,8 @@ export const apiRequest = async <T,>(
 
   // Authorizationヘッダーを追加（クロスドメイン対応）
   const token = localStorage.getItem('auth_token')
-  console.log('[apiClient] URL:', fullUrl, 'Token:', token ? `exists (${token.substring(0, 20)}...)` : 'missing')
   if (token && !requestHeaders.has('Authorization')) {
     requestHeaders.set('Authorization', `Bearer ${token}`)
-    console.log('[apiClient] Authorization header set')
   }
 
   let requestBody: BodyInit | undefined
