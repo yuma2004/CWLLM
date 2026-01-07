@@ -36,6 +36,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
 
       const token = fastify.jwt.sign({ userId: user.id, role: user.role }, { expiresIn: '7d' })
+      // Cookie も設定（ローカル開発用）
       reply.setCookie('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -44,6 +45,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       })
 
       return {
+        token, // クロスドメイン対応: トークンをレスポンスに含める
         user: {
           id: user.id,
           email: user.email,

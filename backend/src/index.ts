@@ -54,6 +54,22 @@ fastify.register(jwt, {
     cookieName: 'token',
     signed: false,
   },
+  // Authorizationヘッダーを優先、なければCookieから読み取る
+  verify: {
+    extractToken: (request) => {
+      // 1. Authorizationヘッダーをチェック
+      const authHeader = request.headers.authorization
+      if (authHeader?.startsWith('Bearer ')) {
+        return authHeader.slice(7)
+      }
+      // 2. Cookieをチェック
+      const cookieToken = request.cookies?.token
+      if (cookieToken) {
+        return cookieToken
+      }
+      return undefined
+    },
+  },
 })
 
 fastify.register(rateLimit, {

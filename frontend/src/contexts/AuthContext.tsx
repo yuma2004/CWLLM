@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cacheTimeMs: 0,
     })
 
-  const { mutate: loginRequest } = useMutation<{ user: User }, { email: string; password: string }>(
+  const { mutate: loginRequest } = useMutation<{ token: string; user: User }, { email: string; password: string }>(
     '/api/auth/login',
     'POST'
   )
@@ -58,6 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { email, password },
       { errorMessage: 'ログインに失敗しました' }
     )
+    if (data?.token) {
+      // トークンをlocalStorageに保存（クロスドメイン対応）
+      localStorage.setItem('auth_token', data.token)
+    }
     if (data?.user) {
       setUser(data.user)
       void refetchAuth(undefined, { ignoreCache: true })
@@ -70,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // noop
     }
+    // トークンを削除
+    localStorage.removeItem('auth_token')
     setUser(null)
   }
 

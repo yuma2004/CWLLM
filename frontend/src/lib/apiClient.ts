@@ -42,6 +42,12 @@ export const apiRequest = async <T,>(
   const hasBody = body !== undefined
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
 
+  // Authorizationヘッダーを追加（クロスドメイン対応）
+  const token = localStorage.getItem('auth_token')
+  if (token && !requestHeaders.has('Authorization')) {
+    requestHeaders.set('Authorization', `Bearer ${token}`)
+  }
+
   let requestBody: BodyInit | undefined
   if (hasBody) {
     requestBody = isFormData ? (body as BodyInit) : JSON.stringify(body)
@@ -79,6 +85,12 @@ export const apiDownload = async (
   const requestHeaders = new Headers(headers)
   const hasBody = body !== undefined
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+
+  // Authorizationヘッダーを追加（クロスドメイン対応）
+  const token = localStorage.getItem('auth_token')
+  if (token && !requestHeaders.has('Authorization')) {
+    requestHeaders.set('Authorization', `Bearer ${token}`)
+  }
 
   let requestBody: BodyInit | undefined
   if (hasBody) {
