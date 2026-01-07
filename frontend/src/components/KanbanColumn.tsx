@@ -1,8 +1,4 @@
 import { useDroppable } from '@dnd-kit/core'
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
 import KanbanCard from './KanbanCard'
 import { Task } from '../types'
 
@@ -42,29 +38,24 @@ function KanbanColumn({
           {tasks.length}
         </span>
       </div>
-      <SortableContext
-        items={tasks.map((t) => t.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
-          {tasks.length > 0 ? (
-            tasks.map((task) => (
-              <KanbanCard
-                key={task.id}
-                task={task}
-                canWrite={canWrite}
-                isSelected={selectedIds.includes(task.id)}
-                onToggleSelect={() => onToggleSelect(task.id)}
-                disabled={disabled}
-              />
-            ))
-          ) : (
-            <div className="flex flex-1 items-center justify-center rounded-lg border-2 border-dashed border-slate-200 p-4">
-              <span className="text-xs text-slate-400">タスクなし</span>
-            </div>
-          )}
-        </div>
-      </SortableContext>
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
+        {tasks.length > 0 ? (
+          tasks.map((task) => (
+            <KanbanCard
+              key={task.id}
+              task={task}
+              canWrite={canWrite}
+              isSelected={selectedIds.includes(task.id)}
+              onToggleSelect={() => onToggleSelect(task.id)}
+              disabled={disabled}
+            />
+          ))
+        ) : (
+          <div className="flex flex-1 items-center justify-center rounded-lg border-2 border-dashed border-slate-200 p-4">
+            <span className="text-xs text-slate-400">タスクなし</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
