@@ -5,7 +5,7 @@ import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { authRoutes } from './auth'
 import { requireAuth } from '../middleware/rbac'
 

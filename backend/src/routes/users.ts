@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { UserRole } from '@prisma/client'
 import { requireAdmin, requireAuth } from '../middleware/rbac'
 import { buildErrorPayload } from '../utils/errors'

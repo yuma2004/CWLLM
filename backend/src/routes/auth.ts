@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { JWTUser } from '../types/auth'
 import { env } from '../config/env'
 import { buildErrorPayload } from '../utils/errors'
