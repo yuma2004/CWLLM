@@ -39,7 +39,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       reply.setCookie('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         path: '/',
       })
 
@@ -56,7 +56,11 @@ export async function authRoutes(fastify: FastifyInstance) {
   // ログアウト
   fastify.post('/auth/logout', async (request: FastifyRequest, reply: FastifyReply) => {
     void request
-    reply.clearCookie('token', { path: '/' })
+    reply.clearCookie('token', {
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    })
     return { message: 'Logged out' }
   })
 

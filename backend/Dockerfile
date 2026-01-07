@@ -34,4 +34,4 @@ EXPOSE 3000
 
 # マイグレーション→シード→サーバー起動
 # --experimental-specifier-resolution=node でディレクトリインポートを許可
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && node --experimental-specifier-resolution=node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node --experimental-specifier-resolution=node dist/prisma/seed.js && node --experimental-specifier-resolution=node dist/index.js"]
