@@ -26,4 +26,5 @@ COPY package.json ./
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+# マイグレーションを実行してからサーバー起動
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]

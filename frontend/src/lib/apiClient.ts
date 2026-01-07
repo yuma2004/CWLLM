@@ -7,6 +7,22 @@ type ApiRequestOptions = {
   signal?: AbortSignal
 }
 
+// API ベースURL（本番環境では環境変数から取得）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
+const buildUrl = (path: string): string => {
+  // 絶対URLの場合はそのまま返す
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+  // ベースURLがある場合は結合
+  if (API_BASE_URL) {
+    return `${API_BASE_URL}${path}`
+  }
+  // 開発環境ではそのまま（Vite proxy経由）
+  return path
+}
+
 const readJson = async <T,>(response: Response): Promise<T | null> => {
   try {
     const text = await response.text()
@@ -21,6 +37,7 @@ export const apiRequest = async <T,>(
   url: string,
   { method = 'GET', body, headers, signal }: ApiRequestOptions = {}
 ): Promise<T> => {
+  const fullUrl = buildUrl(url)
   const requestHeaders = new Headers(headers)
   const hasBody = body !== undefined
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
@@ -33,7 +50,7 @@ export const apiRequest = async <T,>(
     }
   }
 
-  const response = await fetch(url, {
+  const response = await fetch(fullUrl, {
     method,
     credentials: 'include',
     headers: requestHeaders,
@@ -58,6 +75,7 @@ export const apiDownload = async (
   url: string,
   { method = 'GET', body, headers, signal }: ApiRequestOptions = {}
 ): Promise<Blob> => {
+  const fullUrl = buildUrl(url)
   const requestHeaders = new Headers(headers)
   const hasBody = body !== undefined
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
@@ -70,7 +88,7 @@ export const apiDownload = async (
     }
   }
 
-  const response = await fetch(url, {
+  const response = await fetch(fullUrl, {
     method,
     credentials: 'include',
     headers: requestHeaders,
