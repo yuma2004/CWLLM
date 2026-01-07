@@ -10,7 +10,10 @@ const QUEUE_NAME = 'cwllm-jobs'
 
 let queue: Queue | null = null
 let worker: Worker | null = null
-const connection = env.redisUrl ? new IORedis(env.redisUrl) : null
+// BullMQでは maxRetriesPerRequest: null が必須
+const connection = env.redisUrl
+  ? new IORedis(env.redisUrl, { maxRetriesPerRequest: null })
+  : null
 
 type JobQueueOptions = {
   enableQueue?: boolean
