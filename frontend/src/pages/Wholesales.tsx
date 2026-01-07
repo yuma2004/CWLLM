@@ -193,7 +193,7 @@ function Wholesales() {
       unitPrice: wholesale.unitPrice?.toString() || '',
       conditions: wholesale.conditions || '',
       agreedDate: wholesale.agreedDate
-        ? formatDateInput(new Date(wholesale.agreedDate))
+        ? formatDateInput(wholesale.agreedDate)
         : '',
     })
   }
