@@ -49,7 +49,6 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
   const callbacksRef = useRef({ onStart, onSuccess, onError })
   const abortControllerRef = useRef<AbortController | null>(null)
   const requestIdRef = useRef(0)
-  const isMountedRef = useRef(true)
 
   useEffect(() => {
     callbacksRef.current = { onStart, onSuccess, onError }
@@ -57,7 +56,6 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
 
   useEffect(() => {
     return () => {
-      isMountedRef.current = false
       abortControllerRef.current?.abort()
     }
   }, [])
@@ -89,7 +87,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
       if (!options?.ignoreCache && cacheTimeMs > 0 && resolvedCacheKey) {
         const cached = getCache<T>(resolvedCacheKey)
         if (cached) {
-          if (isMountedRef.current) {
+          if (!controller.signal.aborted) {
             setData(cached)
           }
           callbacksRef.current.onSuccess?.(cached)
@@ -98,7 +96,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
       }
       requestIdRef.current += 1
       const requestId = requestIdRef.current
-      if (isMountedRef.current) {
+      if (!controller.signal.aborted) {
         setIsLoading(true)
         setError('')
       }
@@ -125,7 +123,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
           }
         }
         if (responseData !== null) {
-          if (isMountedRef.current && requestId === requestIdRef.current) {
+          if (!controller.signal.aborted && requestId === requestIdRef.current) {
             setData(responseData)
           }
           if (resolvedCacheKey && cacheTimeMs > 0) {
@@ -139,7 +137,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
           return null
         }
         const message = err instanceof Error ? err.message : errorMessage || 'ネットワークエラー'
-        if (isMountedRef.current && requestId === requestIdRef.current) {
+        if (!controller.signal.aborted && requestId === requestIdRef.current) {
           setError(message)
         }
         callbacksRef.current.onError?.(message, err)
@@ -148,7 +146,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
         if (externalSignal && externalAbortHandler) {
           externalSignal.removeEventListener('abort', externalAbortHandler)
         }
-        if (isMountedRef.current && requestId === requestIdRef.current) {
+        if (!controller.signal.aborted && requestId === requestIdRef.current) {
           setIsLoading(false)
         }
       }
@@ -170,11 +168,9 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
   const [isLoading, setIsLoading] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const requestIdRef = useRef(0)
-  const isMountedRef = useRef(true)
 
   useEffect(() => {
     return () => {
-      isMountedRef.current = false
       abortControllerRef.current?.abort()
     }
   }, [])
@@ -199,7 +195,7 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
 
       requestIdRef.current += 1
       const requestId = requestIdRef.current
-      if (isMountedRef.current) {
+      if (!controller.signal.aborted) {
         setIsLoading(true)
         setError('')
       }
@@ -237,7 +233,7 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
         }
         const message =
           err instanceof Error ? err.message : options.errorMessage || 'ネットワークエラー'
-        if (isMountedRef.current && requestId === requestIdRef.current) {
+        if (!controller.signal.aborted && requestId === requestIdRef.current) {
           setError(message)
         }
         options.onError?.(message, err)
@@ -246,7 +242,7 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
         if (externalSignal && externalAbortHandler) {
           externalSignal.removeEventListener('abort', externalAbortHandler)
         }
-        if (isMountedRef.current && requestId === requestIdRef.current) {
+        if (!controller.signal.aborted && requestId === requestIdRef.current) {
           setIsLoading(false)
         }
       }

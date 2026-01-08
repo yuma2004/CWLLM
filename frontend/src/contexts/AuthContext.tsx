@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         login,
         logout,
-        isLoading: MOCK_AUTH ? false : isAuthLoading,
+        isLoading: MOCK_AUTH ? false : isAuthLoading && !user,
         isAuthenticated: !!user,
       }}
     >
