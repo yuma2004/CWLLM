@@ -7,6 +7,7 @@ import Toast from '../components/ui/Toast'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from '../hooks/useToast'
+import { apiRoutes } from '../lib/apiRoutes'
 import { ChatworkRoom, JobRecord } from '../types'
 
 function ChatworkSettings() {
@@ -24,7 +25,7 @@ function ChatworkSettings() {
     error: roomsError,
     refetch: refetchRooms,
   } = useFetch<{ rooms: ChatworkRoom[] }>(
-    canManageChatwork ? '/api/chatwork/rooms' : null,
+    canManageChatwork ? apiRoutes.chatwork.rooms() : null,
     {
       enabled: canManageChatwork,
       errorMessage: '通信エラーが発生しました',
@@ -37,22 +38,22 @@ function ChatworkSettings() {
   const { mutate: queueRoomSync, isLoading: isQueueingRooms } = useMutation<
     { jobId: string; status: JobRecord['status'] },
     void
-  >('/api/chatwork/rooms/sync', 'POST')
+  >(apiRoutes.chatwork.roomsSync(), 'POST')
 
   const { mutate: queueMessageSync, isLoading: isQueueingMessages } = useMutation<
     { jobId: string; status: JobRecord['status'] },
     void
-  >('/api/chatwork/messages/sync', 'POST')
+  >(apiRoutes.chatwork.messagesSync(), 'POST')
 
   const { mutate: toggleRoom } = useMutation<{ room: ChatworkRoom }, { isActive: boolean }>(
-    '/api/chatwork/rooms',
+    apiRoutes.chatwork.rooms(),
     'PATCH'
   )
 
-  const { mutate: cancelJob } = useMutation<{ job: JobRecord }, void>('/api/jobs', 'POST')
+  const { mutate: cancelJob } = useMutation<{ job: JobRecord }, void>(apiRoutes.jobs.base(), 'POST')
 
   const { data: jobData, error: jobError, refetch: refetchJob } = useFetch<{ job: JobRecord }>(
-    activeJob ? `/api/jobs/${activeJob.id}` : null,
+    activeJob ? apiRoutes.jobs.detail(activeJob.id) : null,
     {
       enabled: false,
       errorMessage: 'ジョブステータスの確認に失敗しました',
@@ -157,7 +158,7 @@ function ChatworkSettings() {
       await toggleRoom(
         { isActive: !room.isActive },
         {
-          url: `/api/chatwork/rooms/${room.id}`,
+          url: apiRoutes.chatwork.room(room.id),
           errorMessage: '通信エラーが発生しました',
           onSuccess: () => {
             void refetchRooms(undefined, { ignoreCache: true })
@@ -174,7 +175,7 @@ function ChatworkSettings() {
     setActionError('')
     try {
       const data = await cancelJob(undefined, {
-        url: `/api/jobs/${activeJob.id}/cancel`,
+        url: apiRoutes.jobs.cancel(activeJob.id),
         errorMessage: 'ジョブのキャンセルに失敗しました',
       })
       if (data?.job) {

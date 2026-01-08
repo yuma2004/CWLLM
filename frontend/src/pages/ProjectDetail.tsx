@@ -11,6 +11,7 @@ import FormTextarea from '../components/ui/FormTextarea'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
+import { apiRoutes } from '../lib/apiRoutes'
 import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants'
 import { formatDate, formatDateInput } from '../utils/date'
 import { formatCurrency } from '../utils/format'
@@ -71,7 +72,7 @@ function ProjectDetail() {
     error: projectError,
     isLoading: isLoadingProject,
     refetch: refetchProject,
-  } = useFetch<{ project: Project }>(id ? `/api/projects/${id}` : null, {
+  } = useFetch<{ project: Project }>(id ? apiRoutes.projects.detail(id) : null, {
     enabled: Boolean(id),
     cacheTimeMs: 10_000,
   })
@@ -82,7 +83,7 @@ function ProjectDetail() {
     isLoading: isLoadingWholesales,
     refetch: refetchWholesales,
   } = useFetch<{ wholesales: Wholesale[] }>(
-    id ? `/api/projects/${id}/wholesales` : null,
+    id ? apiRoutes.projects.wholesales(id) : null,
     {
       enabled: Boolean(id),
       cacheTimeMs: 10_000,
@@ -127,7 +128,7 @@ function ProjectDetail() {
       conditions?: string
       agreedDate?: string
     }
-  >('/api/wholesales', 'POST')
+  >(apiRoutes.wholesales.base(), 'POST')
 
   const { mutate: updateWholesale } = useMutation<
     { wholesale: Wholesale },
@@ -137,19 +138,19 @@ function ProjectDetail() {
       conditions?: string | null
       agreedDate?: string | null
     }
-  >('/api/wholesales', 'PATCH')
+  >(apiRoutes.wholesales.base(), 'PATCH')
 
   const { mutate: removeWholesale, isLoading: isDeletingWholesale } = useMutation<
     unknown,
     void
-  >('/api/wholesales', 'DELETE')
+  >(apiRoutes.wholesales.base(), 'DELETE')
 
   const { mutate: updateProject, isLoading: isUpdatingProject } = useMutation<
     { project: Project },
     ProjectUpdatePayload
-  >('/api/projects', 'PATCH')
+  >(apiRoutes.projects.base(), 'PATCH')
 
-  const { data: usersData } = useFetch<{ users: User[] }>('/api/users', {
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.list(), {
     cacheTimeMs: 30_000,
   })
   const userOptions = usersData?.users ?? []
@@ -192,7 +193,7 @@ function ProjectDetail() {
       }
 
       await updateProject(payload, {
-        url: `/api/projects/${id}`,
+        url: apiRoutes.projects.detail(id),
         errorMessage: '案件の更新に失敗しました',
       })
       setIsEditingProject(false)
@@ -256,7 +257,7 @@ function ProjectDetail() {
           agreedDate: editForm.agreedDate || null,
         },
         {
-          url: `/api/wholesales/${editingWholesale.id}`,
+          url: apiRoutes.wholesales.detail(editingWholesale.id),
         }
       )
       setEditingWholesale(null)
@@ -277,7 +278,7 @@ function ProjectDetail() {
 
     try {
       await removeWholesale(undefined, {
-        url: `/api/wholesales/${deleteTarget.id}`,
+        url: apiRoutes.wholesales.detail(deleteTarget.id),
       })
       setDeleteTarget(null)
       refreshData()

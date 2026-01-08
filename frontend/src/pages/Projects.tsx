@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import EmptyState from '../components/ui/EmptyState'
@@ -13,12 +13,12 @@ import StatusBadge from '../components/ui/StatusBadge'
 import { usePermissions } from '../hooks/usePermissions'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { usePagination } from '../hooks/usePagination'
+import { useUrlSync } from '../hooks/useUrlSync'
 import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants'
 import { ApiListResponse, Project, ProjectsFilters, User } from '../types'
 import { formatCurrency } from '../utils/format'
+import { apiRoutes } from '../lib/apiRoutes'
 
 type ProjectCreatePayload = {
   companyId: string
@@ -40,18 +40,11 @@ const defaultFilters: ProjectsFilters = {
 
 function Projects() {
   const { canWrite } = usePermissions()
-  const location = useLocation()
-  const navigate = useNavigate()
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
-  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
 
-  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters } =
-    useFilters(defaultFilters)
-  const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
-    usePagination(initialPageSize)
+  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters, pagination, setPagination, setPage, setPageSize } =
+    useUrlSync({ pathname: '/projects', defaultFilters })
   const debouncedQuery = useDebouncedValue(filters.q, 300)
 
   const [form, setForm] = useState({
@@ -65,19 +58,21 @@ function Projects() {
     ownerId: '',
   })
 
-  const { data: usersData } = useFetch<{ users: User[] }>('/api/users', {
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.list(), {
     cacheTimeMs: 30_000,
   })
   const userOptions = usersData?.users ?? []
 
   const queryString = useMemo(() => {
-    const params = new URLSearchParams(paginationQuery)
+    const params = new URLSearchParams()
     if (debouncedQuery.trim()) params.set('q', debouncedQuery.trim())
     if (filters.status) params.set('status', filters.status)
     if (filters.companyId) params.set('companyId', filters.companyId)
     if (filters.ownerId) params.set('ownerId', filters.ownerId)
+    params.set('page', String(pagination.page))
+    params.set('pageSize', String(pagination.pageSize))
     return params.toString()
-  }, [debouncedQuery, filters.status, filters.companyId, filters.ownerId, paginationQuery])
+  }, [debouncedQuery, filters.status, filters.companyId, filters.ownerId, pagination.page, pagination.pageSize])
 
   const {
     data: projectsData,
@@ -85,7 +80,7 @@ function Projects() {
     setError,
     isLoading: isLoadingProjects,
     refetch: refetchProjects,
-  } = useFetch<ApiListResponse<Project>>(`/api/projects?${queryString}`, {
+  } = useFetch<ApiListResponse<Project>>(apiRoutes.projects.list(queryString), {
     errorMessage: '案件一覧の取得に失敗しました',
     onSuccess: (data) => {
       setPagination((prev) => ({ ...prev, ...data.pagination }))
@@ -97,7 +92,7 @@ function Projects() {
   const { mutate: createProject, isLoading: isCreating } = useMutation<
     { project: Project },
     ProjectCreatePayload
-  >('/api/projects', 'POST')
+  >(apiRoutes.projects.base(), 'POST')
 
   const shortcuts = useMemo(
     () => [
@@ -121,49 +116,6 @@ function Projects() {
   )
 
   useKeyboardShortcut(shortcuts)
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const nextFilters = {
-      ...defaultFilters,
-      q: params.get('q') ?? '',
-      status: params.get('status') ?? '',
-      companyId: params.get('companyId') ?? '',
-      ownerId: params.get('ownerId') ?? '',
-    }
-    setFilters(nextFilters)
-    const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
-    const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
-    setPagination((prev) => ({
-      ...prev,
-      page: nextPage,
-      pageSize: nextPageSize,
-    }))
-  }, [initialPage, initialPageSize, location.search, setFilters, setPagination])
-
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (debouncedQuery.trim()) params.set('q', debouncedQuery.trim())
-    if (filters.status) params.set('status', filters.status)
-    if (filters.companyId) params.set('companyId', filters.companyId)
-    if (filters.ownerId) params.set('ownerId', filters.ownerId)
-    params.set('page', String(pagination.page))
-    params.set('pageSize', String(pagination.pageSize))
-    const nextSearch = params.toString()
-    const currentSearch = location.search.replace(/^\?/, '')
-    if (nextSearch !== currentSearch) {
-      navigate({ pathname: '/projects', search: nextSearch }, { replace: true })
-    }
-  }, [
-    debouncedQuery,
-    filters.status,
-    filters.companyId,
-    filters.ownerId,
-    location.search,
-    navigate,
-    pagination.page,
-    pagination.pageSize,
-  ])
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -209,12 +161,10 @@ function Projects() {
 
   const handleClearFilter = (key: keyof ProjectsFilters) => {
     clearFilter(key)
-    setPage(1)
   }
 
   const handleClearAllFilters = () => {
     clearAllFilters()
-    setPage(1)
   }
 
   const getCompanyName = (companyId: string) => {
@@ -280,7 +230,6 @@ function Projects() {
               value={filters.q}
               onChange={(event) => {
                 setFilters({ ...filters, q: event.target.value })
-                setPage(1)
               }}
             />
           </div>
@@ -288,7 +237,6 @@ function Projects() {
             value={filters.status}
             onChange={(event) => {
               setFilters({ ...filters, status: event.target.value })
-              setPage(1)
             }}
           >
             <option value="">ステータス</option>
@@ -302,7 +250,6 @@ function Projects() {
             value={filters.ownerId}
             onChange={(event) => {
               setFilters({ ...filters, ownerId: event.target.value })
-              setPage(1)
             }}
           >
             <option value="">担当者</option>

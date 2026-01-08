@@ -5,6 +5,7 @@ import FormInput from '../components/ui/FormInput'
 import FormTextarea from '../components/ui/FormTextarea'
 import SuccessAlert from '../components/ui/SuccessAlert'
 import { useFetch, useMutation } from '../hooks/useApi'
+import { apiRoutes } from '../lib/apiRoutes'
 import { SettingsPayload } from '../types'
 
 function Settings() {
@@ -17,14 +18,14 @@ function Settings() {
     data: settingsData,
     error: fetchError,
     isLoading: isLoadingSettings,
-  } = useFetch<{ settings: SettingsPayload }>('/api/settings', {
+  } = useFetch<{ settings: SettingsPayload }>(apiRoutes.settings(), {
     cacheTimeMs: 30_000,
   })
 
   const { mutate: saveSettings, isLoading: isSaving } = useMutation<
     { settings: SettingsPayload },
     SettingsPayload
-  >('/api/settings', 'PATCH')
+  >(apiRoutes.settings(), 'PATCH')
 
   useEffect(() => {
     if (settingsData?.settings) {

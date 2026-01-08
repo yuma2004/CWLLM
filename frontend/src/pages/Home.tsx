@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import { useAuth } from '../contexts/AuthContext'
 import { useFetch } from '../hooks/useApi'
+import { apiRoutes } from '../lib/apiRoutes'
 import { statusLabel, targetTypeLabel } from '../constants'
 import { DashboardResponse } from '../types'
 import { formatDate } from '../utils/date'
@@ -11,7 +12,7 @@ import { getTargetPath } from '../utils/routes'
 function Home() {
   const { user, logout } = useAuth()
   const { data: dashboardData, error, isLoading } = useFetch<DashboardResponse>(
-    '/api/dashboard',
+    apiRoutes.dashboard(),
     {
       cacheTimeMs: 10_000,
     }

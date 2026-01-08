@@ -13,6 +13,7 @@ import { usePagination } from '../hooks/usePagination'
 import { usePermissions } from '../hooks/usePermissions'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useToast } from '../hooks/useToast'
+import { apiRoutes } from '../lib/apiRoutes'
 import {
   ApiListResponse,
   AvailableRoom,
@@ -127,7 +128,7 @@ function CompanyDetail() {
     error: companyFetchError,
     isLoading: isLoadingCompany,
     refetch: refetchCompany,
-  } = useFetch<{ company: Company }>(id ? `/api/companies/${id}` : null, {
+  } = useFetch<{ company: Company }>(id ? apiRoutes.companies.detail(id) : null, {
     enabled: Boolean(id),
     errorMessage: NETWORK_ERROR_MESSAGE,
     onSuccess: (data) => {
@@ -145,7 +146,7 @@ function CompanyDetail() {
     error: contactsFetchError,
     isLoading: isLoadingContacts,
     refetch: refetchContacts,
-  } = useFetch<{ contacts: Contact[] }>(id ? `/api/companies/${id}/contacts` : null, {
+  } = useFetch<{ contacts: Contact[] }>(id ? apiRoutes.companies.contacts(id) : null, {
     enabled: Boolean(id),
     errorMessage: NETWORK_ERROR_MESSAGE,
     onSuccess: (data) => setContacts(data.contacts ?? []),
@@ -190,9 +191,9 @@ function CompanyDetail() {
     if (trimmedQuery) {
       params.set('q', trimmedQuery)
       params.set('companyId', id)
-      return `/api/messages/search?${params.toString()}`
+      return apiRoutes.messages.search(params.toString())
     }
-    return `/api/companies/${id}/messages?${params.toString()}`
+    return apiRoutes.companies.messages(id, params.toString())
   }, [
     id,
     messageFrom,
@@ -217,7 +218,7 @@ function CompanyDetail() {
 
   const { error: linkedRoomsFetchError, refetch: refetchLinkedRooms } = useFetch<{
     rooms: LinkedRoom[]
-  }>(id ? `/api/companies/${id}/chatwork-rooms` : null, {
+  }>(id ? apiRoutes.companies.chatworkRooms(id) : null, {
     enabled: Boolean(id),
     errorMessage: NETWORK_ERROR_MESSAGE,
     onSuccess: (data) => setLinkedRooms(data.rooms ?? []),
@@ -228,7 +229,7 @@ function CompanyDetail() {
     data: availableRoomsData,
     isLoading: isLoadingRooms,
     error: availableRoomsFetchError,
-  } = useFetch<{ rooms: AvailableRoom[] }>('/api/chatwork/rooms', {
+  } = useFetch<{ rooms: AvailableRoom[] }>(apiRoutes.chatwork.rooms(), {
     enabled: canManageChatwork,
     errorMessage: 'Chatworkルーム一覧の取得に失敗しました。管理者権限が必要な場合があります。',
   })
@@ -244,13 +245,13 @@ function CompanyDetail() {
     categories: string[]
     statuses: string[]
     tags: string[]
-  }>('/api/companies/options', {
+  }>(apiRoutes.companies.options(), {
     errorMessage: '候補の取得に失敗しました',
     cacheTimeMs: 30_000,
   })
 
   const { data: labelOptionsData } = useFetch<{ items: Array<{ label: string }> }>(
-    '/api/messages/labels?limit=20',
+    apiRoutes.messages.labels(20),
     {
       errorMessage: 'ラベル候補の取得に失敗しました',
       cacheTimeMs: 30_000,
@@ -277,7 +278,7 @@ function CompanyDetail() {
   const { mutate: addContact } = useMutation<
     { contact: Contact },
     { name: string; role?: string; email?: string; phone?: string; memo?: string }
-  >(id ? `/api/companies/${id}/contacts` : '', 'POST')
+  >(id ? apiRoutes.companies.contacts(id) : '', 'POST')
 
   const { mutate: updateContact } = useMutation<
     { contact: Contact },
@@ -289,39 +290,39 @@ function CompanyDetail() {
       memo?: string | null
       sortOrder?: number | null
     }
-  >('/api/contacts', 'PATCH')
+  >(apiRoutes.contacts.base(), 'PATCH')
 
   const { mutate: deleteContact, isLoading: isDeletingContact } = useMutation<unknown, void>(
-    '/api/contacts',
+    apiRoutes.contacts.base(),
     'DELETE'
   )
 
   const { mutate: reorderContactsMutation, isLoading: isReorderWorking } = useMutation<
     unknown,
     { orderedIds: string[] }
-  >(id ? `/api/companies/${id}/contacts/reorder` : '', 'PATCH')
+  >(id ? apiRoutes.companies.contactsReorder(id) : '', 'PATCH')
 
   const { mutate: updateCompany } = useMutation<
     { company: Company },
     { tags?: string[]; profile?: string | null; category?: string | null; status?: string }
-  >(id ? `/api/companies/${id}` : '', 'PATCH')
+  >(id ? apiRoutes.companies.detail(id) : '', 'PATCH')
 
   const { mutate: addRoom } = useMutation<unknown, { roomId: string }>(
-    id ? `/api/companies/${id}/chatwork-rooms` : '',
+    id ? apiRoutes.companies.chatworkRooms(id) : '',
     'POST'
   )
 
   const { mutate: removeRoom } = useMutation<unknown, void>(
-    id ? `/api/companies/${id}/chatwork-rooms` : '',
+    id ? apiRoutes.companies.chatworkRooms(id) : '',
     'DELETE'
   )
 
   const { mutate: addLabel } = useMutation<unknown, { label: string }>(
-    '/api/messages',
+    apiRoutes.messages.base(),
     'POST'
   )
 
-  const { mutate: removeLabel } = useMutation<unknown, void>('/api/messages', 'DELETE')
+  const { mutate: removeLabel } = useMutation<unknown, void>(apiRoutes.messages.base(), 'DELETE')
 
   const isLoading = isLoadingCompany || isLoadingContacts
   const pageError = companyFetchError || contactsFetchError
@@ -402,7 +403,7 @@ function CompanyDetail() {
           memo: editContactForm.memo.trim() || null,
         },
         {
-          url: `/api/contacts/${editingContactId}`,
+          url: apiRoutes.contacts.detail(editingContactId),
           errorMessage: '担当者の更新に失敗しました',
         }
       )
@@ -426,7 +427,7 @@ function CompanyDetail() {
     setContactActionError('')
     try {
       await deleteContact(undefined, {
-        url: `/api/contacts/${confirmDelete.id}`,
+        url: apiRoutes.contacts.detail(confirmDelete.id),
         errorMessage: '担当者の削除に失敗しました',
       })
       setContacts((prev) => prev.filter((contact) => contact.id !== confirmDelete.id))
@@ -519,7 +520,7 @@ function CompanyDetail() {
               memo: merged.memo || null,
             },
             {
-              url: `/api/contacts/${primary.id}`,
+              url: apiRoutes.contacts.detail(primary.id),
               errorMessage: '担当者の削除に失敗しました',
             }
           )
@@ -535,7 +536,7 @@ function CompanyDetail() {
         const duplicateContacts = group.filter((contact) => contact.id !== primary.id)
         for (const duplicate of duplicateContacts) {
           await deleteContact(undefined, {
-            url: `/api/contacts/${duplicate.id}`,
+            url: apiRoutes.contacts.detail(duplicate.id),
             errorMessage: '担当者の削除に失敗しました',
           })
         }
@@ -629,7 +630,7 @@ function CompanyDetail() {
     setRoomError('')
     try {
       await removeRoom(undefined, {
-        url: `/api/companies/${id}/chatwork-rooms/${roomId}`,
+        url: apiRoutes.companies.chatworkRoom(id, roomId),
         errorMessage: NETWORK_ERROR_MESSAGE,
       })
       void refetchLinkedRooms(undefined, { ignoreCache: true })
@@ -648,7 +649,7 @@ function CompanyDetail() {
       await addLabel(
         { label },
         {
-          url: `/api/messages/${messageId}/labels`,
+          url: apiRoutes.messages.messageLabels(messageId),
         }
       )
       setLabelInputs((prev) => ({ ...prev, [messageId]: '' }))
@@ -661,7 +662,7 @@ function CompanyDetail() {
     setMessageError('')
     try {
       await removeLabel(undefined, {
-        url: `/api/messages/${messageId}/labels/${encodeURIComponent(label)}`,
+        url: apiRoutes.messages.messageLabel(messageId, label),
       })
       void refetchMessages(undefined, { ignoreCache: true })
     } catch (err) {

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CompanySearchSelect, ProjectSearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -13,14 +13,14 @@ import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
-import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { usePagination } from '../hooks/usePagination'
+import { useUrlSync } from '../hooks/useUrlSync'
 import { usePermissions } from '../hooks/usePermissions'
 import { ApiListResponse, Wholesale, WholesalesFilters } from '../types'
 import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants'
 import { formatDateInput } from '../utils/date'
 import { formatCurrency } from '../utils/format'
+import { apiRoutes } from '../lib/apiRoutes'
 
 const defaultFilters: WholesalesFilters = {
   status: '',
@@ -32,18 +32,11 @@ const defaultFilters: WholesalesFilters = {
 
 function Wholesales() {
   const { canWrite } = usePermissions()
-  const location = useLocation()
-  const navigate = useNavigate()
   const [error, setError] = useState('')
   const searchInputRef = useRef<HTMLSelectElement>(null)
-  const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
-  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
 
-  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters } =
-    useFilters(defaultFilters)
-  const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
-    usePagination(initialPageSize)
+  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters, pagination, setPagination, setPage, setPageSize } =
+    useUrlSync({ pathname: '/wholesales', defaultFilters })
 
   // 編集モーダル用state
   const [editingWholesale, setEditingWholesale] = useState<Wholesale | null>(null)
@@ -58,20 +51,22 @@ function Wholesales() {
   const [deleteTarget, setDeleteTarget] = useState<Wholesale | null>(null)
 
   const queryString = useMemo(() => {
-    const params = new URLSearchParams(paginationQuery)
+    const params = new URLSearchParams()
     if (filters.status) params.set('status', filters.status)
     if (filters.projectId) params.set('projectId', filters.projectId)
     if (filters.companyId) params.set('companyId', filters.companyId)
     if (filters.unitPriceMin) params.set('unitPriceMin', filters.unitPriceMin)
     if (filters.unitPriceMax) params.set('unitPriceMax', filters.unitPriceMax)
+    params.set('page', String(pagination.page))
+    params.set('pageSize', String(pagination.pageSize))
     return params.toString()
-  }, [filters, paginationQuery])
+  }, [filters, pagination.page, pagination.pageSize])
 
   const {
     data: wholesalesData,
     isLoading: isLoadingWholesales,
     refetch: refetchWholesales,
-  } = useFetch<ApiListResponse<Wholesale>>(`/api/wholesales?${queryString}`, {
+  } = useFetch<ApiListResponse<Wholesale>>(apiRoutes.wholesales.list(queryString), {
     errorMessage: '卸一覧の取得に失敗しました',
     onStart: () => setError(''),
     onSuccess: (data) => {
@@ -85,15 +80,15 @@ function Wholesales() {
   const { mutate: updateWholesale, isLoading: isUpdating } = useMutation<
     { wholesale: Wholesale },
     { status?: string; unitPrice?: number | null; conditions?: string | null; agreedDate?: string | null }
-  >('/api/wholesales', 'PATCH')
+  >(apiRoutes.wholesales.base(), 'PATCH')
 
   const { mutate: deleteWholesale, isLoading: isDeleting } = useMutation<void, void>(
-    '/api/wholesales',
+    apiRoutes.wholesales.base(),
     'DELETE'
   )
 
   const { data: selectedCompanyData } = useFetch<{ company: { id: string; name: string } }>(
-    filters.companyId ? `/api/companies/${filters.companyId}` : null,
+    filters.companyId ? apiRoutes.companies.detail(filters.companyId) : null,
     {
       enabled: Boolean(filters.companyId),
       cacheTimeMs: 30_000,
@@ -101,7 +96,7 @@ function Wholesales() {
   )
 
   const { data: selectedProjectData } = useFetch<{ project: { id: string; name: string } }>(
-    filters.projectId ? `/api/projects/${filters.projectId}` : null,
+    filters.projectId ? apiRoutes.projects.detail(filters.projectId) : null,
     {
       enabled: Boolean(filters.projectId),
       cacheTimeMs: 30_000,
@@ -126,52 +121,6 @@ function Wholesales() {
 
   useKeyboardShortcut(shortcuts)
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const nextFilters = {
-      ...defaultFilters,
-      status: params.get('status') ?? '',
-      projectId: params.get('projectId') ?? '',
-      companyId: params.get('companyId') ?? '',
-      unitPriceMin: params.get('unitPriceMin') ?? '',
-      unitPriceMax: params.get('unitPriceMax') ?? '',
-    }
-    setFilters(nextFilters)
-    const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
-    const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
-    setPagination((prev) => ({
-      ...prev,
-      page: nextPage,
-      pageSize: nextPageSize,
-    }))
-  }, [initialPage, initialPageSize, location.search, setFilters, setPagination])
-
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (filters.status) params.set('status', filters.status)
-    if (filters.projectId) params.set('projectId', filters.projectId)
-    if (filters.companyId) params.set('companyId', filters.companyId)
-    if (filters.unitPriceMin) params.set('unitPriceMin', filters.unitPriceMin)
-    if (filters.unitPriceMax) params.set('unitPriceMax', filters.unitPriceMax)
-    params.set('page', String(pagination.page))
-    params.set('pageSize', String(pagination.pageSize))
-    const nextSearch = params.toString()
-    const currentSearch = location.search.replace(/^\?/, '')
-    if (nextSearch !== currentSearch) {
-      navigate({ pathname: '/wholesales', search: nextSearch }, { replace: true })
-    }
-  }, [
-    filters.companyId,
-    filters.projectId,
-    filters.status,
-    filters.unitPriceMin,
-    filters.unitPriceMax,
-    location.search,
-    navigate,
-    pagination.page,
-    pagination.pageSize,
-  ])
-
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setPage(1)
@@ -179,12 +128,10 @@ function Wholesales() {
 
   const handleClearFilter = (key: keyof WholesalesFilters) => {
     clearFilter(key)
-    setPage(1)
   }
 
   const handleClearAllFilters = () => {
     clearAllFilters()
-    setPage(1)
   }
 
   const handleEditOpen = (wholesale: Wholesale) => {
@@ -211,7 +158,7 @@ function Wholesales() {
           agreedDate: editForm.agreedDate || null,
         },
         {
-          url: `/api/wholesales/${editingWholesale.id}`,
+          url: apiRoutes.wholesales.detail(editingWholesale.id),
           errorMessage: '卸の更新に失敗しました',
         }
       )
@@ -227,7 +174,7 @@ function Wholesales() {
     setError('')
     try {
       await deleteWholesale(undefined, {
-        url: `/api/wholesales/${deleteTarget.id}`,
+        url: apiRoutes.wholesales.detail(deleteTarget.id),
         errorMessage: '卸の削除に失敗しました',
       })
       setDeleteTarget(null)
@@ -262,7 +209,6 @@ function Wholesales() {
             value={filters.status}
             onChange={(e) => {
               setFilters({ ...filters, status: e.target.value })
-              setPage(1)
             }}
           >
             <option value="">全てのステータス</option>
@@ -276,7 +222,6 @@ function Wholesales() {
             value={filters.projectId}
             onChange={(projectId) => {
               setFilters({ ...filters, projectId })
-              setPage(1)
             }}
             placeholder="案件を検索"
           />
@@ -284,7 +229,6 @@ function Wholesales() {
             value={filters.companyId}
             onChange={(companyId) => {
               setFilters({ ...filters, companyId })
-              setPage(1)
             }}
             placeholder="企業を検索"
           />
@@ -293,7 +237,6 @@ function Wholesales() {
             value={filters.unitPriceMin}
             onChange={(e) => {
               setFilters({ ...filters, unitPriceMin: e.target.value })
-              setPage(1)
             }}
             placeholder="単価（最小）"
           />
@@ -302,7 +245,6 @@ function Wholesales() {
             value={filters.unitPriceMax}
             onChange={(e) => {
               setFilters({ ...filters, unitPriceMax: e.target.value })
-              setPage(1)
             }}
             placeholder="単価（最大）"
           />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { usePermissions } from '../hooks/usePermissions'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -12,12 +12,12 @@ import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import KanbanBoard from '../components/KanbanBoard'
 import { useFetch, useMutation } from '../hooks/useApi'
-import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { usePagination } from '../hooks/usePagination'
+import { useUrlSync } from '../hooks/useUrlSync'
 import { formatDate, formatDateInput } from '../utils/date'
 import { getTargetPath } from '../utils/routes'
 import { ApiListResponse, Task, TasksFilters } from '../types'
+import { apiRoutes } from '../lib/apiRoutes'
 import {
   TASK_STATUS_OPTIONS,
   TARGET_TYPE_OPTIONS,
@@ -35,21 +35,28 @@ const defaultFilters: TasksFilters = {
 
 function Tasks() {
   const { canWrite } = usePermissions()
-  const location = useLocation()
-  const navigate = useNavigate()
   const searchInputRef = useRef<HTMLSelectElement>(null)
-  const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const initialScope = initialParams.get('scope') === 'all' ? 'all' : 'me'
-  const initialView = initialParams.get('view') === 'kanban' ? 'kanban' : 'list'
-  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
-  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
 
-  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters } =
-    useFilters(defaultFilters)
-  const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
-    usePagination(initialPageSize)
-  const [scope, setScope] = useState<'me' | 'all'>(initialScope)
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(initialView)
+  const {
+    filters,
+    setFilters,
+    hasActiveFilters,
+    clearFilter,
+    clearAllFilters,
+    pagination,
+    setPagination,
+    setPage,
+    setPageSize,
+    extraParams,
+    setExtraParams,
+  } = useUrlSync({
+    pathname: '/tasks',
+    defaultFilters,
+    defaultParams: { scope: 'me', view: 'list' },
+    resetPageOnFilterChange: false,
+  })
+  const scope = extraParams.scope === 'all' ? 'all' : 'me'
+  const viewMode = extraParams.view === 'kanban' ? 'kanban' : 'list'
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkStatus, setBulkStatus] = useState('')
   const [bulkAssigneeId, setBulkAssigneeId] = useState('')
@@ -58,17 +65,22 @@ function Tasks() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
 
   const queryString = useMemo(() => {
-    const params = new URLSearchParams(paginationQuery)
+    const params = new URLSearchParams()
     if (filters.status) params.set('status', filters.status)
     if (filters.targetType) params.set('targetType', filters.targetType)
     if (filters.dueFrom) params.set('dueFrom', filters.dueFrom)
     if (filters.dueTo) params.set('dueTo', filters.dueTo)
     if (filters.assigneeId) params.set('assigneeId', filters.assigneeId)
+    params.set('page', String(pagination.page))
+    params.set('pageSize', String(pagination.pageSize))
     return params.toString()
-  }, [filters, paginationQuery])
+  }, [filters, pagination.page, pagination.pageSize])
 
   const tasksUrl = useMemo(
-    () => (scope === 'all' ? `/api/tasks?${queryString}` : `/api/me/tasks?${queryString}`),
+    () =>
+      scope === 'all'
+        ? apiRoutes.tasks.list(queryString)
+        : apiRoutes.tasks.myList(queryString),
     [queryString, scope]
   )
 
@@ -87,28 +99,28 @@ function Tasks() {
   })
 
   const { mutate: updateTaskStatus } = useMutation<Task, { status: string }>(
-    '/api/tasks',
+    apiRoutes.tasks.base(),
     'PATCH'
   )
 
   const { mutate: updateTask } = useMutation<
     Task,
     { status?: string; dueDate?: string | null; assigneeId?: string | null }
-  >('/api/tasks', 'PATCH')
+  >(apiRoutes.tasks.base(), 'PATCH')
 
   const { mutate: bulkUpdateTasks, isLoading: isBulkUpdating } = useMutation<
     { updated: number },
     { taskIds: string[]; status?: string; assigneeId?: string | null; dueDate?: string | null }
-  >('/api/tasks/bulk', 'PATCH')
+  >(apiRoutes.tasks.bulk(), 'PATCH')
 
   const { mutate: deleteTask, isLoading: isDeleting } = useMutation<void, void>(
-    '/api/tasks',
+    apiRoutes.tasks.base(),
     'DELETE'
   )
 
   const { data: userOptionsData } = useFetch<{
     users: Array<{ id: string; email: string; role: string }>
-  }>('/api/users/options', {
+  }>(apiRoutes.users.options(), {
     errorMessage: 'Failed to load users',
     cacheTimeMs: 30_000,
   })
@@ -136,60 +148,6 @@ function Tasks() {
 
   useKeyboardShortcut(shortcuts)
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const nextFilters = {
-      ...defaultFilters,
-      status: params.get('status') ?? '',
-      targetType: params.get('targetType') ?? '',
-      dueFrom: params.get('dueFrom') ?? '',
-      dueTo: params.get('dueTo') ?? '',
-      assigneeId: params.get('assigneeId') ?? '',
-    }
-    setFilters(nextFilters)
-    const nextScope = params.get('scope') === 'all' ? 'all' : 'me'
-    const nextView = params.get('view') === 'kanban' ? 'kanban' : 'list'
-    setScope(nextScope)
-    setViewMode(nextView)
-    const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
-    const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
-    setPagination((prev) => ({
-      ...prev,
-      page: nextPage,
-      pageSize: nextPageSize,
-    }))
-  }, [initialPage, initialPageSize, location.search, setFilters, setPagination])
-
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (filters.status) params.set('status', filters.status)
-    if (filters.targetType) params.set('targetType', filters.targetType)
-    if (filters.dueFrom) params.set('dueFrom', filters.dueFrom)
-    if (filters.dueTo) params.set('dueTo', filters.dueTo)
-    if (filters.assigneeId) params.set('assigneeId', filters.assigneeId)
-    if (scope === 'all') params.set('scope', scope)
-    if (viewMode === 'kanban') params.set('view', viewMode)
-    params.set('page', String(pagination.page))
-    params.set('pageSize', String(pagination.pageSize))
-    const nextSearch = params.toString()
-    const currentSearch = location.search.replace(/^\?/, '')
-    if (nextSearch !== currentSearch) {
-      navigate({ pathname: '/tasks', search: nextSearch }, { replace: true })
-    }
-  }, [
-    filters.assigneeId,
-    filters.dueFrom,
-    filters.dueTo,
-    filters.status,
-    filters.targetType,
-    location.search,
-    navigate,
-    pagination.page,
-    pagination.pageSize,
-    scope,
-    viewMode,
-  ])
-
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setPage(1)
@@ -213,7 +171,7 @@ function Tasks() {
     try {
       await updateTaskStatus(
         { status: nextStatus },
-        { url: `/api/tasks/${taskId}`, errorMessage: 'Failed to update task status' }
+        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'Failed to update task status' }
       )
       void refetchTasks()
     } catch (err) {
@@ -252,7 +210,7 @@ function Tasks() {
     try {
       await updateTask(
         { assigneeId },
-        { url: `/api/tasks/${taskId}`, errorMessage: 'Failed to update assignee' }
+        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'Failed to update assignee' }
       )
       void refetchTasks()
     } catch (err) {
@@ -282,7 +240,7 @@ function Tasks() {
     try {
       await updateTask(
         { dueDate },
-        { url: `/api/tasks/${taskId}`, errorMessage: 'Failed to update due date' }
+        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'Failed to update due date' }
       )
       void refetchTasks()
     } catch (err) {
@@ -334,7 +292,7 @@ function Tasks() {
     setError('')
     try {
       await deleteTask(undefined, {
-        url: `/api/tasks/${deleteTarget.id}`,
+        url: apiRoutes.tasks.detail(deleteTarget.id),
         errorMessage: 'タスクの削除に失敗しました',
       })
       setDeleteTarget(null)
@@ -361,7 +319,7 @@ function Tasks() {
   }
 
   const handleScopeChange = (nextScope: 'me' | 'all') => {
-    setScope(nextScope)
+    setExtraParams((prev) => ({ ...prev, scope: nextScope }))
     if (nextScope === 'me') {
       setFilters({ ...filters, assigneeId: '' })
     }
@@ -378,12 +336,10 @@ function Tasks() {
 
   const handleClearFilter = (key: keyof TasksFilters) => {
     clearFilter(key)
-    setPage(1)
   }
 
   const handleClearAllFilters = () => {
     clearAllFilters()
-    setPage(1)
   }
 
   return (
@@ -421,14 +377,14 @@ function Tasks() {
         <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold text-slate-600 shadow-sm">
           <button
             type="button"
-            onClick={() => setViewMode('list')}
+            onClick={() => setExtraParams((prev) => ({ ...prev, view: 'list' }))}
             className={`rounded-full px-3 py-1 ${viewMode === 'list' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
           >
             リスト
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('kanban')}
+            onClick={() => setExtraParams((prev) => ({ ...prev, view: 'kanban' }))}
             className={`rounded-full px-3 py-1 ${viewMode === 'kanban' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
           >
             カンバン

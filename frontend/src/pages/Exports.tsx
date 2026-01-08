@@ -5,6 +5,7 @@ import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import { useFetch } from '../hooks/useApi'
 import { apiDownload } from '../lib/apiClient'
+import { apiRoutes } from '../lib/apiRoutes'
 import { CompanyOptions, ExportCompanyFilters, ExportTaskFilters } from '../types'
 import { TARGET_TYPE_OPTIONS, TASK_STATUS_OPTIONS, statusLabel, targetTypeLabel } from '../constants'
 
@@ -27,13 +28,13 @@ function Exports() {
     assigneeId: '',
   })
 
-  const { data: companyOptionsData } = useFetch<CompanyOptions>('/api/companies/options', {
+  const { data: companyOptionsData } = useFetch<CompanyOptions>(apiRoutes.companies.options(), {
     errorMessage: '候補の取得に失敗しました',
     cacheTimeMs: 30_000,
   })
 
   const { data: userOptionsData } = useFetch<{ users: Array<{ id: string; email: string }> }>(
-    '/api/users/options',
+    apiRoutes.users.options(),
     {
       errorMessage: '候補の取得に失敗しました',
       cacheTimeMs: 30_000,
@@ -146,7 +147,9 @@ function Exports() {
           <div className="mt-4 flex justify-end">
             <Button
               type="button"
-              onClick={() => downloadFile('/api/export/companies.csv', 'companies.csv', companyFilters)}
+              onClick={() =>
+                downloadFile(apiRoutes.exports.companies(), 'companies.csv', companyFilters)
+              }
               isLoading={activeDownload === 'companies'}
               loadingLabel="ダウンロード中..."
             >
@@ -207,7 +210,7 @@ function Exports() {
           <div className="mt-4 flex justify-end">
             <Button
               type="button"
-              onClick={() => downloadFile('/api/export/tasks.csv', 'tasks.csv', taskFilters)}
+              onClick={() => downloadFile(apiRoutes.exports.tasks(), 'tasks.csv', taskFilters)}
               isLoading={activeDownload === 'tasks'}
               loadingLabel="ダウンロード中..."
             >

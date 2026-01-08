@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFetch } from '../hooks/useApi'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { apiRoutes } from '../lib/apiRoutes'
 
 type BaseOption = { id: string; name: string }
 
@@ -168,8 +169,8 @@ export const CompanySearchSelect = ({
   <SearchSelect
     {...props}
     placeholder={placeholder}
-    searchEndpoint="/api/companies/search"
-    detailEndpoint={(id) => `/api/companies/${id}`}
+    searchEndpoint={apiRoutes.companies.search()}
+    detailEndpoint={(id) => apiRoutes.companies.detail(id)}
     responseKey="company"
     errorMessageDetail="企業の取得に失敗しました"
   />
@@ -182,8 +183,8 @@ export const ProjectSearchSelect = ({
   <SearchSelect
     {...props}
     placeholder={placeholder}
-    searchEndpoint="/api/projects/search"
-    detailEndpoint={(id) => `/api/projects/${id}`}
+    searchEndpoint={apiRoutes.projects.search()}
+    detailEndpoint={(id) => apiRoutes.projects.detail(id)}
     responseKey="project"
     errorMessageDetail="案件の取得に失敗しました"
   />

@@ -11,6 +11,7 @@ import { useFetch, useMutation } from '../hooks/useApi'
 import { usePagination } from '../hooks/usePagination'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from '../hooks/useToast'
+import { apiRoutes } from '../lib/apiRoutes'
 import { formatDate, formatDateInput } from '../utils/date'
 import { formatCurrency } from '../utils/format'
 import { ApiListResponse, Task, Wholesale } from '../types'
@@ -38,7 +39,7 @@ function WholesaleDetail() {
     setData: setWholesaleData,
     isLoading: isLoadingWholesale,
     error: wholesaleError,
-  } = useFetch<{ wholesale: Wholesale }>(id ? `/api/wholesales/${id}` : null, {
+  } = useFetch<{ wholesale: Wholesale }>(id ? apiRoutes.wholesales.detail(id) : null, {
     errorMessage: '卸情報の取得に失敗しました',
   })
 
@@ -51,10 +52,10 @@ function WholesaleDetail() {
       agreedDate?: string | null
       conditions?: string | null
     }
-  >('/api/wholesales', 'PATCH')
+  >(apiRoutes.wholesales.base(), 'PATCH')
 
   const { mutate: deleteWholesale, isLoading: isDeletingWholesale } = useMutation<void, void>(
-    '/api/wholesales',
+    apiRoutes.wholesales.base(),
     'DELETE'
   )
 
@@ -62,12 +63,15 @@ function WholesaleDetail() {
     data: tasksData,
     isLoading: isLoadingTasks,
     error: tasksError,
-  } = useFetch<ApiListResponse<Task>>(id ? `/api/wholesales/${id}/tasks?${paginationQuery}` : null, {
-    errorMessage: 'タスクの読み込みに失敗しました',
-    onSuccess: (data) => {
-      setPagination((prev) => ({ ...prev, ...data.pagination }))
-    },
-  })
+  } = useFetch<ApiListResponse<Task>>(
+    id ? apiRoutes.wholesales.tasks(id, paginationQuery) : null,
+    {
+      errorMessage: 'タスクの読み込みに失敗しました',
+      onSuccess: (data) => {
+        setPagination((prev) => ({ ...prev, ...data.pagination }))
+      },
+    }
+  )
 
   const wholesale = wholesaleData?.wholesale
   const tasks = tasksData?.items ?? []
@@ -129,7 +133,7 @@ function WholesaleDetail() {
           conditions: form.conditions.trim() || null,
         },
         {
-          url: `/api/wholesales/${id}`,
+          url: apiRoutes.wholesales.detail(id),
           errorMessage: '更新に失敗しました',
         }
       )
@@ -147,7 +151,7 @@ function WholesaleDetail() {
     if (!id || !canWrite) return
     try {
       await deleteWholesale(undefined, {
-        url: `/api/wholesales/${id}`,
+        url: apiRoutes.wholesales.detail(id),
         errorMessage: '卸情報の削除に失敗しました',
       })
       navigate('/wholesales')

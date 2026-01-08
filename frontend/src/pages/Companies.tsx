@@ -15,6 +15,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useUrlSync } from '../hooks/useUrlSync'
 import { getAvatarColor, getInitials } from '../utils/string'
+import { apiRoutes } from '../lib/apiRoutes'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
   COMPANY_STATUS_DEFAULT_OPTIONS,
@@ -79,7 +80,7 @@ function Companies() {
     data: companiesData,
     isLoading: isLoadingCompanies,
     refetch: refetchCompanies,
-  } = useFetch<ApiListResponse<Company>>(`/api/companies?${queryString}`, {
+  } = useFetch<ApiListResponse<Company>>(apiRoutes.companies.list(queryString), {
     errorMessage: '企業一覧の取得に失敗しました',
     onStart: () => setError(''),
     onSuccess: (data) => {
@@ -88,7 +89,7 @@ function Companies() {
     onError: setError,
   })
 
-  const { refetch: refetchOptions } = useFetch<CompanyOptions>('/api/companies/options', {
+  const { refetch: refetchOptions } = useFetch<CompanyOptions>(apiRoutes.companies.options(), {
     onSuccess: (data) => {
       setOptions({
         categories: data?.categories ?? [],
@@ -102,7 +103,7 @@ function Companies() {
   })
 
   const { isLoading: isLoadingRooms } = useFetch<{ rooms?: ChatworkRoom[] }>(
-    isAdmin && showChatworkSelector ? '/api/chatwork/rooms' : null,
+    isAdmin && showChatworkSelector ? apiRoutes.chatwork.rooms() : null,
     {
       enabled: isAdmin && showChatworkSelector,
       errorMessage: 'Chatworkルーム一覧の取得に失敗しました。管理者権限が必要な場合があります。',
@@ -120,10 +121,10 @@ function Companies() {
       profile?: string
       tags: string[]
     }
-  >('/api/companies', 'POST')
+  >(apiRoutes.companies.base(), 'POST')
 
   const { mutate: linkChatworkRoom } = useMutation<unknown, { roomId: string }>(
-    '/api/companies',
+    apiRoutes.companies.base(),
     'POST'
   )
 
@@ -231,7 +232,7 @@ function Companies() {
         try {
           await linkChatworkRoom(
             { roomId: selectedRoomId },
-            { url: `/api/companies/${newCompanyId}/chatwork-rooms` }
+            { url: apiRoutes.companies.chatworkRooms(newCompanyId) }
           )
         } catch (err) {
           console.error('ルームの紐づけに失敗しました:', err)
@@ -265,12 +266,10 @@ function Companies() {
 
   const handleClearFilter = (key: keyof CompaniesFilters) => {
     clearFilter(key)
-    setPage(1)
   }
 
   const handleClearAllFilters = () => {
     clearAllFilters()
-    setPage(1)
   }
 
   return (
@@ -326,7 +325,6 @@ function Companies() {
               value={filters.q}
               onChange={(event) => {
                 setFilters({ ...filters, q: event.target.value })
-                setPage(1)
               }}
             />
           </div>
@@ -334,7 +332,6 @@ function Companies() {
             value={filters.category}
             onChange={(event) => {
               setFilters({ ...filters, category: event.target.value })
-              setPage(1)
             }}
           >
             <option value="">区分</option>
@@ -348,7 +345,6 @@ function Companies() {
             value={filters.status}
             onChange={(event) => {
               setFilters({ ...filters, status: event.target.value })
-              setPage(1)
             }}
           >
             <option value="">ステータス</option>
@@ -364,7 +360,6 @@ function Companies() {
               value={filters.tag}
               onChange={(event) => {
                 setFilters({ ...filters, tag: event.target.value })
-                setPage(1)
               }}
               list="tag-filter-options"
             />

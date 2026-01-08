@@ -8,6 +8,7 @@ import FormTextarea from '../components/ui/FormTextarea'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
+import { apiRoutes } from '../lib/apiRoutes'
 import {
   TASK_STATUS_OPTIONS,
   statusLabel,
@@ -38,7 +39,7 @@ function TaskDetail() {
     error: fetchError,
     isLoading,
     refetch,
-  } = useFetch<{ task: Task }>(id ? `/api/tasks/${id}` : null, {
+  } = useFetch<{ task: Task }>(id ? apiRoutes.tasks.detail(id) : null, {
     enabled: Boolean(id),
     errorMessage: 'タスクの読み込みに失敗しました',
     onSuccess: (data) => {
@@ -56,7 +57,7 @@ function TaskDetail() {
 
   const { data: usersData } = useFetch<{
     users: Array<{ id: string; email: string; role: string }>
-  }>('/api/users/options', {
+  }>(apiRoutes.users.options(), {
     cacheTimeMs: 30_000,
   })
 
@@ -66,10 +67,10 @@ function TaskDetail() {
   const { mutate: updateTask, isLoading: isUpdating } = useMutation<
     { task: Task },
     { title?: string; description?: string; status?: string; dueDate?: string | null; assigneeId?: string | null }
-  >('/api/tasks', 'PATCH')
+  >(apiRoutes.tasks.base(), 'PATCH')
 
   const { mutate: deleteTask, isLoading: isDeleting } = useMutation<void, void>(
-    '/api/tasks',
+    apiRoutes.tasks.base(),
     'DELETE'
   )
 
@@ -89,7 +90,7 @@ function TaskDetail() {
           dueDate: form.dueDate || null,
           assigneeId: form.assigneeId || null,
         },
-        { url: `/api/tasks/${id}`, errorMessage: 'タスクの更新に失敗しました' }
+        { url: apiRoutes.tasks.detail(id), errorMessage: 'タスクの更新に失敗しました' }
       )
       setIsEditing(false)
       void refetch(undefined, { ignoreCache: true })
@@ -103,7 +104,7 @@ function TaskDetail() {
     setError('')
     try {
       await deleteTask(undefined, {
-        url: `/api/tasks/${id}`,
+        url: apiRoutes.tasks.detail(id),
         errorMessage: 'タスクの削除に失敗しました',
       })
       navigate('/tasks')

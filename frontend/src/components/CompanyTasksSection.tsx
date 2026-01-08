@@ -6,6 +6,7 @@ import FormTextarea from './ui/FormTextarea'
 import LoadingState from './ui/LoadingState'
 import StatusBadge from './ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
+import { apiRoutes } from '../lib/apiRoutes'
 import { formatDate } from '../utils/date'
 import { ApiListResponse, Task } from '../types'
 import { TASK_STATUS_OPTIONS, statusLabel } from '../constants'
@@ -29,7 +30,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
     isLoading,
     refetch: refetchTasks,
   } = useFetch<ApiListResponse<Task>>(
-    `/api/companies/${companyId}/tasks?${queryString}`,
+    apiRoutes.companies.tasks(companyId, queryString),
     {
       errorMessage: 'タスクの読み込みに失敗しました',
       onStart: () => setError(''),
@@ -43,10 +44,10 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
     title: string
     description?: string
     dueDate?: string
-  }>('/api/tasks', 'POST')
+  }>(apiRoutes.tasks.base(), 'POST')
 
   const { mutate: updateTask } = useMutation<Task, { status: string }>(
-    '/api/tasks',
+    apiRoutes.tasks.base(),
     'PATCH'
   )
 
@@ -82,7 +83,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
     try {
       await updateTask(
         { status: nextStatus },
-        { url: `/api/tasks/${taskId}`, errorMessage: 'タスクの更新に失敗しました' }
+        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'タスクの更新に失敗しました' }
       )
       void refetchTasks()
     } catch (err) {

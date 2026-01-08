@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { ApiRequestError } from '../lib/apiClient'
+import { apiRoutes } from '../lib/apiRoutes'
 
 interface User {
   id: string
@@ -30,7 +31,7 @@ const MOCK_USER: User = {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(MOCK_AUTH ? MOCK_USER : null)
   const { data: authData, error: authError, setError: setAuthError, isLoading: isAuthLoading } =
-    useFetch<{ user: User }>('/api/auth/me', {
+    useFetch<{ user: User }>(apiRoutes.auth.me(), {
       enabled: !MOCK_AUTH,
       errorMessage: '認証に失敗しました',
       cacheTimeMs: 0,
@@ -42,12 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     })
 
-  const { mutate: loginRequest } = useMutation<{ token: string; user: User }, { email: string; password: string }>(
-    '/api/auth/login',
-    'POST'
-  )
+  const { mutate: loginRequest } = useMutation<
+    { token: string; user: User },
+    { email: string; password: string }
+  >(apiRoutes.auth.login(), 'POST')
 
-  const { mutate: logoutRequest } = useMutation<void, void>('/api/auth/logout', 'POST')
+  const { mutate: logoutRequest } = useMutation<void, void>(apiRoutes.auth.logout(), 'POST')
 
   useEffect(() => {
     if (MOCK_AUTH) return
