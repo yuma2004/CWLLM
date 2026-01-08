@@ -10,10 +10,11 @@ import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
 import {
   TASK_STATUS_OPTIONS,
-  TASK_STATUS_LABELS,
-  TARGET_TYPE_LABELS,
+  statusLabel,
+  targetTypeLabel,
 } from '../constants'
 import { formatDate, formatDateInput } from '../utils/date'
+import { getTargetPath } from '../utils/routes'
 import { Task } from '../types'
 
 function TaskDetail() {
@@ -124,12 +125,6 @@ function TaskDetail() {
     setIsEditing(false)
   }
 
-  const targetLink = (t: Task) => {
-    if (t.targetType === 'company') return `/companies/${t.targetId}`
-    if (t.targetType === 'project') return `/projects/${t.targetId}`
-    return `/wholesales/${t.targetId}`
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-up">
@@ -208,9 +203,9 @@ function TaskDetail() {
         {isEditing ? (
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+              <div className="mb-1 block text-sm font-medium text-slate-700">
                 タイトル <span className="text-rose-500">*</span>
-              </label>
+              </div>
               <FormInput
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -218,7 +213,7 @@ function TaskDetail() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">説明</label>
+              <div className="mb-1 block text-sm font-medium text-slate-700">説明</div>
               <FormTextarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -228,20 +223,20 @@ function TaskDetail() {
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">ステータス</label>
+                <div className="mb-1 block text-sm font-medium text-slate-700">ステータス</div>
                 <FormSelect
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
                 >
                   {TASK_STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
-                      {TASK_STATUS_LABELS[status]}
+                      {statusLabel('task', status)}
                     </option>
                   ))}
                 </FormSelect>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">期日</label>
+                <div className="mb-1 block text-sm font-medium text-slate-700">期日</div>
                 <FormInput
                   type="date"
                   value={form.dueDate}
@@ -249,7 +244,7 @@ function TaskDetail() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">担当者</label>
+                <div className="mb-1 block text-sm font-medium text-slate-700">担当者</div>
                 <FormSelect
                   value={form.assigneeId}
                   onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}
@@ -303,7 +298,7 @@ function TaskDetail() {
                   ステータス
                 </dt>
                 <dd className="mt-1">
-                  <StatusBadge status={TASK_STATUS_LABELS[task.status] || task.status} />
+                  <StatusBadge status={task.status} kind="task" />
                 </dd>
               </div>
               <div>
@@ -324,11 +319,11 @@ function TaskDetail() {
                 </dt>
                 <dd className="mt-1">
                   <Link
-                    to={targetLink(task)}
+                    to={getTargetPath(task.targetType, task.targetId)}
                     className="inline-flex items-center gap-2 text-sky-600 hover:text-sky-700"
                   >
                     <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                      {TARGET_TYPE_LABELS[task.targetType] || task.targetType}
+                      {targetTypeLabel(task.targetType)}
                     </span>
                     <span>{task.target?.name || task.targetId}</span>
                   </Link>

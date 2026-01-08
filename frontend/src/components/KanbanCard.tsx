@@ -3,6 +3,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
 import { Task } from '../types'
 import { formatDate } from '../utils/date'
+import { getTargetPath } from '../utils/routes'
 
 type KanbanCardProps = {
   task: Task
@@ -25,7 +26,6 @@ function KanbanCard({
     setNodeRef,
     setActivatorNodeRef,
     transform,
-    transition,
     isDragging,
   } = useDraggable({
     id: task.id,
@@ -34,13 +34,6 @@ function KanbanCard({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
-  const targetLink = () => {
-    if (task.targetType === 'company') return `/companies/${task.targetId}`
-    if (task.targetType === 'project') return `/projects/${task.targetId}`
-    return `/wholesales/${task.targetId}`
   }
 
   return (
@@ -100,7 +93,7 @@ function KanbanCard({
       <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
         <span>期日: {formatDate(task.dueDate)}</span>
         <Link
-          to={targetLink()}
+          to={getTargetPath(task.targetType, task.targetId)}
           className="truncate font-medium text-slate-600 hover:text-sky-600"
           onClick={(e) => e.stopPropagation()}
         >

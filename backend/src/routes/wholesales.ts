@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { Prisma, WholesaleStatus } from '@prisma/client'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
-import { parsePagination } from '../utils/pagination'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination'
 import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
 import {
   createEnumNormalizer,
@@ -90,14 +90,7 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
         prisma.wholesale.count({ where }),
       ])
 
-      return {
-        items,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return buildPaginatedResponse(items, page, pageSize, total)
     }
   )
 

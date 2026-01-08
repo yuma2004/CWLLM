@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import CompanySearchSelect from '../components/CompanySearchSelect'
+import { CompanySearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
+import EmptyState from '../components/ui/EmptyState'
+import LoadingState from '../components/ui/LoadingState'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
-import { PROJECT_STATUS_LABELS, PROJECT_STATUS_OPTIONS, WHOLESALE_STATUS_LABELS } from '../constants'
+import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants'
 import { formatDate, formatDateInput } from '../utils/date'
+import { formatCurrency } from '../utils/format'
 import { Project, User, Wholesale } from '../types'
 
 type ProjectUpdatePayload = {
@@ -70,7 +73,6 @@ function ProjectDetail() {
     refetch: refetchProject,
   } = useFetch<{ project: Project }>(id ? `/api/projects/${id}` : null, {
     enabled: Boolean(id),
-    errorMessage: 'ネットワークエラー',
     cacheTimeMs: 10_000,
   })
 
@@ -83,7 +85,6 @@ function ProjectDetail() {
     id ? `/api/projects/${id}/wholesales` : null,
     {
       enabled: Boolean(id),
-      errorMessage: 'ネットワークエラー',
       cacheTimeMs: 10_000,
     }
   )
@@ -219,8 +220,7 @@ function ProjectDetail() {
           unitPrice: form.unitPrice ? parseFloat(form.unitPrice) : undefined,
           conditions: form.conditions || undefined,
           agreedDate: form.agreedDate || undefined,
-        },
-        { errorMessage: 'ネットワークエラー' }
+        }
       )
       setForm({ companyId: '', status: 'active', unitPrice: '', taxType: 'excluded', conditions: '', agreedDate: '' })
       setShowCreateForm(false)
@@ -257,7 +257,6 @@ function ProjectDetail() {
         },
         {
           url: `/api/wholesales/${editingWholesale.id}`,
-          errorMessage: 'ネットワークエラー',
         }
       )
       setEditingWholesale(null)
@@ -279,7 +278,6 @@ function ProjectDetail() {
     try {
       await removeWholesale(undefined, {
         url: `/api/wholesales/${deleteTarget.id}`,
-        errorMessage: 'ネットワークエラー',
       })
       setDeleteTarget(null)
       refreshData()
@@ -288,13 +286,8 @@ function ProjectDetail() {
     }
   }
 
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) return '-'
-    return `¥${value.toLocaleString()}`
-  }
-
   if (isLoading) {
-    return <div className="text-slate-500">読み込み中...</div>
+    return <LoadingState />
   }
 
   if (error) {
@@ -304,7 +297,6 @@ function ProjectDetail() {
   if (!project) {
     return <div className="text-slate-500">案件が見つかりません。</div>
   }
-  const projectStatus = project.status ?? ''
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -345,9 +337,9 @@ function ProjectDetail() {
           <form onSubmit={handleUpdateProject} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">
+                <div className="mb-1 block text-xs font-medium text-slate-600">
                   案件名 <span className="text-rose-500">*</span>
-                </label>
+                </div>
                 <FormInput
                   value={projectForm.name}
                   onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
@@ -355,20 +347,20 @@ function ProjectDetail() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">ステータス</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">ステータス</div>
                 <FormSelect
                   value={projectForm.status}
                   onChange={(e) => setProjectForm({ ...projectForm, status: e.target.value })}
                 >
                   {PROJECT_STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
-                      {PROJECT_STATUS_LABELS[status]}
+                      {statusLabel('project', status)}
                     </option>
                   ))}
                 </FormSelect>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">単価</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">単価</div>
                 <FormInput
                   type="number"
                   value={projectForm.unitPrice}
@@ -377,7 +369,7 @@ function ProjectDetail() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">担当者</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">担当者</div>
                 <FormSelect
                   value={projectForm.ownerId}
                   onChange={(e) => setProjectForm({ ...projectForm, ownerId: e.target.value })}
@@ -391,7 +383,7 @@ function ProjectDetail() {
                 </FormSelect>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">期間開始</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">期間開始</div>
                 <FormInput
                   type="date"
                   value={projectForm.periodStart}
@@ -399,7 +391,7 @@ function ProjectDetail() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">期間終了</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">期間終了</div>
                 <FormInput
                   type="date"
                   value={projectForm.periodEnd}
@@ -407,7 +399,7 @@ function ProjectDetail() {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-slate-600">条件・備考</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">条件・備考</div>
                 <FormTextarea
                   value={projectForm.conditions}
                   onChange={(e) => setProjectForm({ ...projectForm, conditions: e.target.value })}
@@ -443,9 +435,7 @@ function ProjectDetail() {
             <div>
               <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">ステータス</dt>
               <dd className="mt-1">
-                <StatusBadge
-                  status={PROJECT_STATUS_LABELS[projectStatus] || project.status || '-'}
-                />
+                <StatusBadge status={project.status ?? '-'} kind="project" />
               </dd>
             </div>
             <div>
@@ -502,7 +492,7 @@ function ProjectDetail() {
           <form onSubmit={handleCreateWholesale} className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">卸先企業 *</label>
+                <div className="block text-xs font-medium text-slate-600 mb-1">卸先企業 *</div>
                 <CompanySearchSelect
                   value={form.companyId}
                   onChange={(companyId) => setForm({ ...form, companyId })}
@@ -510,7 +500,7 @@ function ProjectDetail() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">ステータス</label>
+                <div className="block text-xs font-medium text-slate-600 mb-1">ステータス</div>
                 <select
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                   value={form.status}
@@ -522,7 +512,7 @@ function ProjectDetail() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">単価</label>
+                <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -542,7 +532,7 @@ function ProjectDetail() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">合意日</label>
+                <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
                 <input
                   type="date"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -551,7 +541,7 @@ function ProjectDetail() {
                 />
               </div>
               <div className="md:col-span-2 lg:col-span-1">
-                <label className="block text-xs font-medium text-slate-600 mb-1">条件・備考</label>
+                <div className="block text-xs font-medium text-slate-600 mb-1">条件・備考</div>
                 <input
                   type="text"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -581,7 +571,7 @@ function ProjectDetail() {
         {/* 卸一覧テーブル */}
         <div className="mt-4 overflow-x-auto">
           {wholesales.length === 0 ? (
-            <div className="text-sm text-slate-500 py-8 text-center">卸先がありません</div>
+            <EmptyState className="py-8" message="卸先がありません" />
           ) : (
             <table className="min-w-full divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50/80 text-left text-xs uppercase tracking-wider text-slate-500">
@@ -606,10 +596,7 @@ function ProjectDetail() {
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge
-                        status={WHOLESALE_STATUS_LABELS[wholesale.status] || wholesale.status}
-                        size="sm"
-                      />
+                      <StatusBadge status={wholesale.status} kind="wholesale" size="sm" />
                     </td>
                     <td className="px-4 py-3 text-right font-mono">{formatCurrency(wholesale.unitPrice)}</td>
                     <td className="px-4 py-3">{formatDate(wholesale.agreedDate)}</td>
@@ -642,22 +629,35 @@ function ProjectDetail() {
 
       {/* 編集モーダル */}
       {editingWholesale && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditingWholesale(null)}>
-          <div
-            className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          role="button"
+          tabIndex={0}
+          aria-label="close modal"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setEditingWholesale(null)
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              setEditingWholesale(null)
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">卸情報を編集</h3>
             <form onSubmit={handleUpdateWholesale}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">卸先企業</label>
+                  <div className="block text-xs font-medium text-slate-600 mb-1">卸先企業</div>
                   <div className="text-sm text-slate-800 bg-slate-50 px-3 py-2 rounded-lg">
                     {editingWholesale.company?.name || editingWholesale.companyId}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">ステータス</label>
+                  <div className="block text-xs font-medium text-slate-600 mb-1">ステータス</div>
                   <select
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     value={editForm.status}
@@ -669,7 +669,7 @@ function ProjectDetail() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">単価</label>
+                  <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
                   <div className="flex gap-2">
                     <input
                       type="number"
@@ -688,7 +688,7 @@ function ProjectDetail() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">合意日</label>
+                  <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
                   <input
                     type="date"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -697,7 +697,7 @@ function ProjectDetail() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">条件・備考</label>
+                  <div className="block text-xs font-medium text-slate-600 mb-1">条件・備考</div>
                   <textarea
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     rows={3}

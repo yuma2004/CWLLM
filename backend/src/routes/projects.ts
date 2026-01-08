@@ -4,7 +4,7 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
-import { parsePagination } from '../utils/pagination'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination'
 import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
 import {
   createEnumNormalizer,
@@ -15,6 +15,7 @@ import {
 } from '../utils/validation'
 import { JWTUser } from '../types/auth'
 import { badRequest, notFound } from '../utils/errors'
+import { dateSchema, paginationSchema } from './shared/schemas'
 
 const normalizeProjectStatus = createEnumNormalizer(new Set(Object.values(ProjectStatus)))
 
@@ -61,16 +62,6 @@ interface ProjectSearchQuery {
   companyId?: string
   limit?: string
 }
-
-const dateSchema = z.preprocess(
-  (value) => (value instanceof Date ? value.toISOString() : value),
-  z.string()
-)
-const paginationSchema = z.object({
-  page: z.number(),
-  pageSize: z.number(),
-  total: z.number(),
-})
 
 const projectSchema = z
   .object({
@@ -259,14 +250,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
         prisma.project.count({ where }),
       ])
 
-      return {
-        items,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return buildPaginatedResponse(items, page, pageSize, total)
     }
   )
 

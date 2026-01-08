@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { usePermissions } from '../hooks/usePermissions'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
+import EmptyState from '../components/ui/EmptyState'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
@@ -15,12 +16,13 @@ import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { usePagination } from '../hooks/usePagination'
 import { formatDate, formatDateInput } from '../utils/date'
+import { getTargetPath } from '../utils/routes'
 import { ApiListResponse, Task, TasksFilters } from '../types'
 import {
   TASK_STATUS_OPTIONS,
-  TASK_STATUS_LABELS,
   TARGET_TYPE_OPTIONS,
-  TARGET_TYPE_LABELS,
+  statusLabel,
+  targetTypeLabel,
 } from '../constants'
 
 const defaultFilters: TasksFilters = {
@@ -35,7 +37,6 @@ function Tasks() {
   const { canWrite } = usePermissions()
   const location = useLocation()
   const navigate = useNavigate()
-  const [error, setError] = useState('')
   const searchInputRef = useRef<HTMLSelectElement>(null)
   const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const initialScope = initialParams.get('scope') === 'all' ? 'all' : 'me'
@@ -74,15 +75,15 @@ function Tasks() {
   const {
     data: tasksData,
     setData: setTasksData,
+    error,
+    setError,
     isLoading: isLoadingTasks,
     refetch: refetchTasks,
   } = useFetch<ApiListResponse<Task>>(tasksUrl, {
     errorMessage: 'タスクの読み込みに失敗しました',
-    onStart: () => setError(''),
     onSuccess: (data) => {
       setPagination((prev) => ({ ...prev, ...data.pagination }))
     },
-    onError: setError,
   })
 
   const { mutate: updateTaskStatus } = useMutation<Task, { status: string }>(
@@ -385,12 +386,6 @@ function Tasks() {
     setPage(1)
   }
 
-  const targetLink = (task: Task) => {
-    if (task.targetType === 'company') return `/companies/${task.targetId}`
-    if (task.targetType === 'project') return `/projects/${task.targetId}`
-    return `/wholesales/${task.targetId}`
-  }
-
   return (
     <div className="space-y-6 animate-fade-up">
       {/* Header */}
@@ -455,7 +450,7 @@ function Tasks() {
             <option value="">全てのステータス</option>
             {TASK_STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
-                {TASK_STATUS_LABELS[status]}
+                {statusLabel('task', status)}
               </option>
             ))}
           </FormSelect>
@@ -466,7 +461,7 @@ function Tasks() {
             <option value="">全ての対象</option>
             {TARGET_TYPE_OPTIONS.map((type) => (
               <option key={type} value={type}>
-                {TARGET_TYPE_LABELS[type]}
+                {targetTypeLabel(type)}
               </option>
             ))}
           </FormSelect>
@@ -509,13 +504,13 @@ function Tasks() {
             <span className="text-xs text-slate-500">絞り込み中:</span>
             {filters.status && (
               <FilterBadge
-                label={`ステータス: ${TASK_STATUS_LABELS[filters.status] || filters.status}`}
+                label={`ステータス: ${statusLabel('task', filters.status)}`}
                 onRemove={() => handleClearFilter('status')}
               />
             )}
             {filters.targetType && (
               <FilterBadge
-                label={`対象: ${TARGET_TYPE_LABELS[filters.targetType] || filters.targetType}`}
+                label={`対象: ${targetTypeLabel(filters.targetType)}`}
                 onRemove={() => handleClearFilter('targetType')}
               />
             )}
@@ -569,7 +564,7 @@ function Tasks() {
               <option value="">ステータス</option>
               {TASK_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
-                  {TASK_STATUS_LABELS[status]}
+                  {statusLabel('task', status)}
                 </option>
               ))}
             </FormSelect>
@@ -664,22 +659,24 @@ function Tasks() {
               {tasks.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-12 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <svg
-                        className="h-12 w-12 text-slate-300"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1}
-                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                        />
-                      </svg>
-                      <p className="text-slate-500">タスクがありません</p>
-                    </div>
+                    <EmptyState
+                      message="タスクがありません"
+                      icon={
+                        <svg
+                          className="h-12 w-12 text-slate-300"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                          />
+                        </svg>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (
@@ -718,24 +715,25 @@ function Tasks() {
                         >
                           {TASK_STATUS_OPTIONS.map((status) => (
                             <option key={status} value={status}>
-                              {TASK_STATUS_LABELS[status]}
+                              {statusLabel('task', status)}
                             </option>
                           ))}
                         </select>
                       ) : (
                         <StatusBadge
-                          status={TASK_STATUS_LABELS[task.status] || task.status}
+                          status={task.status}
+                          kind="task"
                           size="sm"
                         />
                       )}
                     </td>
                     <td className="px-4 py-4">
                       <Link
-                        to={targetLink(task)}
+                        to={getTargetPath(task.targetType, task.targetId)}
                         className="inline-flex flex-col items-start gap-1 text-slate-600 hover:text-sky-600"
                       >
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">
-                          {TARGET_TYPE_LABELS[task.targetType] || task.targetType}
+                          {targetTypeLabel(task.targetType)}
                         </span>
                         <span className="text-xs text-slate-500">
                           {task.target?.name || task.targetId}
@@ -777,7 +775,7 @@ function Tasks() {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
                         <Link
-                          to={targetLink(task)}
+                          to={getTargetPath(task.targetType, task.targetId)}
                           className="text-xs font-semibold text-slate-600 hover:text-slate-900"
                         >
                           詳細

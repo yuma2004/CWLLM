@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import ProjectSearchSelect from './ProjectSearchSelect'
+import { ProjectSearchSelect } from './SearchSelect'
 import { useFetch } from '../hooks/useApi'
 
 vi.mock('../hooks/useApi', () => ({

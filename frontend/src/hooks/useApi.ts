@@ -10,7 +10,7 @@ type FetchOptions<T> = {
   errorMessage?: string
   onStart?: () => void
   onSuccess?: (data: T) => void
-  onError?: (message: string) => void
+  onError?: (message: string, error?: unknown) => void
   cacheKey?: string
   cacheTimeMs?: number
   retry?: number
@@ -24,7 +24,7 @@ type MutationOptions<T> = {
   retry?: number
   retryDelayMs?: number
   onSuccess?: (data: T) => void
-  onError?: (message: string) => void
+  onError?: (message: string, error?: unknown) => void
 }
 
 const isAbortError = (err: unknown) =>
@@ -142,7 +142,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
         if (isMountedRef.current && requestId === requestIdRef.current) {
           setError(message)
         }
-        callbacksRef.current.onError?.(message)
+        callbacksRef.current.onError?.(message, err)
         return null
       } finally {
         if (externalSignal && externalAbortHandler) {
@@ -240,7 +240,7 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
         if (isMountedRef.current && requestId === requestIdRef.current) {
           setError(message)
         }
-        options.onError?.(message)
+        options.onError?.(message, err)
         throw err
       } finally {
         if (externalSignal && externalAbortHandler) {

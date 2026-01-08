@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import CompanySearchSelect from '../components/CompanySearchSelect'
-import ProjectSearchSelect from '../components/ProjectSearchSelect'
+import { CompanySearchSelect, ProjectSearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
+import EmptyState from '../components/ui/EmptyState'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
@@ -18,8 +18,9 @@ import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { usePagination } from '../hooks/usePagination'
 import { usePermissions } from '../hooks/usePermissions'
 import { ApiListResponse, Wholesale, WholesalesFilters } from '../types'
-import { WHOLESALE_STATUS_LABELS, WHOLESALE_STATUS_OPTIONS } from '../constants'
+import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants'
 import { formatDateInput } from '../utils/date'
+import { formatCurrency } from '../utils/format'
 
 const defaultFilters: WholesalesFilters = {
   status: '',
@@ -236,10 +237,6 @@ function Wholesales() {
     }
   }
 
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) return '-'
-    return `¥${value.toLocaleString()}`
-  }
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -271,7 +268,7 @@ function Wholesales() {
             <option value="">全てのステータス</option>
             {WHOLESALE_STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
-                {WHOLESALE_STATUS_LABELS[status] || status}
+                {statusLabel('wholesale', status)}
               </option>
             ))}
           </FormSelect>
@@ -322,7 +319,7 @@ function Wholesales() {
             <span className="text-xs text-slate-500">絞り込み中:</span>
             {filters.status && (
               <FilterBadge
-                label={`ステータス: ${WHOLESALE_STATUS_LABELS[filters.status] || filters.status}`}
+                label={`ステータス: ${statusLabel('wholesale', filters.status)}`}
                 onRemove={() => handleClearFilter('status')}
               />
             )}
@@ -396,32 +393,32 @@ function Wholesales() {
       >
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">卸先企業</label>
+            <div className="mb-1 block text-sm font-medium text-slate-700">卸先企業</div>
             <p className="text-sm text-slate-600">
               {editingWholesale?.company?.name || editingWholesale?.companyId}
             </p>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">案件</label>
+            <div className="mb-1 block text-sm font-medium text-slate-700">案件</div>
             <p className="text-sm text-slate-600">
               {editingWholesale?.project?.name || editingWholesale?.projectId}
             </p>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">ステータス</label>
+            <div className="mb-1 block text-sm font-medium text-slate-700">ステータス</div>
             <FormSelect
               value={editForm.status}
               onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
             >
               {WHOLESALE_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
-                  {WHOLESALE_STATUS_LABELS[status] || status}
+                  {statusLabel('wholesale', status)}
                 </option>
               ))}
             </FormSelect>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">単価</label>
+            <div className="mb-1 block text-sm font-medium text-slate-700">単価</div>
             <FormInput
               type="number"
               value={editForm.unitPrice}
@@ -430,7 +427,7 @@ function Wholesales() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">合意日</label>
+            <div className="mb-1 block text-sm font-medium text-slate-700">合意日</div>
             <FormInput
               type="date"
               value={editForm.agreedDate}
@@ -438,7 +435,7 @@ function Wholesales() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">条件・備考</label>
+            <div className="mb-1 block text-sm font-medium text-slate-700">条件・備考</div>
             <FormTextarea
               value={editForm.conditions}
               onChange={(e) => setEditForm({ ...editForm, conditions: e.target.value })}
@@ -467,9 +464,7 @@ function Wholesales() {
         {isLoadingWholesales ? (
           <SkeletonTable rows={5} columns={7} />
         ) : wholesales.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-slate-500">
-            卸データはありません。
-          </div>
+          <EmptyState className="px-6 py-10" message="卸データはありません。" />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -504,7 +499,8 @@ function Wholesales() {
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge
-                        status={WHOLESALE_STATUS_LABELS[wholesale.status] || wholesale.status}
+                        status={wholesale.status}
+                        kind="wholesale"
                         size="sm"
                       />
                     </td>

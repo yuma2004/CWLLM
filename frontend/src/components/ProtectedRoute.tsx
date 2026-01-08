@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import LoadingState from './ui/LoadingState'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -13,7 +14,7 @@ function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">読み込み中...</div>
+        <LoadingState className="text-base text-gray-600" />
       </div>
     )
   }

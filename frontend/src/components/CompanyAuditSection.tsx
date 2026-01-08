@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import ErrorAlert from './ui/ErrorAlert'
+import LoadingState from './ui/LoadingState'
 import { useFetch } from '../hooks/useApi'
 import { ApiListResponse, AuditLog } from '../types'
 
@@ -15,10 +16,7 @@ function CompanyAuditSection({ companyId }: { companyId: string }) {
   }, [companyId])
 
   const { data, error, isLoading } = useFetch<ApiListResponse<AuditLog>>(
-    `/api/audit-logs?${queryString}`,
-    {
-      errorMessage: 'ネットワークエラー',
-    }
+    `/api/audit-logs?${queryString}`
   )
 
   const logs = data?.items ?? []
@@ -30,7 +28,7 @@ function CompanyAuditSection({ companyId }: { companyId: string }) {
       </div>
       {error && <ErrorAlert message={error} className="mt-3" />}
       {isLoading ? (
-        <div className="mt-3 text-sm text-slate-500">監査ログを読み込み中...</div>
+        <LoadingState className="mt-3" message="監査ログを読み込み中..." />
       ) : logs.length === 0 ? (
         <div className="mt-3 text-sm text-slate-500">監査ログはありません。</div>
       ) : (

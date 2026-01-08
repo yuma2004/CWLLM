@@ -3,11 +3,12 @@ import ErrorAlert from './ui/ErrorAlert'
 import FormInput from './ui/FormInput'
 import FormSelect from './ui/FormSelect'
 import FormTextarea from './ui/FormTextarea'
+import LoadingState from './ui/LoadingState'
 import StatusBadge from './ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { formatDate } from '../utils/date'
 import { ApiListResponse, Task } from '../types'
-import { TASK_STATUS_OPTIONS, TASK_STATUS_LABELS } from '../constants'
+import { TASK_STATUS_OPTIONS, statusLabel } from '../constants'
 
 function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWrite: boolean }) {
   const [statusFilter, setStatusFilter] = useState('')
@@ -101,7 +102,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
           <option value="">全てのステータス</option>
           {TASK_STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
-              {TASK_STATUS_LABELS[status]}
+              {statusLabel('task', status)}
             </option>
           ))}
         </FormSelect>
@@ -111,7 +112,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
 
       <div className="mt-4 space-y-3">
         {isLoading ? (
-          <div className="text-sm text-slate-500">タスクを読み込み中...</div>
+          <LoadingState message="タスクを読み込み中..." />
         ) : tasks.length === 0 ? (
           <div className="text-sm text-slate-500">タスクはまだありません</div>
         ) : (
@@ -139,15 +140,12 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
                 >
                   {TASK_STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
-                      {TASK_STATUS_LABELS[status]}
+                      {statusLabel('task', status)}
                     </option>
                   ))}
                 </select>
               ) : (
-                <StatusBadge
-                  status={TASK_STATUS_LABELS[task.status] || task.status}
-                  size="sm"
-                />
+                <StatusBadge status={task.status} kind="task" size="sm" />
               )}
             </div>
           ))

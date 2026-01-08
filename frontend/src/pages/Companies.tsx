@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { usePermissions } from '../hooks/usePermissions'
 import ErrorAlert from '../components/ui/ErrorAlert'
+import LoadingState from '../components/ui/LoadingState'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
@@ -11,9 +12,8 @@ import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { usePagination } from '../hooks/usePagination'
+import { useUrlSync } from '../hooks/useUrlSync'
 import { getAvatarColor, getInitials } from '../utils/string'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
@@ -37,8 +37,6 @@ const defaultFilters: CompaniesFilters = {
 
 function Companies() {
   const { canWrite, isAdmin } = usePermissions()
-  const location = useLocation()
-  const navigate = useNavigate()
   const [error, setError] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showChatworkSelector, setShowChatworkSelector] = useState(false)
@@ -51,14 +49,9 @@ function Companies() {
     tags: [],
   })
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
-  const initialPage = Math.max(Number(initialParams.get('page')) || 1, 1)
 
-  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters } =
-    useFilters(defaultFilters)
-  const { pagination, setPagination, setPage, setPageSize, paginationQuery } =
-    usePagination(initialPageSize)
+  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters, pagination, setPagination, setPage, setPageSize } =
+    useUrlSync({ pathname: '/companies', defaultFilters })
   const debouncedQuery = useDebouncedValue(filters.q, 300)
 
   const [form, setForm] = useState({
@@ -71,14 +64,16 @@ function Companies() {
 
 
   const queryString = useMemo(() => {
-    const params = new URLSearchParams(paginationQuery)
+    const params = new URLSearchParams()
     if (debouncedQuery) params.set('q', debouncedQuery)
     if (filters.category) params.set('category', filters.category)
     if (filters.status) params.set('status', filters.status)
     if (filters.tag) params.set('tag', filters.tag)
     if (filters.ownerId) params.set('ownerId', filters.ownerId)
+    params.set('page', String(pagination.page))
+    params.set('pageSize', String(pagination.pageSize))
     return params.toString()
-  }, [debouncedQuery, filters.category, filters.status, filters.tag, filters.ownerId, paginationQuery])
+  }, [debouncedQuery, filters.category, filters.status, filters.tag, filters.ownerId, pagination.page, pagination.pageSize])
 
   const {
     data: companiesData,
@@ -168,26 +163,6 @@ function Companies() {
 
   useKeyboardShortcut(shortcuts)
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const nextFilters = {
-      ...defaultFilters,
-      q: params.get('q') ?? '',
-      category: params.get('category') ?? '',
-      status: params.get('status') ?? '',
-      tag: params.get('tag') ?? '',
-      ownerId: params.get('ownerId') ?? '',
-    }
-    setFilters(nextFilters)
-    const nextPage = Math.max(Number(params.get('page')) || initialPage, 1)
-    const nextPageSize = Math.max(Number(params.get('pageSize')) || initialPageSize, 1)
-    setPagination((prev) => ({
-      ...prev,
-      page: nextPage,
-      pageSize: nextPageSize,
-    }))
-  }, [initialPage, initialPageSize, location.search, setFilters, setPagination])
-
   // フォームが開かれたときにデフォルトでChatworkから選択モードにする
   useEffect(() => {
     if (showCreateForm && isAdmin) {
@@ -197,32 +172,6 @@ function Companies() {
       setRoomSearchQuery('')
     }
   }, [showCreateForm, isAdmin])
-
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (debouncedQuery) params.set('q', debouncedQuery)
-    if (filters.category) params.set('category', filters.category)
-    if (filters.status) params.set('status', filters.status)
-    if (filters.tag) params.set('tag', filters.tag)
-    if (filters.ownerId) params.set('ownerId', filters.ownerId)
-    params.set('page', String(pagination.page))
-    params.set('pageSize', String(pagination.pageSize))
-    const nextSearch = params.toString()
-    const currentSearch = location.search.replace(/^\?/, '')
-    if (nextSearch !== currentSearch) {
-      navigate({ pathname: '/companies', search: nextSearch }, { replace: true })
-    }
-  }, [
-    debouncedQuery,
-    filters.category,
-    filters.ownerId,
-    filters.status,
-    filters.tag,
-    location.search,
-    navigate,
-    pagination.page,
-    pagination.pageSize,
-  ])
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -532,7 +481,7 @@ function Companies() {
                 />
               </div>
               {isLoadingRooms ? (
-                <div className="py-4 text-sm text-slate-500">Chatworkルームを読み込み中...</div>
+                <LoadingState className="py-4" message="Chatworkルームを読み込み中..." />
               ) : chatworkRooms.length === 0 ? (
                 <div className="py-4 text-sm text-slate-500">
                   Chatworkルームが見つかりませんでした。管理者がルーム同期を実行してください。

@@ -4,8 +4,10 @@ import { z } from 'zod'
 import { JobType } from '@prisma/client'
 import { requireAdmin, requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { env } from '../config/env'
+import { badRequest } from '../utils/errors'
 import { handlePrismaError, prisma } from '../utils/prisma'
 import { enqueueJob } from '../services/jobQueue'
+import { apiErrorSchema } from './shared/schemas'
 
 interface RoomToggleBody {
   isActive: boolean
@@ -52,12 +54,13 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
       schema: {
         response: {
           200: z.object({ jobId: z.string(), status: z.string() }),
+          400: apiErrorSchema,
         },
       },
     },
     async (request, reply) => {
       if (!env.chatworkApiToken) {
-        return reply.code(400).send({ error: 'CHATWORK_API_TOKEN is not set' })
+        return reply.code(400).send(badRequest('CHATWORK_API_TOKEN is not set'))
       }
       const userId = (request.user as { userId?: string } | undefined)?.userId
       const job = await enqueueJob(JobType.chatwork_rooms_sync, {}, userId)
@@ -100,12 +103,13 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
         querystring: z.object({ roomId: z.string().min(1).optional() }),
         response: {
           200: z.object({ jobId: z.string(), status: z.string() }),
+          400: apiErrorSchema,
         },
       },
     },
     async (request, reply) => {
       if (!env.chatworkApiToken) {
-        return reply.code(400).send({ error: 'CHATWORK_API_TOKEN is not set' })
+        return reply.code(400).send(badRequest('CHATWORK_API_TOKEN is not set'))
       }
       const userId = (request.user as { userId?: string } | undefined)?.userId
       const job = await enqueueJob(

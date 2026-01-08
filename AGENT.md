@@ -1,5 +1,14 @@
 # AGENT.md
 
+# Output language policy
+
+- Think in English internally.
+- Output (all user-visible text) must be in Japanese.
+- Do not include the English reasoning or chain-of-thought in the output.
+- If you must use technical terms, keep them as-is but explain briefly in Japanese.
+- For code comments: Japanese unless the existing file is English-only (then follow existing style).
+
+
 ## 0. このリポジトリでの目的
 - 変更要求に対して「最小変更で確実に動く」実装・修正・リファクタを行う
 - 既存仕様・既存挙動の破壊を避ける（互換性重視）

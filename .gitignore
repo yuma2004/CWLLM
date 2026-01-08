@@ -44,5 +44,12 @@ lerna-debug.log*
 *.sqlite
 *.sqlite3
 
+# Local tooling/output
+.claude/settings.local.json
+.cursor/
+review_*/
+create-review-zips.ps1
+nul
+
 # OS
 Thumbs.db

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/ui/Button'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import JobProgressCard from '../components/ui/JobProgressCard'
+import LoadingState from '../components/ui/LoadingState'
 import Toast from '../components/ui/Toast'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
@@ -10,6 +11,7 @@ import { ChatworkRoom, JobRecord } from '../types'
 
 function ChatworkSettings() {
   const { isAdmin } = usePermissions()
+  const canManageChatwork = isAdmin
   const [activeJob, setActiveJob] = useState<JobRecord | null>(null)
   const [isPolling, setIsPolling] = useState(false)
   const [actionError, setActionError] = useState('')
@@ -22,9 +24,9 @@ function ChatworkSettings() {
     error: roomsError,
     refetch: refetchRooms,
   } = useFetch<{ rooms: ChatworkRoom[] }>(
-    isAdmin ? '/api/chatwork/rooms' : null,
+    canManageChatwork ? '/api/chatwork/rooms' : null,
     {
-      enabled: isAdmin,
+      enabled: canManageChatwork,
       errorMessage: '通信エラーが発生しました',
       cacheTimeMs: 10_000,
     }
@@ -206,7 +208,7 @@ function ChatworkSettings() {
 
   const errorMessage = actionError || roomsError || jobError
 
-  if (!isAdmin) {
+  if (!canManageChatwork) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
         管理者のみがChatwork設定を操作できます。
@@ -259,9 +261,7 @@ function ChatworkSettings() {
 
         <div className="mt-4">
           {isLoadingRooms ? (
-            <div className="text-sm text-slate-500" data-testid="chatwork-room-loading">
-              読み込み中...
-            </div>
+            <LoadingState data-testid="chatwork-room-loading" />
           ) : rooms.length === 0 ? (
             <div className="text-sm text-slate-500" data-testid="chatwork-room-empty">
               ルームがまだ登録されていません。
@@ -322,4 +322,3 @@ function ChatworkSettings() {
 }
 
 export default ChatworkSettings
-

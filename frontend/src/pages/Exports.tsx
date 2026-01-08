@@ -6,7 +6,7 @@ import FormSelect from '../components/ui/FormSelect'
 import { useFetch } from '../hooks/useApi'
 import { apiDownload } from '../lib/apiClient'
 import { CompanyOptions, ExportCompanyFilters, ExportTaskFilters } from '../types'
-import { TARGET_TYPE_LABELS, TARGET_TYPE_OPTIONS, TASK_STATUS_LABELS, TASK_STATUS_OPTIONS } from '../constants'
+import { TARGET_TYPE_OPTIONS, TASK_STATUS_OPTIONS, statusLabel, targetTypeLabel } from '../constants'
 
 function Exports() {
   const [error, setError] = useState('')
@@ -177,7 +177,7 @@ function Exports() {
               <option value="">ステータス</option>
               {TASK_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
-                  {TASK_STATUS_LABELS[status]}
+                  {statusLabel('task', status)}
                 </option>
               ))}
             </FormSelect>
@@ -188,7 +188,7 @@ function Exports() {
               <option value="">対象タイプ</option>
               {TARGET_TYPE_OPTIONS.map((type) => (
                 <option key={type} value={type}>
-                  {TARGET_TYPE_LABELS[type]}
+                  {targetTypeLabel(type)}
                 </option>
               ))}
             </FormSelect>

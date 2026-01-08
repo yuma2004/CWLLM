@@ -6,17 +6,13 @@ import { requireAuth } from '../middleware/rbac'
 import { prisma } from '../utils/prisma'
 import { JWTUser } from '../types/auth'
 import { cancelJob } from '../services/jobQueue'
+import { dateSchema } from './shared/schemas'
 
 interface JobListQuery {
   type?: JobType
   status?: JobStatus
   limit: number
 }
-
-const dateSchema = z.preprocess(
-  (value) => (value instanceof Date ? value.toISOString() : value),
-  z.string()
-)
 
 const jobSchema = z
   .object({
@@ -82,7 +78,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    async (request, reply) => {
+    async (request) => {
       const user = request.user as JWTUser
       const isAdmin = user.role === 'admin'
       const { type, status } = request.query
@@ -167,6 +163,9 @@ export async function jobRoutes(fastify: FastifyInstance) {
       }
 
       const updated = await cancelJob(request.params.id)
+      if (!updated) {
+        return reply.code(404).send({ error: 'Job not found' })
+      }
       return {
         job: sanitizeJobError(updated, user.role === 'admin'),
       }

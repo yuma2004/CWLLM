@@ -3,16 +3,16 @@ import { useMemo } from 'react'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import { useAuth } from '../contexts/AuthContext'
 import { useFetch } from '../hooks/useApi'
-import { TARGET_TYPE_LABELS, TASK_STATUS_LABELS } from '../constants'
-import { DashboardResponse, DashboardTask } from '../types'
+import { statusLabel, targetTypeLabel } from '../constants'
+import { DashboardResponse } from '../types'
 import { formatDate } from '../utils/date'
+import { getTargetPath } from '../utils/routes'
 
 function Home() {
   const { user, logout } = useAuth()
   const { data: dashboardData, error, isLoading } = useFetch<DashboardResponse>(
     '/api/dashboard',
     {
-      errorMessage: 'ネットワークエラー',
       cacheTimeMs: 10_000,
     }
   )
@@ -36,12 +36,6 @@ function Home() {
     },
     [dashboardData]
   )
-
-  const targetLink = (task: DashboardTask) => {
-    if (task.targetType === 'company') return `/companies/${task.targetId}`
-    if (task.targetType === 'project') return `/projects/${task.targetId}`
-    return `/wholesales/${task.targetId}`
-  }
 
   return (
     <div className="space-y-8 pb-12">
@@ -124,16 +118,16 @@ function Home() {
                               期限: {formatDate(task.dueDate)}
                             </span>
                             <span>
-                              状態: {TASK_STATUS_LABELS[task.status] || task.status}
+                              状態: {statusLabel('task', task.status)}
                             </span>
                             <span>担当: {task.assignee?.email || task.assigneeId || '-'}</span>
                             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                              {TARGET_TYPE_LABELS[task.targetType] || task.targetType}
+                              {targetTypeLabel(task.targetType)}
                             </span>
                           </div>
                         </div>
                         <Link
-                          to={targetLink(task)}
+                          to={getTargetPath(task.targetType, task.targetId)}
                           className="mt-1 text-slate-400 hover:text-slate-600"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

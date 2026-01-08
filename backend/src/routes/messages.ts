@@ -4,10 +4,11 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { badRequest, notFound } from '../utils/errors'
-import { parsePagination } from '../utils/pagination'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination'
 import { handlePrismaError, prisma } from '../utils/prisma'
 import { getCache, setCache } from '../utils/ttlCache'
 import { parseDate } from '../utils/validation'
+import { dateSchema, paginationSchema } from './shared/schemas'
 
 interface MessageListQuery {
   page?: string
@@ -58,16 +59,6 @@ interface BulkLabelBody {
 
 const MAX_LABEL_LENGTH = 30
 const LABEL_CACHE_TTL_MS = 30_000
-
-const dateSchema = z.preprocess(
-  (value) => (value instanceof Date ? value.toISOString() : value),
-  z.string()
-)
-const paginationSchema = z.object({
-  page: z.number(),
-  pageSize: z.number(),
-  total: z.number(),
-})
 
 const messageSchema = z
   .object({
@@ -270,14 +261,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
         prisma.message.count({ where }),
       ])
 
-      return {
-        items,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return buildPaginatedResponse(items, page, pageSize, total)
     }
   )
 
@@ -353,14 +337,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
 
       const total = Number(countRows[0]?.count ?? 0)
 
-      return {
-        items,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return buildPaginatedResponse(items, page, pageSize, total)
     }
   )
 
@@ -403,14 +380,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
 
       const total = Number(countRows[0]?.count ?? 0)
 
-      return {
-        items,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return buildPaginatedResponse(items, page, pageSize, total)
     }
   )
 

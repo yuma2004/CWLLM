@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -6,13 +6,15 @@ import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import Toast from '../components/ui/Toast'
+import LoadingState from '../components/ui/LoadingState'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePagination } from '../hooks/usePagination'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from '../hooks/useToast'
 import { formatDate, formatDateInput } from '../utils/date'
+import { formatCurrency } from '../utils/format'
 import { ApiListResponse, Task, Wholesale } from '../types'
-import { TASK_STATUS_LABELS, WHOLESALE_STATUS_LABELS, WHOLESALE_STATUS_OPTIONS } from '../constants'
+import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants'
 
 function WholesaleDetail() {
   const { id } = useParams<{ id: string }>()
@@ -70,15 +72,8 @@ function WholesaleDetail() {
   const wholesale = wholesaleData?.wholesale
   const tasks = tasksData?.items ?? []
 
-  const statusLabel = useMemo(() => {
-    if (!wholesale) return ''
-    return WHOLESALE_STATUS_LABELS[wholesale.status] || wholesale.status
-  }, [wholesale])
+  const wholesaleStatus = wholesale?.status
 
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) return '-'
-    return `¥${value.toLocaleString()}`
-  }
 
   const buildFormState = (data: Wholesale) => ({
     status: data.status,
@@ -176,7 +171,7 @@ function WholesaleDetail() {
           <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Wholesale Detail</p>
           <h2 className="text-3xl font-bold text-slate-900">卸詳細</h2>
         </div>
-        {statusLabel && <StatusBadge status={statusLabel} />}
+        {wholesaleStatus && <StatusBadge status={wholesaleStatus} kind="wholesale" />}
       </div>
 
       {wholesaleError && <ErrorAlert message={wholesaleError} />}
@@ -207,13 +202,13 @@ function WholesaleDetail() {
           )}
         </div>
         {isLoadingWholesale ? (
-          <div className="text-sm text-slate-500">卸情報を読み込み中...</div>
+          <LoadingState message="卸情報を読み込み中..." />
         ) : wholesale ? (
           isEditing ? (
             <form onSubmit={handleUpdateWholesale} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">ステータス</label>
+                  <div className="mb-1 block text-xs font-medium text-slate-600">ステータス</div>
                   <select
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     value={form.status}
@@ -221,13 +216,13 @@ function WholesaleDetail() {
                   >
                     {WHOLESALE_STATUS_OPTIONS.map((status) => (
                       <option key={status} value={status}>
-                        {WHOLESALE_STATUS_LABELS[status] || status}
+                        {statusLabel('wholesale', status)}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">単価</label>
+                  <div className="mb-1 block text-xs font-medium text-slate-600">単価</div>
                   <input
                     type="number"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -236,7 +231,7 @@ function WholesaleDetail() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">マージン (%)</label>
+                  <div className="mb-1 block text-xs font-medium text-slate-600">マージン (%)</div>
                   <input
                     type="number"
                     step="0.1"
@@ -246,7 +241,7 @@ function WholesaleDetail() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">合意日</label>
+                  <div className="mb-1 block text-xs font-medium text-slate-600">合意日</div>
                   <input
                     type="date"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -255,7 +250,7 @@ function WholesaleDetail() {
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="mb-1 block text-xs font-medium text-slate-600">条件</label>
+                  <div className="mb-1 block text-xs font-medium text-slate-600">条件</div>
                   <textarea
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     rows={3}
@@ -316,7 +311,7 @@ function WholesaleDetail() {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">ステータス</dt>
-                <dd className="mt-1 text-sm text-slate-700">{statusLabel}</dd>
+                <dd className="mt-1 text-sm text-slate-700">{statusLabel('wholesale', wholesaleStatus, '-')}</dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-xs font-medium text-slate-500">条件</dt>
@@ -355,23 +350,20 @@ function WholesaleDetail() {
                 </tr>
               </thead>
               <tbody>
-                {tasks.map((task) => {
-                  const taskStatus = TASK_STATUS_LABELS[task.status] || task.status
-                  return (
-                    <tr key={task.id} className="border-t border-slate-100 text-sm">
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-slate-900">{task.title}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={taskStatus} size="sm" />
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{formatDate(task.dueDate)}</td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {task.assignee?.email || task.assigneeId || '-'}
-                      </td>
-                    </tr>
-                  )
-                })}
+                {tasks.map((task) => (
+                  <tr key={task.id} className="border-t border-slate-100 text-sm">
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-slate-900">{task.title}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={task.status} kind="task" size="sm" />
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{formatDate(task.dueDate)}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {task.assignee?.email || task.assigneeId || '-'}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

@@ -12,7 +12,7 @@ import {
 import KanbanColumn from './KanbanColumn'
 import KanbanCard from './KanbanCard'
 import { Task } from '../types'
-import { TASK_STATUS_LABELS } from '../constants'
+import { statusLabel } from '../constants'
 
 type KanbanBoardProps = {
   tasks: Task[]
@@ -23,12 +23,10 @@ type KanbanBoardProps = {
   disabled?: boolean
 }
 
-const columns = [
-  { key: 'todo', label: TASK_STATUS_LABELS.todo },
-  { key: 'in_progress', label: TASK_STATUS_LABELS.in_progress },
-  { key: 'done', label: TASK_STATUS_LABELS.done },
-  { key: 'cancelled', label: TASK_STATUS_LABELS.cancelled },
-]
+const columns = ['todo', 'in_progress', 'done', 'cancelled'].map((key) => ({
+  key,
+  label: statusLabel('task', key),
+}))
 
 function KanbanBoard({
   tasks,

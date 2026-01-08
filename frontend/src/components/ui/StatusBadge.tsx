@@ -1,6 +1,9 @@
+import { statusLabel, type StatusKind } from '../../constants/labels'
+
 interface StatusBadgeProps {
-  status: string
+  status?: string
   size?: 'sm' | 'md'
+  kind?: StatusKind
 }
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
@@ -42,8 +45,13 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
 
 const defaultColors = { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' }
 
-export default function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
-  const colors = statusColors[status] || statusColors[status.toLowerCase()] || defaultColors
+export default function StatusBadge({ status, size = 'md', kind }: StatusBadgeProps) {
+  const normalizedStatus = status ?? ''
+  const colors =
+    statusColors[normalizedStatus] ||
+    statusColors[normalizedStatus.toLowerCase()] ||
+    defaultColors
+  const label = kind ? statusLabel(kind, normalizedStatus) : normalizedStatus
 
   const sizeClasses = size === 'sm'
     ? 'px-2 py-0.5 text-xs'
@@ -56,7 +64,7 @@ export default function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
       className={`inline-flex items-center gap-1.5 rounded-full font-medium ${colors.bg} ${colors.text} ${sizeClasses}`}
     >
       <span className={`${dotSize} rounded-full ${colors.dot}`} />
-      {status}
+      {label}
     </span>
   )
 }

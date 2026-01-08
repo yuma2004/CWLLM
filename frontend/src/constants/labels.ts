@@ -46,53 +46,19 @@ export const COMPANY_CATEGORY_DEFAULT_OPTIONS = ['広告主', 'メディア', '�
 export const COMPANY_STATUS_DEFAULT_OPTIONS = ['商談中', '稼働中', '停止', '休眠', 'active'] as const
 
 // 共通ラベル
-export const COMMON_LABELS = {
-  // アクション
-  search: '検索',
-  create: '作成',
-  edit: '編集',
-  delete: '削除',
-  cancel: 'キャンセル',
-  save: '保存',
-  update: '更新',
-  back: '戻る',
-  detail: '詳細へ',
-  close: '閉じる',
+export type StatusKind = 'task' | 'project' | 'wholesale'
 
-  // フィルター
-  allStatuses: '全てのステータス',
-  filterActive: '絞り込み中:',
-  clearAll: 'すべてクリア',
-  clearFilter: 'クリア',
+const labelFrom = (labels: Record<string, string>, value?: string, fallback = '') =>
+  labels[value ?? ''] ?? (value ?? fallback)
 
-  // 表示
-  registeredCount: '登録数',
-  displayCount: '表示件数',
-  loading: '読み込み中...',
-  noData: 'データがありません',
+const STATUS_LABELS: Record<StatusKind, Record<string, string>> = {
+  task: TASK_STATUS_LABELS,
+  project: PROJECT_STATUS_LABELS,
+  wholesale: WHOLESALE_STATUS_LABELS,
+}
 
-  // フォーム
-  required: '必須',
-  optional: '任意',
+export const statusLabel = (kind: StatusKind, value?: string, fallback = '') =>
+  labelFrom(STATUS_LABELS[kind], value, fallback)
 
-  // 権限
-  noWriteAccess: '書き込み権限がありません',
-} as const
-
-// エラーメッセージ
-export const ERROR_MESSAGES = {
-  networkError: 'ネットワークエラー',
-  loadFailed: '読み込みに失敗しました',
-  createFailed: '作成に失敗しました',
-  updateFailed: '更新に失敗しました',
-  deleteFailed: '削除に失敗しました',
-  requiredField: 'は必須です',
-} as const
-
-// ページタイトル
-export const PAGE_TITLES = {
-  tasks: 'マイタスク',
-  wholesales: '卸管理',
-  companies: '企業管理',
-  projects: '案件管理',
-} as const
+export const targetTypeLabel = (value?: string, fallback = '') =>
+  labelFrom(TARGET_TYPE_LABELS, value, fallback)

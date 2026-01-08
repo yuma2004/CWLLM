@@ -22,6 +22,19 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
       )
     ).filter((element) => element.tabIndex >= 0 && !element.hasAttribute('disabled'))
 
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose()
+    }
+  }
+
+  const handleBackdropKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onClose()
+    }
+  }
+
   useEffect(() => {
     if (!isOpen) return
     previousFocusRef.current =
@@ -73,11 +86,14 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
       }
     }
     document.addEventListener('keydown', handleKeyDown)
-    containerRef.current?.focus()
+    const focusTimer = window.setTimeout(() => {
+      containerRef.current?.focus()
+    }, 0)
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = previousOverflowRef.current
+      window.clearTimeout(focusTimer)
       previousFocusRef.current?.focus()
     }
   }, [isOpen, onClose])
@@ -87,7 +103,11 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      aria-label="close modal"
+      onClick={handleBackdropClick}
+      onKeyDown={handleBackdropKeyDown}
     >
       <div
         className={['w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl', className]
@@ -98,7 +118,6 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
         aria-labelledby={title ? dialogId : undefined}
         ref={containerRef}
         tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
       >
         {title && (
           <div className="mb-4 flex items-start justify-between gap-3">

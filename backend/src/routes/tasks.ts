@@ -6,10 +6,11 @@ import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
 import { attachTargetInfo } from '../services/taskTargets'
 import { badRequest, notFound } from '../utils/errors'
-import { parsePagination } from '../utils/pagination'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination'
 import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
 import { createEnumNormalizer, isNonEmptyString, parseDate } from '../utils/validation'
 import { JWTUser } from '../types/auth'
+import { dateSchema, paginationSchema } from './shared/schemas'
 
 const normalizeStatus = createEnumNormalizer(new Set(Object.values(TaskStatus)))
 const normalizeTargetType = createEnumNormalizer(new Set(Object.values(TargetType)))
@@ -49,16 +50,6 @@ interface TaskListQuery {
   page?: string
   pageSize?: string
 }
-
-const dateSchema = z.preprocess(
-  (value) => (value instanceof Date ? value.toISOString() : value),
-  z.string()
-)
-const paginationSchema = z.object({
-  page: z.number(),
-  pageSize: z.number(),
-  total: z.number(),
-})
 
 const taskSchema = z
   .object({
@@ -149,6 +140,65 @@ const ensureTargetExists = async (targetType: TargetType, targetId: string) => {
   return null
 }
 
+type TaskListFilterResult =
+  | {
+      ok: false
+      error: string
+    }
+  | {
+      ok: true
+      status?: TaskStatus
+      targetType?: TargetType
+      dueFrom?: Date | null
+      dueTo?: Date | null
+    }
+
+const parseTaskListFilters = (query: TaskListQuery): TaskListFilterResult => {
+  const status = normalizeStatus(query.status)
+  if (status === null) {
+    return { ok: false, error: 'Invalid status' }
+  }
+
+  const targetType = normalizeTargetType(query.targetType)
+  if (targetType === null) {
+    return { ok: false, error: 'Invalid targetType' }
+  }
+
+  const dueFrom = parseDate(query.dueFrom)
+  const dueTo = parseDate(query.dueTo)
+  if (query.dueFrom && !dueFrom) {
+    return { ok: false, error: 'Invalid dueFrom date' }
+  }
+  if (query.dueTo && !dueTo) {
+    return { ok: false, error: 'Invalid dueTo date' }
+  }
+
+  return { ok: true, status, targetType, dueFrom, dueTo }
+}
+
+const listTasks = async (
+  where: Prisma.TaskWhereInput,
+  page: number,
+  pageSize: number,
+  skip: number
+) => {
+  const [items, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+      skip,
+      take: pageSize,
+      include: {
+        assignee: { select: { id: true, email: true } },
+      },
+    }),
+    prisma.task.count({ where }),
+  ])
+  const itemsWithTarget = await attachTargetInfo(items)
+
+  return buildPaginatedResponse(itemsWithTarget, page, pageSize, total)
+}
+
 export async function taskRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
 
@@ -165,23 +215,9 @@ export async function taskRoutes(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      const status = normalizeStatus(request.query.status)
-      if (request.query.status !== undefined && status === null) {
-        return reply.code(400).send(badRequest('Invalid status'))
-      }
-
-      const targetType = normalizeTargetType(request.query.targetType)
-      if (request.query.targetType !== undefined && targetType === null) {
-        return reply.code(400).send(badRequest('Invalid targetType'))
-      }
-
-      const dueFrom = parseDate(request.query.dueFrom)
-      const dueTo = parseDate(request.query.dueTo)
-      if (request.query.dueFrom && !dueFrom) {
-        return reply.code(400).send(badRequest('Invalid dueFrom date'))
-      }
-      if (request.query.dueTo && !dueTo) {
-        return reply.code(400).send(badRequest('Invalid dueTo date'))
+      const filters = parseTaskListFilters(request.query)
+      if (!filters.ok) {
+        return reply.code(400).send(badRequest(filters.error))
       }
 
       const { page, pageSize, skip } = parsePagination(
@@ -190,11 +226,11 @@ export async function taskRoutes(fastify: FastifyInstance) {
       )
 
       const where: Prisma.TaskWhereInput = {}
-      if (status) {
-        where.status = status
+      if (filters.status) {
+        where.status = filters.status
       }
-      if (targetType) {
-        where.targetType = targetType
+      if (filters.targetType) {
+        where.targetType = filters.targetType
       }
       if (request.query.targetId) {
         where.targetId = request.query.targetId
@@ -202,35 +238,14 @@ export async function taskRoutes(fastify: FastifyInstance) {
       if (request.query.assigneeId) {
         where.assigneeId = request.query.assigneeId
       }
-      if (dueFrom || dueTo) {
+      if (filters.dueFrom || filters.dueTo) {
         where.dueDate = {
-          ...(dueFrom ? { gte: dueFrom } : {}),
-          ...(dueTo ? { lte: dueTo } : {}),
+          ...(filters.dueFrom ? { gte: filters.dueFrom } : {}),
+          ...(filters.dueTo ? { lte: filters.dueTo } : {}),
         }
       }
 
-      const [items, total] = await prisma.$transaction([
-        prisma.task.findMany({
-          where,
-          orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-          skip,
-          take: pageSize,
-          include: {
-            assignee: { select: { id: true, email: true } },
-          },
-        }),
-        prisma.task.count({ where }),
-      ])
-      const itemsWithTarget = await attachTargetInfo(items)
-
-      return {
-        items: itemsWithTarget,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return listTasks(where, page, pageSize, skip)
     }
   )
 
@@ -511,21 +526,9 @@ export async function taskRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const userId = (request.user as JWTUser).userId
-      const status = normalizeStatus(request.query.status)
-      if (request.query.status !== undefined && status === null) {
-        return reply.code(400).send(badRequest('Invalid status'))
-      }
-      const targetType = normalizeTargetType(request.query.targetType)
-      if (request.query.targetType !== undefined && targetType === null) {
-        return reply.code(400).send(badRequest('Invalid targetType'))
-      }
-      const dueFrom = parseDate(request.query.dueFrom)
-      const dueTo = parseDate(request.query.dueTo)
-      if (request.query.dueFrom && !dueFrom) {
-        return reply.code(400).send(badRequest('Invalid dueFrom date'))
-      }
-      if (request.query.dueTo && !dueTo) {
-        return reply.code(400).send(badRequest('Invalid dueTo date'))
+      const filters = parseTaskListFilters(request.query)
+      if (!filters.ok) {
+        return reply.code(400).send(badRequest(filters.error))
       }
 
       const { page, pageSize, skip } = parsePagination(
@@ -534,44 +537,23 @@ export async function taskRoutes(fastify: FastifyInstance) {
       )
 
       const where: Prisma.TaskWhereInput = { assigneeId: userId }
-      if (status) {
-        where.status = status
+      if (filters.status) {
+        where.status = filters.status
       }
-      if (targetType) {
-        where.targetType = targetType
+      if (filters.targetType) {
+        where.targetType = filters.targetType
       }
       if (request.query.targetId) {
         where.targetId = request.query.targetId
       }
-      if (dueFrom || dueTo) {
+      if (filters.dueFrom || filters.dueTo) {
         where.dueDate = {
-          ...(dueFrom ? { gte: dueFrom } : {}),
-          ...(dueTo ? { lte: dueTo } : {}),
+          ...(filters.dueFrom ? { gte: filters.dueFrom } : {}),
+          ...(filters.dueTo ? { lte: filters.dueTo } : {}),
         }
       }
 
-      const [items, total] = await prisma.$transaction([
-        prisma.task.findMany({
-          where,
-          orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-          skip,
-          take: pageSize,
-          include: {
-            assignee: { select: { id: true, email: true } },
-          },
-        }),
-        prisma.task.count({ where }),
-      ])
-      const itemsWithTarget = await attachTargetInfo(items)
-
-      return {
-        items: itemsWithTarget,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return listTasks(where, page, pageSize, skip)
     }
   )
 
@@ -602,28 +584,7 @@ export async function taskRoutes(fastify: FastifyInstance) {
         where.status = status
       }
 
-      const [items, total] = await prisma.$transaction([
-        prisma.task.findMany({
-          where,
-          orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-          skip,
-          take: pageSize,
-          include: {
-            assignee: { select: { id: true, email: true } },
-          },
-        }),
-        prisma.task.count({ where }),
-      ])
-      const itemsWithTarget = await attachTargetInfo(items)
-
-      return {
-        items: itemsWithTarget,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return listTasks(where, page, pageSize, skip)
     }
   )
 
@@ -654,28 +615,7 @@ export async function taskRoutes(fastify: FastifyInstance) {
         where.status = status
       }
 
-      const [items, total] = await prisma.$transaction([
-        prisma.task.findMany({
-          where,
-          orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-          skip,
-          take: pageSize,
-          include: {
-            assignee: { select: { id: true, email: true } },
-          },
-        }),
-        prisma.task.count({ where }),
-      ])
-      const itemsWithTarget = await attachTargetInfo(items)
-
-      return {
-        items: itemsWithTarget,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return listTasks(where, page, pageSize, skip)
     }
   )
 
@@ -706,28 +646,7 @@ export async function taskRoutes(fastify: FastifyInstance) {
         where.status = status
       }
 
-      const [items, total] = await prisma.$transaction([
-        prisma.task.findMany({
-          where,
-          orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-          skip,
-          take: pageSize,
-          include: {
-            assignee: { select: { id: true, email: true } },
-          },
-        }),
-        prisma.task.count({ where }),
-      ])
-      const itemsWithTarget = await attachTargetInfo(items)
-
-      return {
-        items: itemsWithTarget,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return listTasks(where, page, pageSize, skip)
     }
   )
 }

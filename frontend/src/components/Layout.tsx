@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { buildNavItems, buildSettingsItems } from '../constants/navConfig'
+import { protectedRoutes, type RouteConfig } from '../constants/routes'
 import { usePermissions } from '../hooks/usePermissions'
 
 interface LayoutProps {
@@ -8,7 +8,7 @@ interface LayoutProps {
 }
 
 function Layout({ children }: LayoutProps) {
-  const { isAdmin } = usePermissions()
+  const { role } = usePermissions()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   useEffect(() => {
@@ -23,8 +23,15 @@ function Layout({ children }: LayoutProps) {
     window.localStorage.setItem('sidebarOpen', String(isSidebarOpen))
   }, [isSidebarOpen])
 
-  const navItems = buildNavItems()
-  const settingsItems = buildSettingsItems(isAdmin)
+  const canShow = (route: RouteConfig) =>
+    !route.allowedRoles || (role ? route.allowedRoles.includes(role) : false)
+
+  const navItems = protectedRoutes.filter(
+    (route) => route.section === 'main' && route.label && canShow(route)
+  )
+  const settingsItems = protectedRoutes.filter(
+    (route) => route.section === 'settings' && route.label && canShow(route)
+  )
 
   return (
     <div className="min-h-screen flex bg-slate-50">
@@ -81,13 +88,11 @@ function Layout({ children }: LayoutProps) {
           </div>
 
           <nav className="space-y-0.5">
-            {navItems
-              .filter((item) => item.show)
-              .map((item) => (
+            {navItems.map((item) => (
                 <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/'}
+                  key={item.path}
+                  to={item.path}
+                  end={item.end ?? item.path === '/'}
                   className={({ isActive }) =>
                     [
                       'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
@@ -108,12 +113,10 @@ function Layout({ children }: LayoutProps) {
               システム
             </p>
             <nav className="space-y-0.5">
-              {settingsItems
-                .filter((item) => item.show)
-                .map((item) => (
+              {settingsItems.map((item) => (
                   <NavLink
-                    key={item.to}
-                    to={item.to}
+                    key={item.path}
+                    to={item.path}
                     className={({ isActive }) =>
                       [
                         'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',

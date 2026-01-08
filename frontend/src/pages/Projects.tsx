@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import CompanySearchSelect from '../components/CompanySearchSelect'
+import { CompanySearchSelect } from '../components/SearchSelect'
 import ErrorAlert from '../components/ui/ErrorAlert'
+import EmptyState from '../components/ui/EmptyState'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
@@ -15,7 +16,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFilters } from '../hooks/useFilters'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { usePagination } from '../hooks/usePagination'
-import { PROJECT_STATUS_OPTIONS, PROJECT_STATUS_LABELS } from '../constants/labels'
+import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants'
 import { ApiListResponse, Project, ProjectsFilters, User } from '../types'
 import { formatCurrency } from '../utils/format'
 
@@ -42,7 +43,6 @@ function Projects() {
   const location = useLocation()
   const navigate = useNavigate()
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const [error, setError] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const initialParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const initialPageSize = Math.max(Number(initialParams.get('pageSize')) || 20, 1)
@@ -81,15 +81,15 @@ function Projects() {
 
   const {
     data: projectsData,
+    error,
+    setError,
     isLoading: isLoadingProjects,
     refetch: refetchProjects,
   } = useFetch<ApiListResponse<Project>>(`/api/projects?${queryString}`, {
     errorMessage: '案件一覧の取得に失敗しました',
-    onStart: () => setError(''),
     onSuccess: (data) => {
       setPagination((prev) => ({ ...prev, ...data.pagination }))
     },
-    onError: setError,
   })
 
   const projects = projectsData?.items ?? []
@@ -294,7 +294,7 @@ function Projects() {
             <option value="">ステータス</option>
             {PROJECT_STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
-                {PROJECT_STATUS_LABELS[status]}
+                {statusLabel('project', status)}
               </option>
             ))}
           </FormSelect>
@@ -329,7 +329,7 @@ function Projects() {
             )}
             {filters.status && (
               <FilterBadge
-                label={`ステータス: ${PROJECT_STATUS_LABELS[filters.status] || filters.status}`}
+                label={`ステータス: ${statusLabel('project', filters.status)}`}
                 onRemove={() => handleClearFilter('status')}
               />
             )}
@@ -375,9 +375,9 @@ function Projects() {
             {/* 必須項目 */}
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">
+                <div className="mb-1 block text-xs font-medium text-slate-600">
                   企業 <span className="text-rose-500">*</span>
-                </label>
+                </div>
                 <CompanySearchSelect
                   value={form.companyId}
                   onChange={(companyId) => setForm({ ...form, companyId })}
@@ -385,9 +385,9 @@ function Projects() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">
+                <div className="mb-1 block text-xs font-medium text-slate-600">
                   案件名 <span className="text-rose-500">*</span>
-                </label>
+                </div>
                 <FormInput
                   placeholder="案件名を入力"
                   value={form.name}
@@ -398,20 +398,20 @@ function Projects() {
             {/* オプション項目 */}
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">ステータス</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">ステータス</div>
                 <FormSelect
                   value={form.status}
                   onChange={(event) => setForm({ ...form, status: event.target.value })}
                 >
                   {PROJECT_STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
-                      {PROJECT_STATUS_LABELS[status]}
+                      {statusLabel('project', status)}
                     </option>
                   ))}
                 </FormSelect>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">単価</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">単価</div>
                 <FormInput
                   type="number"
                   placeholder="例: 50000"
@@ -420,7 +420,7 @@ function Projects() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">担当者</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">担当者</div>
                 <FormSelect
                   value={form.ownerId}
                   onChange={(event) => setForm({ ...form, ownerId: event.target.value })}
@@ -436,7 +436,7 @@ function Projects() {
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">期間開始</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">期間開始</div>
                 <FormInput
                   type="date"
                   value={form.periodStart}
@@ -444,7 +444,7 @@ function Projects() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">期間終了</label>
+                <div className="mb-1 block text-xs font-medium text-slate-600">期間終了</div>
                 <FormInput
                   type="date"
                   value={form.periodEnd}
@@ -453,7 +453,7 @@ function Projects() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">条件・備考</label>
+              <div className="mb-1 block text-xs font-medium text-slate-600">条件・備考</div>
               <FormTextarea
                 placeholder="条件や備考を入力"
                 value={form.conditions}
@@ -510,30 +510,34 @@ function Projects() {
               {projects.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-5 py-12 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <svg
-                        className="h-12 w-12 text-slate-300"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      <p className="text-slate-500">案件がまだ登録されていません</p>
-                      {canWrite && (
-                        <button
-                          onClick={() => setShowCreateForm(true)}
-                          className="mt-2 text-sm text-sky-600 hover:text-sky-700"
+                    <EmptyState
+                      message="案件がまだ登録されていません"
+                      icon={
+                        <svg
+                          className="h-12 w-12 text-slate-300"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          最初の案件を追加する
-                        </button>
-                      )}
-                    </div>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                      }
+                      action={
+                        canWrite ? (
+                          <button
+                            onClick={() => setShowCreateForm(true)}
+                            className="text-sm text-sky-600 hover:text-sky-700"
+                          >
+                            最初の案件を追加する
+                          </button>
+                        ) : null
+                      }
+                    />
                   </td>
                 </tr>
               ) : (
@@ -560,7 +564,7 @@ function Projects() {
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <StatusBadge status={project.status ?? 'active'} size="sm" />
+                      <StatusBadge status={project.status ?? 'active'} kind="project" size="sm" />
                     </td>
                     <td className="px-5 py-4 text-slate-600">
                       {project.unitPrice ? formatCurrency(project.unitPrice) : '-'}

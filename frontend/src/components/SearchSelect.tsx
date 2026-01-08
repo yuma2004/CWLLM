@@ -1,56 +1,62 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFetch } from '../hooks/useApi'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 
-type CompanyOption = {
-  id: string
-  name: string
-}
+type BaseOption = { id: string; name: string }
 
-type CompanySearchSelectProps = {
+type SearchSelectProps<T extends BaseOption> = {
   value: string
-  onChange: (companyId: string, option?: CompanyOption) => void
+  onChange: (id: string, option?: T) => void
+  searchEndpoint: string
+  detailEndpoint: (id: string) => string
+  responseKey: string
   label?: string
   placeholder?: string
   disabled?: boolean
+  errorMessageDetail?: string
+  errorMessageSearch?: string
 }
 
-const CompanySearchSelect = ({
+function SearchSelect<T extends BaseOption>({
   value,
   onChange,
+  searchEndpoint,
+  detailEndpoint,
+  responseKey,
   label,
-  placeholder = '企業名で検索',
+  placeholder = '検索',
   disabled = false,
-}: CompanySearchSelectProps) => {
+  errorMessageDetail = '取得に失敗しました',
+  errorMessageSearch = '検索に失敗しました',
+}: SearchSelectProps<T>) {
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<CompanyOption | null>(null)
+  const [selected, setSelected] = useState<T | null>(null)
   const [isOpen, setIsOpen] = useState(false)
-  const [debouncedQuery, setDebouncedQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  const debouncedQuery = useDebouncedValue(query.trim(), 300)
 
-  const { data: selectedData } = useFetch<{ company: CompanyOption }>(
-    value ? `/api/companies/${value}` : null,
+  const { data: selectedData } = useFetch<Record<string, T>>(
+    value ? detailEndpoint(value) : null,
     {
       enabled: Boolean(value),
-      errorMessage: '企業の取得に失敗しました',
+      errorMessage: errorMessageDetail,
       cacheTimeMs: 30_000,
     }
   )
 
   const searchUrl =
     isOpen && debouncedQuery
-      ? `/api/companies/search?${new URLSearchParams({
-          q: debouncedQuery,
-          limit: '20',
-        }).toString()}`
+      ? `${searchEndpoint}?${new URLSearchParams({ q: debouncedQuery, limit: '20' })}`
       : null
 
-  const { data: searchData, isLoading: isSearching } = useFetch<{
-    items: CompanyOption[]
-  }>(searchUrl, {
-    enabled: Boolean(searchUrl),
-    errorMessage: '検索に失敗しました',
-    cacheTimeMs: 5_000,
-  })
+  const { data: searchData, isLoading: isSearching } = useFetch<{ items: T[] }>(
+    searchUrl,
+    {
+      enabled: Boolean(searchUrl),
+      errorMessage: errorMessageSearch,
+      cacheTimeMs: 5_000,
+    }
+  )
 
   const options = searchData?.items ?? []
 
@@ -60,18 +66,12 @@ const CompanySearchSelect = ({
       return
     }
     if (selected?.id === value) return
-    if (selectedData?.company) {
-      setSelected(selectedData.company)
-      setQuery(selectedData.company.name)
+    const item = selectedData?.[responseKey]
+    if (item) {
+      setSelected(item)
+      setQuery(item.name)
     }
-  }, [selected?.id, selectedData, value])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDebouncedQuery(query.trim())
-    }, 300)
-    return () => window.clearTimeout(timer)
-  }, [query])
+  }, [selected?.id, selectedData, value, responseKey])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,6 +83,12 @@ const CompanySearchSelect = ({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const handleClear = () => {
+    setQuery('')
+    setSelected(null)
+    onChange('')
+  }
+
   return (
     <div ref={containerRef} className="relative">
       {label && (
@@ -92,15 +98,12 @@ const CompanySearchSelect = ({
         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
         value={query}
         onChange={(event) => {
-          const nextQuery = event.target.value
-          setQuery(nextQuery)
+          setQuery(event.target.value)
           setIsOpen(true)
           setSelected(null)
           onChange('')
         }}
-        onFocus={() => {
-          setIsOpen(true)
-        }}
+        onFocus={() => setIsOpen(true)}
         placeholder={placeholder}
         disabled={disabled}
       />
@@ -108,11 +111,7 @@ const CompanySearchSelect = ({
         <button
           type="button"
           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-          onClick={() => {
-            setQuery('')
-            setSelected(null)
-            onChange('')
-          }}
+          onClick={handleClear}
           aria-label="clear"
         >
           ×
@@ -150,4 +149,44 @@ const CompanySearchSelect = ({
   )
 }
 
-export default CompanySearchSelect
+// Pre-configured exports for Company and Project
+type CompanyOption = { id: string; name: string }
+type ProjectOption = { id: string; name: string }
+
+type SimpleSearchSelectProps<T extends BaseOption> = {
+  value: string
+  onChange: (id: string, option?: T) => void
+  label?: string
+  placeholder?: string
+  disabled?: boolean
+}
+
+export const CompanySearchSelect = ({
+  placeholder = '企業名で検索',
+  ...props
+}: SimpleSearchSelectProps<CompanyOption>) => (
+  <SearchSelect
+    {...props}
+    placeholder={placeholder}
+    searchEndpoint="/api/companies/search"
+    detailEndpoint={(id) => `/api/companies/${id}`}
+    responseKey="company"
+    errorMessageDetail="企業の取得に失敗しました"
+  />
+)
+
+export const ProjectSearchSelect = ({
+  placeholder = '案件名で検索',
+  ...props
+}: SimpleSearchSelectProps<ProjectOption>) => (
+  <SearchSelect
+    {...props}
+    placeholder={placeholder}
+    searchEndpoint="/api/projects/search"
+    detailEndpoint={(id) => `/api/projects/${id}`}
+    responseKey="project"
+    errorMessageDetail="案件の取得に失敗しました"
+  />
+)
+
+export default SearchSelect

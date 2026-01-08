@@ -1,7 +1,6 @@
-import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import ErrorAlert from './ui/ErrorAlert'
 import StatusBadge from './ui/StatusBadge'
-import { PROJECT_STATUS_LABELS, WHOLESALE_STATUS_LABELS } from '../constants'
 import { formatDate } from '../utils/date'
 import { formatCurrency } from '../utils/format'
 import { useFetch } from '../hooks/useApi'
@@ -11,7 +10,6 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
   const { data: projectsData, error: projectsError } = useFetch<{ projects: Project[] }>(
     `/api/companies/${companyId}/projects`,
     {
-      errorMessage: 'ネットワークエラー',
       cacheTimeMs: 10_000,
     }
   )
@@ -19,7 +17,6 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
   const { data: wholesalesData, error: wholesalesError } = useFetch<{
     wholesales: Wholesale[]
   }>(`/api/companies/${companyId}/wholesales`, {
-    errorMessage: 'ネットワークエラー',
     cacheTimeMs: 10_000,
   })
 
@@ -27,19 +24,13 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
   const wholesales = wholesalesData?.wholesales ?? []
   const errorMessage = projectsError || wholesalesError
 
-  const hasError = useMemo(() => Boolean(errorMessage), [errorMessage])
-
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-slate-900">案件と卸</h3>
       </div>
 
-      {hasError && (
-        <div className="mt-3 rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">
-          {errorMessage}
-        </div>
-      )}
+      {errorMessage && <ErrorAlert message={errorMessage} className="mt-3" />}
 
       <div className="mt-4 grid gap-6 md:grid-cols-2">
         {/* この企業の案件 */}
@@ -50,7 +41,6 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
               <div className="text-sm text-slate-500">案件がありません</div>
             ) : (
               projects.map((project) => {
-                const projectStatus = project.status ?? ''
                 return (
                   <div
                     key={project.id}
@@ -59,10 +49,7 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
                     <div className="flex-1">
                       <div className="font-semibold text-slate-900">{project.name}</div>
                       <div className="mt-1">
-                        <StatusBadge
-                          status={PROJECT_STATUS_LABELS[projectStatus] || project.status || '-'}
-                          size="sm"
-                        />
+                        <StatusBadge status={project.status ?? '-'} kind="project" size="sm" />
                       </div>
                     </div>
                     <Link
@@ -110,10 +97,7 @@ function CompanyRelationsSection({ companyId }: { companyId: string }) {
                         </div>
                       )}
                     </div>
-                    <StatusBadge
-                      status={WHOLESALE_STATUS_LABELS[wholesale.status] || wholesale.status}
-                      size="sm"
-                    />
+                    <StatusBadge status={wholesale.status} kind="wholesale" size="sm" />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                     {wholesale.unitPrice != null && (

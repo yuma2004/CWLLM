@@ -7,3 +7,19 @@ export const parsePagination = (
   const pageSize = Math.min(Math.max(Number(pageSizeValue) || 20, 1), maxPageSize)
   return { page, pageSize, skip: (page - 1) * pageSize }
 }
+
+export const buildPagination = (page: number, pageSize: number, total: number) => ({
+  page,
+  pageSize,
+  total,
+})
+
+export const buildPaginatedResponse = <T>(
+  items: T[],
+  page: number,
+  pageSize: number,
+  total: number
+) => ({
+  items,
+  pagination: buildPagination(page, pageSize, total),
+})

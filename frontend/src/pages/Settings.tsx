@@ -18,7 +18,6 @@ function Settings() {
     error: fetchError,
     isLoading: isLoadingSettings,
   } = useFetch<{ settings: SettingsPayload }>('/api/settings', {
-    errorMessage: 'ネットワークエラー',
     cacheTimeMs: 30_000,
   })
 
@@ -49,8 +48,7 @@ function Settings() {
         {
           summaryDefaultPeriodDays,
           tagOptions: tags,
-        },
-        { errorMessage: 'ネットワークエラー' }
+        }
       )
       if (data?.settings) {
         setSuccess('設定を保存しました')

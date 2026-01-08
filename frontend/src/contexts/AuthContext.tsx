@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useFetch, useMutation } from '../hooks/useApi'
+import { ApiRequestError } from '../lib/apiClient'
 
 interface User {
   id: string
@@ -33,6 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       enabled: !MOCK_AUTH,
       errorMessage: '認証に失敗しました',
       cacheTimeMs: 0,
+      onError: (_message, error) => {
+        // 401エラーは認証されていない状態では正常な動作なので、エラー状態をクリア
+        if (error instanceof ApiRequestError && error.status === 401) {
+          setAuthError('')
+        }
+      },
     })
 
   const { mutate: loginRequest } = useMutation<{ token: string; user: User }, { email: string; password: string }>(

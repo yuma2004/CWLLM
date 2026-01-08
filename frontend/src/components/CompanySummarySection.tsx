@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Button from './ui/Button'
 import ErrorAlert from './ui/ErrorAlert'
 import JobProgressCard from './ui/JobProgressCard'
+import LoadingState from './ui/LoadingState'
 import Toast from './ui/Toast'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useToast } from '../hooks/useToast'
@@ -551,7 +552,7 @@ function CompanySummarySection({
         </div>
         {summaryError && <ErrorAlert message={summaryError} className="mt-3" />}
         {summaryLoading ? (
-          <div className="mt-3 text-sm text-slate-500">サマリーを読み込み中...</div>
+          <LoadingState className="mt-3" message="サマリーを読み込み中..." />
         ) : summaries.length === 0 ? (
           <div className="mt-3 text-sm text-slate-500">サマリーはまだありません。</div>
         ) : (

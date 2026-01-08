@@ -6,7 +6,7 @@ import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import { logAudit } from '../services/audit'
 import { badRequest, notFound } from '../utils/errors'
 import { normalizeCompanyName } from '../utils/normalize'
-import { parsePagination } from '../utils/pagination'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination'
 import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
 import { getCache, setCache } from '../utils/ttlCache'
 import {
@@ -15,6 +15,7 @@ import {
   parseStringArray,
 } from '../utils/validation'
 import { JWTUser } from '../types/auth'
+import { dateSchema, paginationSchema } from './shared/schemas'
 
 const prismaErrorOverrides = {
   P2002: { status: 409, message: 'Duplicate record' },
@@ -75,16 +76,6 @@ interface ContactUpdateBody {
 interface ContactReorderBody {
   orderedIds: string[]
 }
-
-const dateSchema = z.preprocess(
-  (value) => (value instanceof Date ? value.toISOString() : value),
-  z.string()
-)
-const paginationSchema = z.object({
-  page: z.number(),
-  pageSize: z.number(),
-  total: z.number(),
-})
 
 const companySchema = z
   .object({
@@ -265,14 +256,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
         prisma.company.count({ where }),
       ])
 
-      return {
-        items,
-        pagination: {
-          page,
-          pageSize,
-          total,
-        },
-      }
+      return buildPaginatedResponse(items, page, pageSize, total)
     }
   )
 

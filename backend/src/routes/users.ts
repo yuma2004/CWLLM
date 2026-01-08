@@ -98,7 +98,12 @@ export async function userRoutes(fastify: FastifyInstance) {
         })
         deleteCache('users:options')
 
-        return reply.code(201).send({ user })
+        return reply.code(201).send({
+          user: {
+            ...user,
+            createdAt: user.createdAt.toISOString(),
+          },
+        })
       } catch (error) {
         return handlePrismaError(reply, error, {
           P2002: { status: 409, message: 'User already exists' },
@@ -129,7 +134,12 @@ export async function userRoutes(fastify: FastifyInstance) {
         orderBy: { createdAt: 'desc' },
       })
 
-      return { users }
+      return {
+        users: users.map((user) => ({
+          ...user,
+          createdAt: user.createdAt.toISOString(),
+        })),
+      }
     }
   )
 

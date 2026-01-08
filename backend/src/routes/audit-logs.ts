@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { requireAuth } from '../middleware/rbac'
-import { parsePagination } from '../utils/pagination'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination'
 import { prisma, handlePrismaError } from '../utils/prisma'
 import { parseDate } from '../utils/validation'
 
@@ -75,14 +75,7 @@ export async function auditLogRoutes(fastify: FastifyInstance) {
           userEmail: item.userId ? userMap.get(item.userId) ?? null : null,
         }))
 
-        return {
-          items: itemsWithUser,
-          pagination: {
-            page,
-            pageSize,
-            total,
-          },
-        }
+        return buildPaginatedResponse(itemsWithUser, page, pageSize, total)
       } catch (error) {
         return handlePrismaError(reply, error)
       }

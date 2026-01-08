@@ -44,6 +44,7 @@ function groupMessagesByDate(messages: MessageItem[]): Map<string, MessageItem[]
 }
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const NETWORK_ERROR_MESSAGE = '通信エラーが発生しました'
 
 const highlightText = (text: string, keyword: string) => {
   if (!keyword.trim()) return text
@@ -62,6 +63,7 @@ const highlightText = (text: string, keyword: string) => {
 function CompanyDetail() {
   const { id } = useParams<{ id: string }>()
   const { canWrite, isAdmin } = usePermissions()
+  const canManageChatwork = isAdmin
   const [company, setCompany] = useState<Company | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [contactError, setContactError] = useState('')
@@ -127,7 +129,7 @@ function CompanyDetail() {
     refetch: refetchCompany,
   } = useFetch<{ company: Company }>(id ? `/api/companies/${id}` : null, {
     enabled: Boolean(id),
-    errorMessage: '通信エラーが発生しました',
+    errorMessage: NETWORK_ERROR_MESSAGE,
     onSuccess: (data) => {
       setCompany(data.company)
       setCompanyForm({
@@ -145,7 +147,7 @@ function CompanyDetail() {
     refetch: refetchContacts,
   } = useFetch<{ contacts: Contact[] }>(id ? `/api/companies/${id}/contacts` : null, {
     enabled: Boolean(id),
-    errorMessage: '通信エラーが発生しました',
+    errorMessage: NETWORK_ERROR_MESSAGE,
     onSuccess: (data) => setContacts(data.contacts ?? []),
   })
 
@@ -204,7 +206,7 @@ function CompanyDetail() {
   const { isLoading: isLoadingMessages, refetch: refetchMessages } =
     useFetch<ApiListResponse<MessageItem>>(messagesUrl, {
     enabled: Boolean(messagesUrl),
-    errorMessage: '通信エラーが発生しました',
+    errorMessage: NETWORK_ERROR_MESSAGE,
     onStart: () => setMessageError(''),
     onSuccess: (data) => {
       setMessages(data.items ?? [])
@@ -217,7 +219,7 @@ function CompanyDetail() {
     rooms: LinkedRoom[]
   }>(id ? `/api/companies/${id}/chatwork-rooms` : null, {
     enabled: Boolean(id),
-    errorMessage: '通信エラーが発生しました',
+    errorMessage: NETWORK_ERROR_MESSAGE,
     onSuccess: (data) => setLinkedRooms(data.rooms ?? []),
     onError: setRoomError,
   })
@@ -227,7 +229,7 @@ function CompanyDetail() {
     isLoading: isLoadingRooms,
     error: availableRoomsFetchError,
   } = useFetch<{ rooms: AvailableRoom[] }>('/api/chatwork/rooms', {
-    enabled: isAdmin,
+    enabled: canManageChatwork,
     errorMessage: 'Chatworkルーム一覧の取得に失敗しました。管理者権限が必要な場合があります。',
   })
 
@@ -356,7 +358,7 @@ function CompanyDetail() {
       setShowContactForm(false)
       void refetchContacts(undefined, { ignoreCache: true })
     } catch (err) {
-      setContactError(err instanceof Error ? err.message : '通信エラーが発生しました')
+      setContactError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
     }
   }
 
@@ -581,7 +583,7 @@ function CompanyDetail() {
           category,
           status,
         },
-        { errorMessage: '通信エラーが発生しました' }
+        { errorMessage: NETWORK_ERROR_MESSAGE }
       )
 
       if (data?.company) {
@@ -601,7 +603,7 @@ function CompanyDetail() {
       if (field === 'category') setIsEditingCategory(false)
       if (field === 'status') setIsEditingStatus(false)
     } catch (err) {
-      setCompanyError(err instanceof Error ? err.message : '通信エラーが発生しました')
+      setCompanyError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
     }
   }
   const handleAddRoom = async (event: React.FormEvent) => {
@@ -614,12 +616,12 @@ function CompanyDetail() {
     try {
       await addRoom(
         { roomId: roomInput.trim() },
-        { errorMessage: '通信エラーが発生しました' }
+        { errorMessage: NETWORK_ERROR_MESSAGE }
       )
       setRoomInput('')
       void refetchLinkedRooms(undefined, { ignoreCache: true })
     } catch (err) {
-      setRoomError(err instanceof Error ? err.message : '通信エラーが発生しました')
+      setRoomError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
     }
   }
   const handleRemoveRoom = async (roomId: string) => {
@@ -628,11 +630,11 @@ function CompanyDetail() {
     try {
       await removeRoom(undefined, {
         url: `/api/companies/${id}/chatwork-rooms/${roomId}`,
-        errorMessage: '通信エラーが発生しました',
+        errorMessage: NETWORK_ERROR_MESSAGE,
       })
       void refetchLinkedRooms(undefined, { ignoreCache: true })
     } catch (err) {
-      setRoomError(err instanceof Error ? err.message : '通信エラーが発生しました')
+      setRoomError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
     }
   }
   const handleAddLabel = async (messageId: string) => {
@@ -647,7 +649,6 @@ function CompanyDetail() {
         { label },
         {
           url: `/api/messages/${messageId}/labels`,
-          errorMessage: 'ネットワークエラー',
         }
       )
       setLabelInputs((prev) => ({ ...prev, [messageId]: '' }))
@@ -661,7 +662,6 @@ function CompanyDetail() {
     try {
       await removeLabel(undefined, {
         url: `/api/messages/${messageId}/labels/${encodeURIComponent(label)}`,
-        errorMessage: 'ネットワークエラー',
       })
       void refetchMessages(undefined, { ignoreCache: true })
     } catch (err) {
@@ -962,7 +962,6 @@ function CompanyDetail() {
                                     }))
                                   }
                                 }}
-                                autoFocus
                               />
                               <button
                                 type="button"
@@ -1041,7 +1040,6 @@ function CompanyDetail() {
                               value={companyForm.profile}
                               onChange={(e) => setCompanyForm({ ...companyForm, profile: e.target.value })}
                               rows={3}
-                              autoFocus
                             />
                             <div className="flex gap-2">
                               <button
@@ -1378,7 +1376,7 @@ function CompanyDetail() {
                         ))
                       )}
                     </div>
-                    {isAdmin ? (
+                    {canManageChatwork ? (
                       <form onSubmit={handleAddRoom} className="mt-3 flex gap-2">
                         <select
                           className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm"
