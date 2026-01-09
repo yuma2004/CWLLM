@@ -46,6 +46,64 @@ const updateProgress = async (jobId: string, result: Prisma.InputJsonValue) => {
   })
 }
 
+const handleChatworkRoomsSync = async (
+  jobId: string,
+  logger?: { warn: (message: string) => void }
+) => {
+  const syncResult = await syncChatworkRooms(() => isCanceled(jobId), logger)
+  return toJsonInput(syncResult)
+}
+
+const handleChatworkMessagesSync = async (
+  jobId: string,
+  payload: Prisma.JsonValue,
+  logger?: { warn: (message: string) => void }
+) => {
+  const roomId = (payload as { roomId?: string } | null)?.roomId
+  const rooms = await prisma.chatworkRoom.count({
+    where: roomId ? { roomId } : { isActive: true },
+  })
+  await updateProgress(jobId, toJsonInput({ totalRooms: rooms, processedRooms: 0 }))
+
+  const data = await syncChatworkMessages(
+    roomId,
+    async () => {
+      const canceled = await isCanceled(jobId)
+      return canceled
+    },
+    logger
+  )
+  const processed = data.rooms.length + data.errors.length
+  await updateProgress(
+    jobId,
+    toJsonInput({ totalRooms: rooms, processedRooms: processed, summary: data })
+  )
+  return toJsonInput(data)
+}
+
+const handleSummaryDraft = async (payload: Prisma.JsonValue) => {
+  const typedPayload = payload as { companyId: string; periodStart: string; periodEnd: string }
+  const draft = await generateSummaryDraft(
+    typedPayload.companyId,
+    new Date(typedPayload.periodStart),
+    new Date(typedPayload.periodEnd)
+  )
+  return toJsonInput({
+    draft: {
+      id: draft.id,
+      companyId: draft.companyId,
+      periodStart: draft.periodStart.toISOString(),
+      periodEnd: draft.periodEnd.toISOString(),
+      content: draft.content,
+      sourceLinks: draft.sourceLinks,
+      model: draft.model,
+      promptVersion: draft.promptVersion,
+      sourceMessageCount: draft.sourceMessageCount,
+      tokenUsage: draft.tokenUsage ?? null,
+    },
+  })
+}
+
 const executeJob = async (
   jobId: string,
   type: JobType,
@@ -64,54 +122,18 @@ const executeJob = async (
   try {
     let result: Prisma.InputJsonValue
 
-    if (type === JobType.chatwork_rooms_sync) {
-      const syncResult = await syncChatworkRooms(() => isCanceled(jobId), logger)
-      result = toJsonInput(syncResult)
-    } else if (type === JobType.chatwork_messages_sync) {
-      const roomId = (payload as { roomId?: string } | null)?.roomId
-      const rooms = await prisma.chatworkRoom.count({
-        where: roomId ? { roomId } : { isActive: true },
-      })
-      await updateProgress(jobId, toJsonInput({ totalRooms: rooms, processedRooms: 0 }))
-
-      let processed = 0
-      const data = await syncChatworkMessages(
-        roomId,
-        async () => {
-          const canceled = await isCanceled(jobId)
-          return canceled
-        },
-        logger
-      )
-      processed = data.rooms.length + data.errors.length
-      await updateProgress(
-        jobId,
-        toJsonInput({ totalRooms: rooms, processedRooms: processed, summary: data })
-      )
-      result = toJsonInput(data)
-    } else if (type === JobType.summary_draft) {
-      const typedPayload = payload as { companyId: string; periodStart: string; periodEnd: string }
-      const draft = await generateSummaryDraft(
-        typedPayload.companyId,
-        new Date(typedPayload.periodStart),
-        new Date(typedPayload.periodEnd)
-      )
-      result = toJsonInput({
-        draft: {
-          id: draft.id,
-          companyId: draft.companyId,
-          periodStart: draft.periodStart.toISOString(),
-          periodEnd: draft.periodEnd.toISOString(),
-          content: draft.content,
-          sourceLinks: draft.sourceLinks,
-          model: draft.model,
-          promptVersion: draft.promptVersion,
-          sourceMessageCount: draft.sourceMessageCount,
-          tokenUsage: draft.tokenUsage ?? null,
-        },
-      })
-    } else {
-      throw new Error(`Unknown job type: ${type}`)
+    switch (type) {
+      case JobType.chatwork_rooms_sync:
+        result = await handleChatworkRoomsSync(jobId, logger)
+        break
+      case JobType.chatwork_messages_sync:
+        result = await handleChatworkMessagesSync(jobId, payload, logger)
+        break
+      case JobType.summary_draft:
+        result = await handleSummaryDraft(payload)
+        break
+      default:
+        throw new Error(`Unknown job type: ${type}`)
     }
 
     await prisma.job.update({
