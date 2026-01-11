@@ -1,0 +1,11 @@
+﻿{
+  "testDatabase": {
+    "host": "localhost",
+    "port": 55432,
+    "database": "cwllm_db_test",
+    "urlEnv": "DATABASE_URL_TEST"
+  },
+  "postgresComposeFile": "infra/docker-compose.yml",
+  "verification": "npm --prefix backend run test -- --run",
+  "verifiedAt": "2026-01-11T20:42:42.0939854+09:00"
+}

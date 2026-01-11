@@ -1,0 +1,11 @@
+﻿{
+  "taskId": "RF-000",
+  "status": "done",
+  "summary": "Verified test DB config for backend tests.",
+  "verification": {
+    "commands": [
+      "npm --prefix backend run test -- --run"
+    ]
+  },
+  "completedAt": "2026-01-11T20:42:48.9047598+09:00"
+}
