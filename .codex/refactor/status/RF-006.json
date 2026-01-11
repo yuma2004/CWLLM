@@ -1,0 +1,12 @@
+﻿{
+  "taskId": "RF-006",
+  "status": "done",
+  "summary": "Extracted useApi helper functions.",
+  "verification": {
+    "commands": [
+      "npm --prefix frontend run typecheck",
+      "npm --prefix frontend run test -- --run"
+    ]
+  },
+  "completedAt": "2026-01-11T20:39:28.5906123+09:00"
+}

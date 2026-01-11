@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiRequest } from '../lib/apiClient'
 import { getCache, setCache } from '../lib/apiCache'
+import { createAbortController, isAbortError, requestWithRetry } from './useApiClient'
 
 type HttpMethod = 'POST' | 'PATCH' | 'DELETE'
 
@@ -26,9 +27,6 @@ type MutationOptions<T> = {
   onSuccess?: (data: T) => void
   onError?: (message: string, error?: unknown) => void
 }
-
-const isAbortError = (err: unknown) =>
-  err instanceof Error && 'name' in err && err.name === 'AbortError'
 
 export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
   const {
@@ -70,19 +68,9 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
         return null
       }
       abortControllerRef.current?.abort()
-      const controller = new AbortController()
-      abortControllerRef.current = controller
       const mergedInit = { ...init, ...overrideInit }
-      const externalSignal = mergedInit.signal
-      let externalAbortHandler: (() => void) | undefined
-      if (externalSignal) {
-        if (externalSignal.aborted) {
-          controller.abort()
-        } else {
-          externalAbortHandler = () => controller.abort()
-          externalSignal.addEventListener('abort', externalAbortHandler, { once: true })
-        }
-      }
+      const { controller, cleanup } = createAbortController(mergedInit.signal)
+      abortControllerRef.current = controller
       const resolvedCacheKey = cacheKey ?? url
       if (!options?.ignoreCache && cacheTimeMs > 0 && resolvedCacheKey) {
         const cached = getCache<T>(resolvedCacheKey)
@@ -102,26 +90,17 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
       }
       callbacksRef.current.onStart?.()
       try {
-        let responseData: T | null = null
-        for (let attempt = 0; attempt <= retry; attempt += 1) {
-          try {
-            responseData = await apiRequest<T>(url, {
+        const responseData = await requestWithRetry(
+          () =>
+            apiRequest<T>(url, {
               method: (mergedInit.method as string | undefined) ?? 'GET',
               body: mergedInit.body,
               headers: mergedInit.headers,
               signal: controller.signal,
-            })
-            break
-          } catch (err) {
-            if (isAbortError(err)) {
-              throw err
-            }
-            if (attempt >= retry) {
-              throw err
-            }
-            await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs))
-          }
-        }
+            }),
+          retry,
+          retryDelayMs
+        )
         if (responseData !== null) {
           if (!controller.signal.aborted && requestId === requestIdRef.current) {
             setData(responseData)
@@ -143,9 +122,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
         callbacksRef.current.onError?.(message, err)
         return null
       } finally {
-        if (externalSignal && externalAbortHandler) {
-          externalSignal.removeEventListener('abort', externalAbortHandler)
-        }
+        cleanup()
         if (!controller.signal.aborted && requestId === requestIdRef.current) {
           setIsLoading(false)
         }
@@ -180,18 +157,8 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
       const targetUrl = options.url ?? url
       if (!targetUrl) return null
       abortControllerRef.current?.abort()
-      const controller = new AbortController()
+      const { controller, cleanup } = createAbortController(options.init?.signal)
       abortControllerRef.current = controller
-      const externalSignal = options.init?.signal
-      let externalAbortHandler: (() => void) | undefined
-      if (externalSignal) {
-        if (externalSignal.aborted) {
-          controller.abort()
-        } else {
-          externalAbortHandler = () => controller.abort()
-          externalSignal.addEventListener('abort', externalAbortHandler, { once: true })
-        }
-      }
 
       requestIdRef.current += 1
       const requestId = requestIdRef.current
@@ -203,26 +170,17 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
       try {
         const retryCount = options.retry ?? 0
         const retryDelayMs = options.retryDelayMs ?? 500
-        let responseData: T | null = null
-        for (let attempt = 0; attempt <= retryCount; attempt += 1) {
-          try {
-            responseData = await apiRequest<T>(targetUrl, {
+        const responseData = await requestWithRetry(
+          () =>
+            apiRequest<T>(targetUrl, {
               method,
               body: payload ?? options.init?.body,
               headers: options.init?.headers,
               signal: controller.signal,
-            })
-            break
-          } catch (err) {
-            if (isAbortError(err)) {
-              throw err
-            }
-            if (attempt >= retryCount) {
-              throw err
-            }
-            await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs))
-          }
-        }
+            }),
+          retryCount,
+          retryDelayMs
+        )
         if (responseData !== null) {
           options.onSuccess?.(responseData)
         }
@@ -239,9 +197,7 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
         options.onError?.(message, err)
         throw err
       } finally {
-        if (externalSignal && externalAbortHandler) {
-          externalSignal.removeEventListener('abort', externalAbortHandler)
-        }
+        cleanup()
         if (!controller.signal.aborted && requestId === requestIdRef.current) {
           setIsLoading(false)
         }
