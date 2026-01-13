@@ -47,6 +47,7 @@ lerna-debug.log*
 # Local tooling/output
 .claude/settings.local.json
 .cursor/
+.codex_loop/
 review_*/
 create-review-zips.ps1
 nul
