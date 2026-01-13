@@ -1,0 +1,7 @@
+﻿{
+  "taskId": "RF-001",
+  "status": "blocked",
+  "summary": "Split exceeds diff budget due to companies route size.",
+  "blocker": "~600 lines moved to split schemas/handlers",
+  "proposal": "Allow larger diff or split into two tasks."
+}
