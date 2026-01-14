@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useFetch } from '../hooks/useApi'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { apiRoutes } from '../lib/apiRoutes'
+import FormInput from './ui/FormInput'
+import CloseIcon from './ui/CloseIcon'
 
 type BaseOption = { id: string; name: string }
 
@@ -95,8 +97,7 @@ function SearchSelect<T extends BaseOption>({
       {label && (
         <label className="mb-1 block text-xs font-medium text-slate-600">{label}</label>
       )}
-      <input
-        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+      <FormInput
         value={query}
         onChange={(event) => {
           setQuery(event.target.value)
@@ -115,7 +116,7 @@ function SearchSelect<T extends BaseOption>({
           onClick={handleClear}
           aria-label="clear"
         >
-          ×
+          <CloseIcon className="h-4 w-4" />
         </button>
       )}
       {isOpen && (

@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+﻿import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
@@ -227,3 +227,4 @@ export async function userRoutes(fastify: FastifyInstance) {
     }
   )
 }
+

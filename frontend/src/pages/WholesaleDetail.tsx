@@ -7,6 +7,9 @@ import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import Toast from '../components/ui/Toast'
 import LoadingState from '../components/ui/LoadingState'
+import FormInput from '../components/ui/FormInput'
+import FormSelect from '../components/ui/FormSelect'
+import FormTextarea from '../components/ui/FormTextarea'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePagination } from '../hooks/usePagination'
 import { usePermissions } from '../hooks/usePermissions'
@@ -213,8 +216,8 @@ function WholesaleDetail() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <div className="mb-1 block text-xs font-medium text-slate-600">ステータス</div>
-                  <select
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  <FormSelect
+                    className="rounded-lg"
                     value={form.status}
                     onChange={(event) => setForm({ ...form, status: event.target.value })}
                   >
@@ -223,43 +226,43 @@ function WholesaleDetail() {
                         {statusLabel('wholesale', status)}
                       </option>
                     ))}
-                  </select>
+                  </FormSelect>
                 </div>
                 <div>
                   <div className="mb-1 block text-xs font-medium text-slate-600">単価</div>
-                  <input
+                  <FormInput
                     type="number"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     value={form.unitPrice}
                     onChange={(event) => setForm({ ...form, unitPrice: event.target.value })}
+                    className="rounded-lg"
                   />
                 </div>
                 <div>
                   <div className="mb-1 block text-xs font-medium text-slate-600">マージン (%)</div>
-                  <input
+                  <FormInput
                     type="number"
                     step="0.1"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     value={form.margin}
                     onChange={(event) => setForm({ ...form, margin: event.target.value })}
+                    className="rounded-lg"
                   />
                 </div>
                 <div>
                   <div className="mb-1 block text-xs font-medium text-slate-600">合意日</div>
-                  <input
+                  <FormInput
                     type="date"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     value={form.agreedDate}
                     onChange={(event) => setForm({ ...form, agreedDate: event.target.value })}
+                    className="rounded-lg"
                   />
                 </div>
                 <div className="sm:col-span-2">
                   <div className="mb-1 block text-xs font-medium text-slate-600">条件</div>
-                  <textarea
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  <FormTextarea
                     rows={3}
                     value={form.conditions}
                     onChange={(event) => setForm({ ...form, conditions: event.target.value })}
+                    className="rounded-lg"
                   />
                 </div>
               </div>

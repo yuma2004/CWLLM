@@ -29,7 +29,6 @@ describe('ProjectSearchSelect', () => {
 
     const clearButton = screen.getByLabelText('clear')
     expect(clearButton).toBeInTheDocument()
-    expect(clearButton).toHaveTextContent('×')
   })
 
   it('clears value when clicking the clear button', () => {

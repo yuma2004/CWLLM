@@ -4,15 +4,20 @@ type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string
   hint?: string
   containerClassName?: string
+  noContainer?: boolean
 }
 
 const BASE_CLASS =
   'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400'
 
 const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
-  ({ label, hint, className, containerClassName, id, ...props }, ref) => {
+  ({ label, hint, className, containerClassName, id, noContainer, ...props }, ref) => {
     const inputClassName = [BASE_CLASS, className].filter(Boolean).join(' ')
     const inputId = id ?? (label ? `form-input-${label}` : undefined)
+
+    if (noContainer) {
+      return <input ref={ref} id={inputId} className={inputClassName} {...props} />
+    }
 
     return (
       <div className={containerClassName}>

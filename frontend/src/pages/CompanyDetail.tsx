@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CompanyTasksSection from '../components/CompanyTasksSection'
 import Badge from '../components/ui/Badge'
+import CloseIcon from '../components/ui/CloseIcon'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
+import FormInput from '../components/ui/FormInput'
 import Pagination from '../components/ui/Pagination'
 import { Skeleton, SkeletonAvatar, SkeletonText } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -23,12 +25,14 @@ import {
   MessageItem,
 } from '../types'
 import { formatDateGroup } from '../utils/date'
+import { toErrorMessage } from '../utils/errorState'
 import { getAvatarColor, getInitials } from '../utils/string'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
   COMPANY_STATUS_DEFAULT_OPTIONS,
 } from '../constants/labels'
 import FormSelect from '../components/ui/FormSelect'
+import FormTextarea from '../components/ui/FormTextarea'
 
 
 // Group messages by date
@@ -75,11 +79,12 @@ function CompanyDetail() {
   const [messageTo, setMessageTo] = useState('')
   const [messageLabel, setMessageLabel] = useState('')
   const [messageError, setMessageError] = useState('')
-  const [labelInputs, setLabelInputs] = useState<Record<string, string>>({})
+  const labelInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const [linkedRooms, setLinkedRooms] = useState<LinkedRoom[]>([])
   const [roomInput, setRoomInput] = useState('')
   const [roomError, setRoomError] = useState('')
   const [showContactForm, setShowContactForm] = useState(false)
+  const hasOpenedContactForm = useRef(false)
   const [isEditingTags, setIsEditingTags] = useState(false)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [isEditingCategory, setIsEditingCategory] = useState(false)
@@ -328,7 +333,12 @@ function CompanyDetail() {
   const pageError = companyFetchError || contactsFetchError
   const roomErrorMessage = roomError || linkedRoomsFetchError || availableRoomsFetchError
 
-
+  useEffect(() => {
+    if (!hasOpenedContactForm.current && canWrite && contacts.length === 0) {
+      setShowContactForm(true)
+      hasOpenedContactForm.current = true
+    }
+  }, [canWrite, contacts.length])
 
   useEffect(() => {
     setMessagePage(1)
@@ -352,14 +362,14 @@ function CompanyDetail() {
           phone: form.phone || undefined,
           memo: form.memo || undefined,
         },
-        { errorMessage: '騾壻ｿ｡繧ｨ繝ｩ繝ｼ縺檎匱逕溘＠縺ｾ縺励◆' }
+        { errorMessage: NETWORK_ERROR_MESSAGE }
       )
 
       setForm({ name: '', role: '', email: '', phone: '', memo: '' })
       setShowContactForm(false)
       void refetchContacts(undefined, { ignoreCache: true })
     } catch (err) {
-      setContactError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
+      setContactError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
     }
   }
 
@@ -604,7 +614,7 @@ function CompanyDetail() {
       if (field === 'category') setIsEditingCategory(false)
       if (field === 'status') setIsEditingStatus(false)
     } catch (err) {
-      setCompanyError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
+      setCompanyError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
     }
   }
   const handleAddRoom = async (event: React.FormEvent) => {
@@ -622,7 +632,7 @@ function CompanyDetail() {
       setRoomInput('')
       void refetchLinkedRooms(undefined, { ignoreCache: true })
     } catch (err) {
-      setRoomError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
+      setRoomError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
     }
   }
   const handleRemoveRoom = async (roomId: string) => {
@@ -635,11 +645,11 @@ function CompanyDetail() {
       })
       void refetchLinkedRooms(undefined, { ignoreCache: true })
     } catch (err) {
-      setRoomError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
+      setRoomError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
     }
   }
   const handleAddLabel = async (messageId: string) => {
-    const label = (labelInputs[messageId] || '').trim()
+    const label = (labelInputRefs.current[messageId]?.value || '').trim()
     if (!label) {
       setMessageError('ラベルを入力してください')
       return
@@ -652,7 +662,9 @@ function CompanyDetail() {
           url: apiRoutes.messages.messageLabels(messageId),
         }
       )
-      setLabelInputs((prev) => ({ ...prev, [messageId]: '' }))
+      if (labelInputRefs.current[messageId]) {
+        labelInputRefs.current[messageId]!.value = ''
+      }
       void refetchMessages(undefined, { ignoreCache: true })
     } catch (err) {
       setMessageError(err instanceof Error ? err.message : 'ネットワークエラー')
@@ -707,49 +719,343 @@ function CompanyDetail() {
     return <div className="text-slate-500">企業が見つかりませんでした。</div>
   }
 
-  return (
-    <div className="space-y-6 animate-fade-up">
-      <nav className="text-xs text-slate-400">
-        <Link to="/companies" className="hover:text-slate-600">
-          企業一覧
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="text-slate-500">{company.name}</span>
-      </nav>
-      {/* Simple Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white ${getAvatarColor(company.name)}`}
-          >
-            {getInitials(company.name)}
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Company</p>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-slate-900">{company.name}</h2>
-              <StatusBadge status={company.status} />
-            </div>
-          </div>
-        </div>
-        <Link
-          to="/companies"
-          className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          一覧に戻る
-        </Link>
-      </div>
 
-      {/* Main Tabs Container */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <Tabs tabs={tabs} defaultTab="overview" syncWithHash>
-          {(activeTab) => (
-            <>
-              {/* Overview Tab */}
-              {activeTab === 'overview' && (
+  const CompanyContactsSection = () => (
+                  <div>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-slate-900">担当者</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                          {contacts.length}名
+                        </span>
+                        {canWrite && (
+                          <button
+                            type="button"
+                            onClick={() => setShowContactForm(true)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white transition-colors hover:bg-slate-800"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Add Contact Form */}
+                    {canWrite && (
+                      <form
+                        onSubmit={handleAddContact}
+                        className={`mb-4 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 ${
+                          showContactForm ? '' : 'pointer-events-none max-h-0 opacity-0 overflow-hidden'
+                        }`}
+                      >
+                        <FormInput
+                          placeholder="担当者名（必須）"
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <FormInput
+                            placeholder="役職"
+                            value={form.role}
+                            onChange={(e) => setForm({ ...form, role: e.target.value })}
+                          />
+                          <FormInput
+                            placeholder="電話番号"
+                            value={form.phone}
+                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                          />
+                        </div>
+                        <FormInput
+                          placeholder="メールアドレス"
+                          value={form.email}
+                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        />
+                        {contactError && (
+                          <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{contactError}</div>
+                        )}
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowContactForm(false)}
+                            className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+                          >
+                            キャンセル
+                          </button>
+                          <button
+                            type="submit"
+                            className="rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-700"
+                          >
+                            追加
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    {contactActionError && <ErrorAlert message={contactActionError} className="mb-3" />}
+
+                    {duplicateContactGroups.length > 0 && (
+                      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <div className="font-semibold">重複している担当者があります</div>
+                            <div className="text-xs text-amber-700">メールまたは電話番号が一致しています。</div>
+                          </div>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => setIsDedupeConfirmOpen(true)}
+                              disabled={isDedupeWorking}
+                              className="rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold text-white disabled:bg-amber-300"
+                            >
+                              {isDedupeWorking ? '統合中...' : '重複を統合'}
+                            </button>
+                          )}
+                        </div>
+                        <ul className="mt-2 space-y-1 text-xs text-amber-700">
+                          {duplicateContactGroups.map((group) => (
+                            <li key={group[0].id}>{group.map((contact) => contact.name).join(' / ')}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Contact List */}
+                    <div className="space-y-2">
+                      {contacts.length === 0 ? (
+                        <div className="rounded-lg bg-slate-50 py-8 text-center text-sm text-slate-500">
+                          担当者が登録されていません
+                        </div>
+                      ) : (
+                        contacts.map((contact, index) => {
+                          const isEditing = editingContactId === contact.id
+                          return (
+                            <div
+                              key={contact.id}
+                              className="rounded-lg border border-slate-100 bg-white p-3 transition-colors hover:border-slate-200"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                  <div
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${getAvatarColor(contact.name)}`}
+                                  >
+                                    {getInitials(contact.name)}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    {isEditing ? (
+                                      <div className="space-y-2">
+                                        <FormInput
+                                          placeholder="担当者名（必須）"
+                                          value={editContactForm.name}
+                                          onChange={(e) =>
+                                            setEditContactForm({ ...editContactForm, name: e.target.value })
+                                          }
+                                        />
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <FormInput
+                                            placeholder="役職"
+                                            value={editContactForm.role}
+                                            onChange={(e) =>
+                                              setEditContactForm({ ...editContactForm, role: e.target.value })
+                                            }
+                                          />
+                                          <FormInput
+                                            placeholder="電話番号"
+                                            value={editContactForm.phone}
+                                            onChange={(e) =>
+                                              setEditContactForm({ ...editContactForm, phone: e.target.value })
+                                            }
+                                          />
+                                        </div>
+                                        <FormInput
+                                          placeholder="メールアドレス"
+                                          value={editContactForm.email}
+                                          onChange={(e) =>
+                                            setEditContactForm({ ...editContactForm, email: e.target.value })
+                                          }
+                                        />
+                                        <FormTextarea
+                                          placeholder="メモ"
+                                          rows={2}
+                                          value={editContactForm.memo}
+                                          onChange={(e) =>
+                                            setEditContactForm({ ...editContactForm, memo: e.target.value })
+                                          }
+                                        />
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="font-semibold text-slate-900">{contact.name}</div>
+                                        {contact.role && <div className="text-xs text-slate-500">{contact.role}</div>}
+                                        <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                                          {contact.email && (
+                                            <button
+                                              onClick={() => copyToClipboard(contact.email!)}
+                                              className="text-slate-500 hover:text-sky-600"
+                                            >
+                                              {contact.email}
+                                            </button>
+                                          )}
+                                          {contact.phone && (
+                                            <button
+                                              onClick={() => copyToClipboard(contact.phone!)}
+                                              className="text-slate-500 hover:text-sky-600"
+                                            >
+                                              {contact.phone}
+                                            </button>
+                                          )}
+                                        </div>
+                                        {contact.memo && (
+                                          <p className="mt-2 whitespace-pre-line text-xs text-slate-500">
+                                            {contact.memo}
+                                          </p>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                {canWrite && (
+                                  <div className="flex shrink-0 flex-col items-end gap-2">
+                                    {!isEditing && (
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => moveContact(index, -1)}
+                                          disabled={index === 0 || isReorderWorking}
+                                          className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
+                                        >
+                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveContact(index, 1)}
+                                          disabled={index === contacts.length - 1 || isReorderWorking}
+                                          className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
+                                        >
+                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      {isEditing ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={handleSaveContact}
+                                            className="text-xs font-medium text-sky-600 hover:text-sky-700"
+                                          >
+                                            保存
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={cancelEditContact}
+                                            className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                                          >
+                                            キャンセル
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => startEditContact(contact)}
+                                            className="text-xs font-medium text-sky-600 hover:text-sky-700"
+                                          >
+                                            編集
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setConfirmDelete({ id: contact.id, name: contact.name })}
+                                            className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                                          >
+                                            削除
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+  )
+
+  const CompanyChatworkSection = () => (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="font-medium text-slate-900">Chatworkルーム</h4>
+                      <span className="text-xs text-slate-500">{linkedRooms.length}件</span>
+                    </div>
+                    {roomErrorMessage && <ErrorAlert message={roomErrorMessage} className="mb-3" />}
+                    <div className="flex flex-wrap gap-2">
+                      {linkedRooms.length === 0 ? (
+                        <span className="text-sm text-slate-500">ルームが紐づいていません</span>
+                      ) : (
+                        linkedRooms.map((room) => (
+                          <div
+                            key={room.id}
+                            className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm shadow-sm"
+                          >
+                            <span className="text-slate-700">{room.name}</span>
+                            {canWrite && (
+                              <button
+                                onClick={() => handleRemoveRoom(room.roomId)}
+                                className="text-slate-400 hover:text-rose-600"
+                              >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {canManageChatwork ? (
+                      <form onSubmit={handleAddRoom} className="mt-3 flex gap-2">
+                        <FormSelect
+                          value={roomInput}
+                          onChange={(e) => setRoomInput(e.target.value)}
+                          containerClassName="min-w-0 flex-1"
+                          className="rounded-lg py-1.5 text-sm"
+                        >
+                          <option value="">ルームを追加...</option>
+                          {isLoadingRooms ? (
+                            <option disabled>読み込み中...</option>
+                          ) : (
+                            availableRooms.map((room) => (
+                              <option key={room.id} value={room.roomId}>
+                                {room.name}
+                              </option>
+                            ))
+                          )}
+                        </FormSelect>
+                        <button
+                          type="submit"
+                          disabled={!roomInput}
+                          className="rounded-lg bg-slate-900 px-4 py-1.5 text-sm font-medium text-white disabled:bg-slate-300"
+                        >
+                          追加
+                        </button>
+                      </form>
+                    ) : canWrite ? (
+                      <div className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
+                        ルームの追加は管理者のみ可能です。
+                      </div>
+                    ) : null}
+                  </div>
+  )
+
+  const CompanyOverviewTab = () => (
                 <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
                   {/* Basic Info */}
                   <div className="space-y-4">
@@ -928,7 +1234,7 @@ function CompanyDetail() {
                                       className="text-slate-400 hover:text-rose-500"
                                       aria-label={`${tag}を削除`}
                                     >
-                                      ×
+                                      <CloseIcon className="h-3 w-3" />
                                     </button>
                                   </span>
                                 ))
@@ -937,8 +1243,7 @@ function CompanyDetail() {
                               )}
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              <input
-                                className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                              <FormInput
                                 value={tagInput}
                                 onChange={(e) => setTagInput(e.target.value)}
                                 placeholder="タグを追加（Enterで確定）"
@@ -963,6 +1268,8 @@ function CompanyDetail() {
                                     }))
                                   }
                                 }}
+                                containerClassName="flex-1"
+                                className="rounded-lg py-1.5"
                               />
                               <button
                                 type="button"
@@ -1036,11 +1343,11 @@ function CompanyDetail() {
                         </div>
                         {isEditingProfile ? (
                           <div className="mt-2 space-y-2">
-                            <textarea
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                            <FormTextarea
                               value={companyForm.profile}
                               onChange={(e) => setCompanyForm({ ...companyForm, profile: e.target.value })}
                               rows={3}
+                              className="rounded-lg"
                             />
                             <div className="flex gap-2">
                               <button
@@ -1070,373 +1377,46 @@ function CompanyDetail() {
                     {companyError && <ErrorAlert message={companyError} />}
                   </div>
 
-                  {/* Contacts */}
-                  <div>
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-slate-900">担当者</h3>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                          {contacts.length}名
-                        </span>
-                        {canWrite && (
-                          <button
-                            onClick={() => setShowContactForm(!showContactForm)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white transition-colors hover:bg-slate-800"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Add Contact Form */}
-                    {canWrite && showContactForm && (
-                      <form onSubmit={handleAddContact} className="mb-4 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                        <input
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                          placeholder="担当者名（必須）"
-                          value={form.name}
-                          onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                            placeholder="役職"
-                            value={form.role}
-                            onChange={(e) => setForm({ ...form, role: e.target.value })}
-                          />
-                          <input
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                            placeholder="電話番号"
-                            value={form.phone}
-                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                          />
-                        </div>
-                        <input
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                          placeholder="メールアドレス"
-                          value={form.email}
-                          onChange={(e) => setForm({ ...form, email: e.target.value })}
-                        />
-                        {contactError && (
-                          <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{contactError}</div>
-                        )}
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowContactForm(false)}
-                            className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-                          >
-                            キャンセル
-                          </button>
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-700"
-                          >
-                            追加
-                          </button>
-                        </div>
-                      </form>
-                    )}
-
-                    {contactActionError && <ErrorAlert message={contactActionError} className="mb-3" />}
-
-                    {duplicateContactGroups.length > 0 && (
-                      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <div className="font-semibold">重複している担当者があります</div>
-                            <div className="text-xs text-amber-700">メールまたは電話番号が一致しています。</div>
-                          </div>
-                          {canWrite && (
-                            <button
-                              type="button"
-                              onClick={() => setIsDedupeConfirmOpen(true)}
-                              disabled={isDedupeWorking}
-                              className="rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold text-white disabled:bg-amber-300"
-                            >
-                              {isDedupeWorking ? '統合中...' : '重複を統合'}
-                            </button>
-                          )}
-                        </div>
-                        <ul className="mt-2 space-y-1 text-xs text-amber-700">
-                          {duplicateContactGroups.map((group) => (
-                            <li key={group[0].id}>{group.map((contact) => contact.name).join(' / ')}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Contact List */}
-                    <div className="space-y-2">
-                      {contacts.length === 0 ? (
-                        <div className="rounded-lg bg-slate-50 py-8 text-center text-sm text-slate-500">
-                          担当者が登録されていません
-                        </div>
-                      ) : (
-                        contacts.map((contact, index) => {
-                          const isEditing = editingContactId === contact.id
-                          return (
-                            <div
-                              key={contact.id}
-                              className="rounded-lg border border-slate-100 bg-white p-3 transition-colors hover:border-slate-200"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3">
-                                  <div
-                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${getAvatarColor(contact.name)}`}
-                                  >
-                                    {getInitials(contact.name)}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    {isEditing ? (
-                                      <div className="space-y-2">
-                                        <input
-                                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                                          placeholder="担当者名（必須）"
-                                          value={editContactForm.name}
-                                          onChange={(e) =>
-                                            setEditContactForm({ ...editContactForm, name: e.target.value })
-                                          }
-                                        />
-                                        <div className="grid grid-cols-2 gap-2">
-                                          <input
-                                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                                            placeholder="役職"
-                                            value={editContactForm.role}
-                                            onChange={(e) =>
-                                              setEditContactForm({ ...editContactForm, role: e.target.value })
-                                            }
-                                          />
-                                          <input
-                                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                                            placeholder="電話番号"
-                                            value={editContactForm.phone}
-                                            onChange={(e) =>
-                                              setEditContactForm({ ...editContactForm, phone: e.target.value })
-                                            }
-                                          />
-                                        </div>
-                                        <input
-                                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                                          placeholder="メールアドレス"
-                                          value={editContactForm.email}
-                                          onChange={(e) =>
-                                            setEditContactForm({ ...editContactForm, email: e.target.value })
-                                          }
-                                        />
-                                        <textarea
-                                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                                          placeholder="メモ"
-                                          rows={2}
-                                          value={editContactForm.memo}
-                                          onChange={(e) =>
-                                            setEditContactForm({ ...editContactForm, memo: e.target.value })
-                                          }
-                                        />
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <div className="font-semibold text-slate-900">{contact.name}</div>
-                                        {contact.role && <div className="text-xs text-slate-500">{contact.role}</div>}
-                                        <div className="mt-1 flex flex-wrap gap-2 text-xs">
-                                          {contact.email && (
-                                            <button
-                                              onClick={() => copyToClipboard(contact.email!)}
-                                              className="text-slate-500 hover:text-sky-600"
-                                            >
-                                              {contact.email}
-                                            </button>
-                                          )}
-                                          {contact.phone && (
-                                            <button
-                                              onClick={() => copyToClipboard(contact.phone!)}
-                                              className="text-slate-500 hover:text-sky-600"
-                                            >
-                                              {contact.phone}
-                                            </button>
-                                          )}
-                                        </div>
-                                        {contact.memo && (
-                                          <p className="mt-2 whitespace-pre-line text-xs text-slate-500">
-                                            {contact.memo}
-                                          </p>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                                {canWrite && (
-                                  <div className="flex shrink-0 flex-col items-end gap-2">
-                                    {!isEditing && (
-                                      <div className="flex items-center gap-1">
-                                        <button
-                                          type="button"
-                                          onClick={() => moveContact(index, -1)}
-                                          disabled={index === 0 || isReorderWorking}
-                                          className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
-                                        >
-                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                          </svg>
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => moveContact(index, 1)}
-                                          disabled={index === contacts.length - 1 || isReorderWorking}
-                                          className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
-                                        >
-                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                          </svg>
-                                        </button>
-                                      </div>
-                                    )}
-                                    <div className="flex items-center gap-2">
-                                      {isEditing ? (
-                                        <>
-                                          <button
-                                            type="button"
-                                            onClick={handleSaveContact}
-                                            className="text-xs font-medium text-sky-600 hover:text-sky-700"
-                                          >
-                                            保存
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={cancelEditContact}
-                                            className="text-xs font-medium text-slate-500 hover:text-slate-700"
-                                          >
-                                            キャンセル
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <button
-                                            type="button"
-                                            onClick={() => startEditContact(contact)}
-                                            className="text-xs font-medium text-sky-600 hover:text-sky-700"
-                                          >
-                                            編集
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => setConfirmDelete({ id: contact.id, name: contact.name })}
-                                            className="text-xs font-medium text-rose-600 hover:text-rose-700"
-                                          >
-                                            削除
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })
-                      )}
-                    </div>
-                  </div>
+                  <CompanyContactsSection />
                 </div>
-              )}
+              
+  )
 
-              {/* Timeline Tab */}
-              {activeTab === 'timeline' && (
+  const CompanyTimelineTab = () => (
                 <div className="space-y-6">
-                  {/* Chatwork Rooms */}
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="font-medium text-slate-900">Chatworkルーム</h4>
-                      <span className="text-xs text-slate-500">{linkedRooms.length}件</span>
-                    </div>
-                    {roomErrorMessage && <ErrorAlert message={roomErrorMessage} className="mb-3" />}
-                    <div className="flex flex-wrap gap-2">
-                      {linkedRooms.length === 0 ? (
-                        <span className="text-sm text-slate-500">ルームが紐づいていません</span>
-                      ) : (
-                        linkedRooms.map((room) => (
-                          <div
-                            key={room.id}
-                            className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm shadow-sm"
-                          >
-                            <span className="text-slate-700">{room.name}</span>
-                            {canWrite && (
-                              <button
-                                onClick={() => handleRemoveRoom(room.roomId)}
-                                className="text-slate-400 hover:text-rose-600"
-                              >
-                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    {canManageChatwork ? (
-                      <form onSubmit={handleAddRoom} className="mt-3 flex gap-2">
-                        <select
-                          className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm"
-                          value={roomInput}
-                          onChange={(e) => setRoomInput(e.target.value)}
-                        >
-                          <option value="">ルームを追加...</option>
-                          {isLoadingRooms ? (
-                            <option disabled>読み込み中...</option>
-                          ) : (
-                            availableRooms.map((room) => (
-                              <option key={room.id} value={room.roomId}>
-                                {room.name}
-                              </option>
-                            ))
-                          )}
-                        </select>
-                        <button
-                          type="submit"
-                          disabled={!roomInput}
-                          className="rounded-lg bg-slate-900 px-4 py-1.5 text-sm font-medium text-white disabled:bg-slate-300"
-                        >
-                          追加
-                        </button>
-                      </form>
-                    ) : canWrite ? (
-                      <div className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
-                        ルームの追加は管理者のみ可能です。
-                      </div>
-                    ) : null}
-                  </div>
+                  <CompanyChatworkSection />
 
                   {/* Message Filters */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
+                    <FormInput
                       type="date"
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
                       value={messageFrom}
                       onChange={(e) => setMessageFrom(e.target.value)}
+                      containerClassName="w-auto"
+                      className="w-auto rounded-lg py-1.5 text-sm"
                     />
                     <span className="text-slate-400">〜</span>
-                    <input
+                    <FormInput
                       type="date"
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
                       value={messageTo}
                       onChange={(e) => setMessageTo(e.target.value)}
+                      containerClassName="w-auto"
+                      className="w-auto rounded-lg py-1.5 text-sm"
                     />
-                    <input
-                      className="min-w-[150px] flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                    <FormInput
                       placeholder="本文検索"
                       value={messageQuery}
                       onChange={(e) => setMessageQuery(e.target.value)}
+                      containerClassName="min-w-[150px] flex-1"
+                      className="rounded-lg py-1.5 text-sm"
                     />
-                    <input
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                    <FormInput
                       placeholder="ラベル"
                       value={messageLabel}
                       onChange={(e) => setMessageLabel(e.target.value)}
                       list="company-message-label-options"
+                      containerClassName="w-auto"
+                      className="w-auto rounded-lg py-1.5 text-sm"
                     />
                   </div>
                   <datalist id="company-message-label-options">
@@ -1499,9 +1479,10 @@ function CompanyDetail() {
                                           <button
                                             key={label}
                                             onClick={() => handleRemoveLabel(message.id, label)}
-                                            className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-600 hover:bg-indigo-100"
+                                            className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-600 hover:bg-indigo-100"
                                           >
-                                            #{label} ×
+                                            <span>#{label}</span>
+                                            <CloseIcon className="h-3 w-3" />
                                           </button>
                                         ) : (
                                           <span
@@ -1514,15 +1495,14 @@ function CompanyDetail() {
                                       )}
                                     </div>
                                   )}
-                                  {canWrite && (
-                                    <div className="mt-2 flex gap-1">
-                                      <input
-                                        className="flex-1 rounded border border-slate-200 px-2 py-1 text-xs"
+                                    {canWrite && (
+                                      <div className="mt-2 flex gap-1">
+                                      <FormInput
+                                        noContainer
+                                        ref={(input) => {
+                                          labelInputRefs.current[message.id] = input
+                                        }}
                                         placeholder="ラベルを追加"
-                                        value={labelInputs[message.id] || ''}
-                                        onChange={(e) =>
-                                          setLabelInputs((prev) => ({ ...prev, [message.id]: e.target.value }))
-                                        }
                                         onKeyDown={(e) => {
                                           if (e.key === 'Enter') {
                                             e.preventDefault()
@@ -1530,8 +1510,10 @@ function CompanyDetail() {
                                           }
                                         }}
                                         list="company-message-label-options"
+                                        className="flex-1"
                                       />
                                       <button
+                                        type="button"
                                         onClick={() => handleAddLabel(message.id)}
                                         className="rounded bg-slate-900 px-2 py-1 text-xs text-white"
                                       >
@@ -1559,10 +1541,60 @@ function CompanyDetail() {
                     </div>
                   )}
                 </div>
-              )}
+              
+  )
+
+  const CompanyTasksTab = () => (id ? <CompanyTasksSection companyId={id} canWrite={canWrite} /> : null)
+
+  return (
+    <div className="space-y-6 animate-fade-up">
+      <nav className="text-xs text-slate-400">
+        <Link to="/companies" className="hover:text-slate-600">
+          企業一覧
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-slate-500">{company.name}</span>
+      </nav>
+      {/* Simple Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white ${getAvatarColor(company.name)}`}
+          >
+            {getInitials(company.name)}
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Company</p>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-slate-900">{company.name}</h2>
+              <StatusBadge status={company.status} />
+            </div>
+          </div>
+        </div>
+        <Link
+          to="/companies"
+          className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          一覧に戻る
+        </Link>
+      </div>
+
+      {/* Main Tabs Container */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <Tabs tabs={tabs} defaultTab="overview" syncWithHash>
+          {(activeTab) => (
+            <>
+              {/* Overview Tab */}
+              {activeTab === 'overview' && <CompanyOverviewTab />}
+
+              {/* Timeline Tab */}
+              {activeTab === 'timeline' && <CompanyTimelineTab />}
 
               {/* Tasks Tab */}
-              {activeTab === 'tasks' && id && <CompanyTasksSection companyId={id} canWrite={canWrite} />}
+              {activeTab === 'tasks' && <CompanyTasksTab />}
             </>
           )}
         </Tabs>

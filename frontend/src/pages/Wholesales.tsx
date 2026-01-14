@@ -16,10 +16,11 @@ import { useFetch, useMutation } from '../hooks/useApi'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useUrlSync } from '../hooks/useUrlSync'
 import { usePermissions } from '../hooks/usePermissions'
-import { ApiListResponse, Wholesale, WholesalesFilters } from '../types'
+import type { ApiListResponse, Wholesale, WholesalesFilters } from '../types'
 import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants'
 import { formatDateInput } from '../utils/date'
 import { formatCurrency } from '../utils/format'
+import { buildQueryString } from '../utils/queryString'
 import { apiRoutes } from '../lib/apiRoutes'
 
 const defaultFilters: WholesalesFilters = {
@@ -28,6 +29,227 @@ const defaultFilters: WholesalesFilters = {
   companyId: '',
   unitPriceMin: '',
   unitPriceMax: '',
+}
+
+type WholesalesFiltersProps = {
+  filters: WholesalesFilters
+  onFiltersChange: (next: WholesalesFilters) => void
+  onSubmit: (event: React.FormEvent) => void
+  hasActiveFilters: boolean
+  onClearFilter: (key: keyof WholesalesFilters) => void
+  onClearAll: () => void
+  selectedCompanyName: string
+  selectedProjectName: string
+  searchInputRef: React.RefObject<HTMLSelectElement>
+}
+
+function WholesalesFilters({
+  filters,
+  onFiltersChange,
+  onSubmit,
+  hasActiveFilters,
+  onClearFilter,
+  onClearAll,
+  selectedCompanyName,
+  selectedProjectName,
+  searchInputRef,
+}: WholesalesFiltersProps) {
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <div className="grid gap-3 md:grid-cols-6">
+        <FormSelect
+          ref={searchInputRef}
+          value={filters.status}
+          onChange={(e) => {
+            onFiltersChange({ ...filters, status: e.target.value })
+          }}
+        >
+          <option value="">ステータス</option>
+          {WHOLESALE_STATUS_OPTIONS.map((status) => (
+            <option key={status} value={status}>
+              {statusLabel('wholesale', status)}
+            </option>
+          ))}
+        </FormSelect>
+        <ProjectSearchSelect
+          value={filters.projectId}
+          onChange={(projectId) => {
+            onFiltersChange({ ...filters, projectId })
+          }}
+          placeholder="案件名"
+        />
+        <CompanySearchSelect
+          value={filters.companyId}
+          onChange={(companyId) => {
+            onFiltersChange({ ...filters, companyId })
+          }}
+          placeholder="企業名"
+        />
+        <FormInput
+          type="number"
+          value={filters.unitPriceMin}
+          onChange={(e) => {
+            onFiltersChange({ ...filters, unitPriceMin: e.target.value })
+          }}
+          placeholder="単価下限"
+        />
+        <FormInput
+          type="number"
+          value={filters.unitPriceMax}
+          onChange={(e) => {
+            onFiltersChange({ ...filters, unitPriceMax: e.target.value })
+          }}
+          placeholder="単価上限"
+        />
+        <button
+          type="submit"
+          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+        >
+          検索
+        </button>
+      </div>
+
+      {hasActiveFilters && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-500">絞り込み:</span>
+          {filters.status && (
+            <FilterBadge
+              label={`ステータス: ${statusLabel('wholesale', filters.status)}`}
+              onRemove={() => onClearFilter('status')}
+            />
+          )}
+          {filters.projectId && (
+            <FilterBadge
+              label={`案件: ${selectedProjectName}`}
+              onRemove={() => onClearFilter('projectId')}
+            />
+          )}
+          {filters.companyId && (
+            <FilterBadge
+              label={`企業: ${selectedCompanyName}`}
+              onRemove={() => onClearFilter('companyId')}
+            />
+          )}
+          {filters.unitPriceMin && (
+            <FilterBadge
+              label={`単価下限: ¥${Number(filters.unitPriceMin).toLocaleString()}`}
+              onRemove={() => onClearFilter('unitPriceMin')}
+            />
+          )}
+          {filters.unitPriceMax && (
+            <FilterBadge
+              label={`単価上限: ¥${Number(filters.unitPriceMax).toLocaleString()}`}
+              onRemove={() => onClearFilter('unitPriceMax')}
+            />
+          )}
+          <button
+            type="button"
+            onClick={onClearAll}
+            className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+          >
+            すべて解除
+          </button>
+        </div>
+      )}
+    </form>
+  )
+}
+
+type WholesalesTableProps = {
+  wholesales: Wholesale[]
+  isLoading: boolean
+  canWrite: boolean
+  onEdit: (wholesale: Wholesale) => void
+  onDelete: (wholesale: Wholesale) => void
+}
+
+function WholesalesTable({ wholesales, isLoading, canWrite, onEdit, onDelete }: WholesalesTableProps) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      {isLoading ? (
+        <SkeletonTable rows={5} columns={7} />
+      ) : wholesales.length === 0 ? (
+        <EmptyState className="px-6 py-10" message="卸先が見つかりません" />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-slate-50">
+              <tr className="text-left text-xs text-slate-500">
+                <th className="px-4 py-3">企業</th>
+                <th className="px-4 py-3">案件</th>
+                <th className="px-4 py-3">ステータス</th>
+                <th className="px-4 py-3 text-right">単価</th>
+                <th className="px-4 py-3 text-right">マージン</th>
+                <th className="px-4 py-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wholesales.map((wholesale) => (
+                <tr key={wholesale.id} className="border-t border-slate-100 text-sm">
+                  <td className="px-4 py-3">
+                    <Link
+                      to={`/companies/${wholesale.companyId}`}
+                      className="font-semibold text-slate-700 hover:text-slate-900"
+                    >
+                      {wholesale.company?.name || wholesale.companyId}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link
+                      to={`/projects/${wholesale.projectId}`}
+                      className="text-slate-600 hover:text-slate-900"
+                    >
+                      {wholesale.project?.name || wholesale.projectId}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={wholesale.status} kind="wholesale" size="sm" />
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {formatCurrency(wholesale.unitPrice)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {wholesale.margin != null ? `${wholesale.margin}%` : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        to={`/wholesales/${wholesale.id}`}
+                        className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                      >
+                        詳細
+                      </Link>
+                      {canWrite && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onEdit(wholesale)}
+                            className="text-xs font-semibold text-sky-600 hover:text-sky-700"
+                          >
+                            編集
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDelete(wholesale)}
+                            className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                          >
+                            削除
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function Wholesales() {
@@ -51,15 +273,15 @@ function Wholesales() {
   const [deleteTarget, setDeleteTarget] = useState<Wholesale | null>(null)
 
   const queryString = useMemo(() => {
-    const params = new URLSearchParams()
-    if (filters.status) params.set('status', filters.status)
-    if (filters.projectId) params.set('projectId', filters.projectId)
-    if (filters.companyId) params.set('companyId', filters.companyId)
-    if (filters.unitPriceMin) params.set('unitPriceMin', filters.unitPriceMin)
-    if (filters.unitPriceMax) params.set('unitPriceMax', filters.unitPriceMax)
-    params.set('page', String(pagination.page))
-    params.set('pageSize', String(pagination.pageSize))
-    return params.toString()
+    return buildQueryString({
+      status: filters.status,
+      projectId: filters.projectId,
+      companyId: filters.companyId,
+      unitPriceMin: filters.unitPriceMin,
+      unitPriceMax: filters.unitPriceMax,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    })
   }, [filters, pagination.page, pagination.pageSize])
 
   const {
@@ -199,106 +421,17 @@ function Wholesales() {
         </div>
       </div>
 
-      <form
+      <WholesalesFilters
+        filters={filters}
+        onFiltersChange={setFilters}
         onSubmit={handleSearchSubmit}
-        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-      >
-        <div className="grid gap-3 md:grid-cols-6">
-          <FormSelect
-            ref={searchInputRef}
-            value={filters.status}
-            onChange={(e) => {
-              setFilters({ ...filters, status: e.target.value })
-            }}
-          >
-            <option value="">全てのステータス</option>
-            {WHOLESALE_STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {statusLabel('wholesale', status)}
-              </option>
-            ))}
-          </FormSelect>
-          <ProjectSearchSelect
-            value={filters.projectId}
-            onChange={(projectId) => {
-              setFilters({ ...filters, projectId })
-            }}
-            placeholder="案件を検索"
-          />
-          <CompanySearchSelect
-            value={filters.companyId}
-            onChange={(companyId) => {
-              setFilters({ ...filters, companyId })
-            }}
-            placeholder="企業を検索"
-          />
-          <FormInput
-            type="number"
-            value={filters.unitPriceMin}
-            onChange={(e) => {
-              setFilters({ ...filters, unitPriceMin: e.target.value })
-            }}
-            placeholder="単価（最小）"
-          />
-          <FormInput
-            type="number"
-            value={filters.unitPriceMax}
-            onChange={(e) => {
-              setFilters({ ...filters, unitPriceMax: e.target.value })
-            }}
-            placeholder="単価（最大）"
-          />
-          <button
-            type="submit"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-          >
-            検索
-          </button>
-        </div>
-
-        {hasActiveFilters && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-500">絞り込み中:</span>
-            {filters.status && (
-              <FilterBadge
-                label={`ステータス: ${statusLabel('wholesale', filters.status)}`}
-                onRemove={() => handleClearFilter('status')}
-              />
-            )}
-            {filters.projectId && (
-              <FilterBadge
-                label={`案件: ${selectedProjectName}`}
-                onRemove={() => handleClearFilter('projectId')}
-              />
-            )}
-            {filters.companyId && (
-              <FilterBadge
-                label={`企業: ${selectedCompanyName}`}
-                onRemove={() => handleClearFilter('companyId')}
-              />
-            )}
-            {filters.unitPriceMin && (
-              <FilterBadge
-                label={`単価（最小）: ¥${Number(filters.unitPriceMin).toLocaleString()}`}
-                onRemove={() => handleClearFilter('unitPriceMin')}
-              />
-            )}
-            {filters.unitPriceMax && (
-              <FilterBadge
-                label={`単価（最大）: ¥${Number(filters.unitPriceMax).toLocaleString()}`}
-                onRemove={() => handleClearFilter('unitPriceMax')}
-              />
-            )}
-            <button
-              type="button"
-              onClick={handleClearAllFilters}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-            >
-              すべてクリア
-            </button>
-          </div>
-        )}
-      </form>
+        hasActiveFilters={hasActiveFilters}
+        onClearFilter={handleClearFilter}
+        onClearAll={handleClearAllFilters}
+        selectedCompanyName={selectedCompanyName}
+        selectedProjectName={selectedProjectName}
+        searchInputRef={searchInputRef}
+      />
 
       {/* Readonly Notice */}
       {!canWrite && (
@@ -402,91 +535,13 @@ function Wholesales() {
 
       {error && <ErrorAlert message={error} onClose={() => setError('')} />}
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        {isLoadingWholesales ? (
-          <SkeletonTable rows={5} columns={7} />
-        ) : wholesales.length === 0 ? (
-          <EmptyState className="px-6 py-10" message="卸データはありません。" />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-slate-50">
-                <tr className="text-left text-xs text-slate-500">
-                  <th className="px-4 py-3">卸先企業</th>
-                  <th className="px-4 py-3">案件</th>
-                  <th className="px-4 py-3">状態</th>
-                  <th className="px-4 py-3 text-right">単価</th>
-                  <th className="px-4 py-3 text-right">マージン</th>
-                  <th className="px-4 py-3 text-right">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {wholesales.map((wholesale) => (
-                  <tr key={wholesale.id} className="border-t border-slate-100 text-sm">
-                    <td className="px-4 py-3">
-                      <Link
-                        to={`/companies/${wholesale.companyId}`}
-                        className="font-semibold text-slate-700 hover:text-slate-900"
-                      >
-                        {wholesale.company?.name || wholesale.companyId}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        to={`/projects/${wholesale.projectId}`}
-                        className="text-slate-600 hover:text-slate-900"
-                      >
-                        {wholesale.project?.name || wholesale.projectId}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge
-                        status={wholesale.status}
-                        kind="wholesale"
-                        size="sm"
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {formatCurrency(wholesale.unitPrice)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {wholesale.margin != null ? `${wholesale.margin}%` : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          to={`/wholesales/${wholesale.id}`}
-                          className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                        >
-                          詳細
-                        </Link>
-                        {canWrite && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleEditOpen(wholesale)}
-                              className="text-xs font-semibold text-sky-600 hover:text-sky-700"
-                            >
-                              編集
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteTarget(wholesale)}
-                              className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                            >
-                              削除
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <WholesalesTable
+        wholesales={wholesales}
+        isLoading={isLoadingWholesales}
+        canWrite={canWrite}
+        onEdit={handleEditOpen}
+        onDelete={setDeleteTarget}
+      />
 
       <Pagination
         page={pagination.page}

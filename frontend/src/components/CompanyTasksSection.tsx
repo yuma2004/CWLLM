@@ -8,6 +8,7 @@ import StatusBadge from './ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { apiRoutes } from '../lib/apiRoutes'
 import { formatDate } from '../utils/date'
+import { toErrorMessage } from '../utils/errorState'
 import { ApiListResponse, Task } from '../types'
 import { TASK_STATUS_OPTIONS, statusLabel } from '../constants'
 
@@ -75,7 +76,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
       setForm({ title: '', description: '', dueDate: '' })
       void refetchTasks()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
+      setFormError(toErrorMessage(err, 'ネットワークエラー'))
     }
   }
 
@@ -87,7 +88,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
       )
       void refetchTasks()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ネットワークエラー')
+      setError(toErrorMessage(err, 'ネットワークエラー'))
     }
   }
 
@@ -134,8 +135,9 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
                 </div>
               </div>
               {canWrite ? (
-                <select
-                  className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+                <FormSelect
+                  className="w-auto rounded-full px-3 py-1 text-xs"
+                  containerClassName="w-auto"
                   value={task.status}
                   onChange={(event) => handleStatusChange(task.id, event.target.value)}
                 >
@@ -144,7 +146,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
                       {statusLabel('task', status)}
                     </option>
                   ))}
-                </select>
+                </FormSelect>
               ) : (
                 <StatusBadge status={task.status} kind="task" size="sm" />
               )}

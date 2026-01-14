@@ -502,53 +502,55 @@ function ProjectDetail() {
               </div>
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">ステータス</div>
-                <select
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                <FormSelect
+                  className="rounded-lg"
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
                 >
                   <option value="active">有効</option>
                   <option value="paused">停止中</option>
                   <option value="closed">終了</option>
-                </select>
+                </FormSelect>
               </div>
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
                 <div className="flex gap-2">
-                  <input
+                  <FormInput
                     type="number"
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     placeholder="例: 10000"
                     value={form.unitPrice}
                     onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                    containerClassName="flex-1"
+                    className="rounded-lg"
                   />
-                  <select
-                    className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  <FormSelect
                     value={form.taxType}
                     onChange={(e) => setForm({ ...form, taxType: e.target.value as 'excluded' | 'included' })}
+                    containerClassName="w-24"
+                    className="w-24 rounded-lg"
                   >
                     <option value="excluded">税抜</option>
                     <option value="included">税込</option>
-                  </select>
+                  </FormSelect>
                 </div>
               </div>
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
-                <input
+                <FormInput
                   type="date"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                   value={form.agreedDate}
                   onChange={(e) => setForm({ ...form, agreedDate: e.target.value })}
+                  className="rounded-lg"
                 />
               </div>
               <div className="md:col-span-2 lg:col-span-1">
                 <div className="block text-xs font-medium text-slate-600 mb-1">条件・備考</div>
-                <input
+                <FormInput
                   type="text"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                   placeholder="条件や備考を入力"
                   value={form.conditions}
                   onChange={(e) => setForm({ ...form, conditions: e.target.value })}
+                  className="rounded-lg"
                 />
               </div>
             </div>
@@ -659,51 +661,53 @@ function ProjectDetail() {
                 </div>
                 <div>
                   <div className="block text-xs font-medium text-slate-600 mb-1">ステータス</div>
-                  <select
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  <FormSelect
+                    className="rounded-lg"
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                   >
                     <option value="active">有効</option>
                     <option value="paused">停止中</option>
                     <option value="closed">終了</option>
-                  </select>
+                  </FormSelect>
                 </div>
                 <div>
                   <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
                   <div className="flex gap-2">
-                    <input
+                    <FormInput
                       type="number"
-                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
                       value={editForm.unitPrice}
                       onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
+                      containerClassName="flex-1"
+                      className="rounded-lg"
                     />
-                    <select
-                      className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    <FormSelect
                       value={editForm.taxType}
                       onChange={(e) => setEditForm({ ...editForm, taxType: e.target.value as 'excluded' | 'included' })}
+                      containerClassName="w-24"
+                      className="w-24 rounded-lg"
                     >
                       <option value="excluded">税抜</option>
                       <option value="included">税込</option>
-                    </select>
+                    </FormSelect>
                   </div>
                 </div>
                 <div>
                   <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
-                  <input
+                  <FormInput
                     type="date"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     value={editForm.agreedDate}
                     onChange={(e) => setEditForm({ ...editForm, agreedDate: e.target.value })}
+                    className="rounded-lg"
                   />
                 </div>
                 <div>
                   <div className="block text-xs font-medium text-slate-600 mb-1">条件・備考</div>
-                  <textarea
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  <FormTextarea
                     rows={3}
                     value={editForm.conditions}
                     onChange={(e) => setEditForm({ ...editForm, conditions: e.target.value })}
+                    className="rounded-lg"
                   />
                 </div>
               </div>

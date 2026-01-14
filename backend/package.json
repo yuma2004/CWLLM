@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:e2e": "npm run prisma:generate && npm run dev",
     "dev:worker": "tsx watch src/worker.ts",
     "build": "tsc",
     "start": "node dist/index.js",

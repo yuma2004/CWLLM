@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import CloseIcon from './CloseIcon'
 
 type ModalProps = {
   isOpen: boolean
@@ -130,7 +131,7 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
               className="text-slate-400 transition-colors hover:text-slate-600"
               aria-label="close"
             >
-              ×
+              <CloseIcon className="h-4 w-4" />
             </button>
           </div>
         )}

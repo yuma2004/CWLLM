@@ -46,7 +46,7 @@ export default defineConfig({
       },
     },
     {
-      command: 'npm run dev',
+      command: 'npm run dev:e2e',
       url: `http://localhost:${backendPort}/healthz`,
       reuseExistingServer: false,
       env: baseEnv,

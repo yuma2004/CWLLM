@@ -1,3 +1,5 @@
+import CloseIcon from './CloseIcon'
+
 type ToastVariant = 'info' | 'success' | 'error'
 
 type ToastProps = {
@@ -32,7 +34,7 @@ const Toast = ({ message, variant = 'info', onClose, className }: ToastProps) =>
         className="text-white/80 hover:text-white"
         aria-label="close"
       >
-        ×
+        <CloseIcon className="h-4 w-4" />
       </button>
     )}
   </div>

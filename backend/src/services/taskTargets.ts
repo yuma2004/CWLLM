@@ -1,4 +1,4 @@
-import { TargetType } from '@prisma/client'
+import type { TargetType } from '@prisma/client'
 import { prisma } from '../utils/prisma'
 
 type TaskTarget = {

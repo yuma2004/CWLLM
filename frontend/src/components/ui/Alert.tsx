@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import CloseIcon from './CloseIcon'
 
 export type AlertVariant = 'error' | 'success' | 'warning' | 'info'
 
@@ -76,7 +77,7 @@ const Alert = ({ variant, message, onClose, className, children }: AlertProps) =
           className={styles.button}
           aria-label="閉じる"
         >
-          ×
+          <CloseIcon className="h-4 w-4" />
         </button>
       )}
     </div>

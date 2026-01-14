@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { JobStatus, JobType, Prisma, Job } from '@prisma/client'
+import { JobStatus, JobType, Prisma, type Job } from '@prisma/client'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { requireAuth } from '../middleware/rbac'
