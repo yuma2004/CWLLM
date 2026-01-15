@@ -13,7 +13,7 @@ import {
   TASK_STATUS_OPTIONS,
   statusLabel,
   targetTypeLabel,
-} from '../constants'
+} from '../constants/labels'
 import { formatDate, formatDateInput } from '../utils/date'
 import { getTargetPath } from '../utils/routes'
 import { Task } from '../types'

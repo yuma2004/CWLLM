@@ -12,7 +12,7 @@ import {
 import KanbanColumn from './KanbanColumn'
 import KanbanCard from './KanbanCard'
 import { Task } from '../types'
-import { statusLabel } from '../constants'
+import { statusLabel } from '../constants/labels'
 
 type KanbanBoardProps = {
   tasks: Task[]

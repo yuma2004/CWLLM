@@ -26,7 +26,7 @@ import {
   TARGET_TYPE_OPTIONS,
   statusLabel,
   targetTypeLabel,
-} from '../constants'
+} from '../constants/labels'
 
 const defaultFilters: TasksFilters = {
   status: '',

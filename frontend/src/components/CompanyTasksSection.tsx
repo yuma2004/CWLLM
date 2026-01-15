@@ -10,7 +10,7 @@ import { apiRoutes } from '../lib/apiRoutes'
 import { formatDate } from '../utils/date'
 import { toErrorMessage } from '../utils/errorState'
 import { ApiListResponse, Task } from '../types'
-import { TASK_STATUS_OPTIONS, statusLabel } from '../constants'
+import { TASK_STATUS_OPTIONS, statusLabel } from '../constants/labels'
 
 function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWrite: boolean }) {
   const [statusFilter, setStatusFilter] = useState('')

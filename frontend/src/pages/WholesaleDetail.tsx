@@ -18,7 +18,7 @@ import { apiRoutes } from '../lib/apiRoutes'
 import { formatDate, formatDateInput } from '../utils/date'
 import { formatCurrency } from '../utils/format'
 import { ApiListResponse, Task, Wholesale } from '../types'
-import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants'
+import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants/labels'
 
 function WholesaleDetail() {
   const { id } = useParams<{ id: string }>()
