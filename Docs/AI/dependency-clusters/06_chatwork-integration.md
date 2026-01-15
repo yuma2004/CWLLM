@@ -12,6 +12,8 @@
 
 ## バックエンド構成
 - `backend/src/routes/chatwork.ts`
+- `backend/src/routes/chatwork.handlers.ts`
+- `backend/src/routes/chatwork.schemas.ts`
 - `backend/src/services/chatwork.ts`
 - `backend/src/services/chatworkSync.ts`
 - `backend/src/services/jobQueue.ts`

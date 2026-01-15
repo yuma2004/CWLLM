@@ -15,6 +15,8 @@
 ## バックエンド構成
 ### ダッシュボード
 - `backend/src/routes/dashboard.ts`
+- `backend/src/routes/dashboard.handlers.ts`
+- `backend/src/routes/dashboard.schemas.ts`
   - `GET /api/dashboard`
   - 期限の基準日を「サーバーのローカル時間」で計算（UTC ではない）。
   - `overdue/today/soon/week` を `TaskStatus.done/cancelled` 以外 & `dueDate != null` で抽出。
@@ -25,6 +27,8 @@
 
 ### CSV エクスポート
 - `backend/src/routes/export.ts`
+- `backend/src/routes/export.handlers.ts`
+- `backend/src/routes/export.schemas.ts`
   - `GET /api/export/companies.csv`
     - クエリ: `from/to/status/category/ownerId/tag`
     - `parseDate` で日付妥当性チェック。
@@ -38,6 +42,8 @@
 
 ### 設定
 - `backend/src/routes/settings.ts`
+- `backend/src/routes/settings.handlers.ts`
+- `backend/src/routes/settings.schemas.ts`
   - `GET /api/settings`
     - `AppSetting` から `summaryDefaultPeriodDays` と `tagOptions` を取得。
     - 未設定時は `DEFAULT_SETTINGS` にフォールバック。
@@ -49,6 +55,8 @@
 
 ### 監査ログ
 - `backend/src/routes/audit-logs.ts`
+- `backend/src/routes/audit-logs.handlers.ts`
+- `backend/src/routes/audit-logs.schemas.ts`
   - `GET /api/audit-logs`
   - フィルタ: `entityType/entityId/from/to` + `page/pageSize`。
   - `parsePagination` で `page/pageSize/skip` を算出。

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { prisma } from '../utils'
 
 export interface AuditPayload {
   entityType: string
@@ -31,3 +32,5 @@ export const logAudit = async (prisma: PrismaClient, payload: AuditPayload) => {
     throw error
   }
 }
+
+export const logAuditEntry = async (payload: AuditPayload) => logAudit(prisma, payload)

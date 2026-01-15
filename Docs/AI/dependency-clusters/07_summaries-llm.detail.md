@@ -14,6 +14,8 @@
 ## バックエンド構成
 ### サマリールート
 - `backend/src/routes/summaries.ts`
+- `backend/src/routes/summaries.handlers.ts`
+- `backend/src/routes/summaries.schemas.ts`
   - POST `/api/companies/:id/summaries/draft`
     - 期間レンジと会社を検証。
     - 未失効のキャッシュ下書きがあれば返却。

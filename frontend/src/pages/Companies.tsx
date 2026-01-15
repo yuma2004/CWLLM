@@ -13,9 +13,9 @@ import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { useListQuery } from '../hooks/useListQuery'
 import { useUrlSync } from '../hooks/useUrlSync'
 import { getAvatarColor, getInitials } from '../utils/string'
-import { buildQueryString } from '../utils/queryString'
 import { apiRoutes } from '../lib/apiRoutes'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
@@ -520,19 +520,7 @@ function Companies() {
     tags: '',
     profile: '',
   })
-
-
-  const queryString = useMemo(() => {
-    return buildQueryString({
-      q: debouncedQuery,
-      category: filters.category,
-      status: filters.status,
-      tag: filters.tag,
-      ownerId: filters.ownerId,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-    })
-  }, [debouncedQuery, filters.category, filters.status, filters.tag, filters.ownerId, pagination.page, pagination.pageSize])
+  const queryString = useListQuery(filters, pagination, { q: debouncedQuery })
 
   const {
     data: companiesData,

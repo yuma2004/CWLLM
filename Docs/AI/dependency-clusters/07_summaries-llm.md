@@ -12,10 +12,13 @@
 
 ## バックエンド構成
 - `backend/src/routes/summaries.ts`
+- `backend/src/routes/summaries.handlers.ts`
+- `backend/src/routes/summaries.schemas.ts`
 - `backend/src/services/summaryGenerator.ts`
 - `backend/src/services/llm.ts`
 - `backend/src/services/jobQueue.ts`
 - `backend/src/utils/prisma.ts`
+- `backend/src/utils/cacheKeys.ts`
 
 ## フロントエンド構成
 - `frontend/src/pages/Home.tsx`（latestSummaries 表示）

@@ -13,11 +13,11 @@ import { SkeletonTable } from '../components/ui/Skeleton'
 import KanbanBoard from '../components/KanbanBoard'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { useListQuery } from '../hooks/useListQuery'
 import { useUrlSync } from '../hooks/useUrlSync'
 import { formatDate, formatDateInput } from '../utils/date'
 import { getTargetPath } from '../utils/routes'
 import type { ApiListResponse, Task, TasksFilters } from '../types'
-import { buildQueryString } from '../utils/queryString'
 import { apiRoutes } from '../lib/apiRoutes'
 import {
   TASK_STATUS_OPTIONS,
@@ -506,17 +506,7 @@ function Tasks() {
   const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
 
-  const queryString = useMemo(() => {
-    return buildQueryString({
-      status: filters.status,
-      targetType: filters.targetType,
-      dueFrom: filters.dueFrom,
-      dueTo: filters.dueTo,
-      assigneeId: filters.assigneeId,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-    })
-  }, [filters, pagination.page, pagination.pageSize])
+  const queryString = useListQuery(filters, pagination)
 
   const tasksUrl = useMemo(
     () =>

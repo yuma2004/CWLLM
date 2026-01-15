@@ -26,11 +26,16 @@
   - `rateLimit`/CORS/Swagger を登録
   - `setErrorHandler` と `preSerialization` でエラーを正規化
 - `backend/src/routes/auth.ts`: `/api/auth/*` を `authRoutes` で登録
+- `backend/src/routes/auth.handlers.ts`
+- `backend/src/routes/auth.schemas.ts`
 - `backend/src/routes/users.ts`: `/api/users*` を `userRoutes` で登録
+- `backend/src/routes/users.handlers.ts`
+- `backend/src/routes/users.schemas.ts`
 - `backend/src/middleware/rbac.ts`: `requireAuth`, `requireAdmin`, `requireWriteAccess`
 - `backend/src/types/auth.ts`: `JWTUser` 型
 - `backend/src/utils/validation.ts`: `validatePassword` など
 - `backend/src/utils/ttlCache.ts`: users/options の TTL キャッシュ
+- `backend/src/utils/cacheKeys.ts`
 - `backend/src/utils/errors.ts`, `backend/src/utils/prisma.ts`
 
 ### API/エンドポイント詳細
@@ -62,8 +67,12 @@
 
 ### 関数索引（バックエンド）
 - `authRoutes(fastify)` (`backend/src/routes/auth.ts`)
+- `backend/src/routes/auth.handlers.ts`
+- `backend/src/routes/auth.schemas.ts`
   - login/logout/me の登録
 - `userRoutes(fastify)` (`backend/src/routes/users.ts`)
+- `backend/src/routes/users.handlers.ts`
+- `backend/src/routes/users.schemas.ts`
   - create/list/options/update role の登録
 - `requireAuth(allowedRoles?)` (`backend/src/middleware/rbac.ts`)
   - `jwtVerify` + 役割チェック
@@ -72,6 +81,7 @@
 - `validatePassword(value)` (`backend/src/utils/validation.ts`)
   - 8文字以上 + 英字/数字を必須
 - `getCache/setCache/deleteCache` (`backend/src/utils/ttlCache.ts`)
+- `backend/src/utils/cacheKeys.ts`
   - `users:options` の TTL 制御
 - `handlePrismaError` (`backend/src/utils/prisma.ts`)
   - Prisma エラー → API エラー変換
@@ -91,7 +101,7 @@
   - `credentials: 'include'` で Cookie を同送
 - `frontend/src/lib/apiRoutes.ts`
   - `/api/auth/*`, `/api/users*` の URL 組み立て
-- `frontend/src/hooks/useApi.ts`, `frontend/src/hooks/useApiClient.ts`
+- `frontend/src/hooks/useApi.ts`, `frontend/src/lib/apiRequest.ts`
   - Abort/Retry/Cache と `ApiRequestError` 伝播
 - `frontend/src/constants/routes.tsx`
   - `protectedRoutes` と `allowedRoles` によるナビ制御

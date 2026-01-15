@@ -1,11 +1,18 @@
 ﻿import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma, TaskStatus, TargetType } from '@prisma/client'
-import { logAudit } from '../services/audit'
-import { attachTargetInfo } from '../services/taskTargets'
-import { badRequest, notFound } from '../utils/errors'
-import { buildPaginatedResponse, parsePagination } from '../utils/pagination'
-import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
-import { createEnumNormalizer, isNonEmptyString, parseDate } from '../utils/validation'
+import { attachTargetInfo, logAuditEntry } from '../services'
+import {
+  badRequest,
+  buildPaginatedResponse,
+  connectOrDisconnect,
+  createEnumNormalizer,
+  handlePrismaError,
+  isNonEmptyString,
+  notFound,
+  parseDate,
+  parsePagination,
+  prisma,
+} from '../utils'
 import { JWTUser } from '../types/auth'
 import {
   TaskBulkUpdateBody,
@@ -188,7 +195,7 @@ export const createTaskHandler = async (
     })
 
     const userId = (request.user as JWTUser | undefined)?.userId
-    await logAudit(prisma, {
+    await logAuditEntry({
       entityType: 'Task',
       entityId: task.id,
       action: 'create',
@@ -253,7 +260,7 @@ export const updateTaskHandler = async (
     })
 
     const userId = (request.user as JWTUser | undefined)?.userId
-    await logAudit(prisma, {
+    await logAuditEntry({
       entityType: 'Task',
       entityId: task.id,
       action: 'update',
@@ -324,7 +331,7 @@ export const deleteTaskHandler = async (
     await prisma.task.delete({ where: { id: request.params.id } })
 
     const userId = (request.user as JWTUser | undefined)?.userId
-    await logAudit(prisma, {
+    await logAuditEntry({
       entityType: 'Task',
       entityId: existing.id,
       action: 'delete',

@@ -1,12 +1,10 @@
 import { Prisma, type Message } from '@prisma/client'
-import { prisma } from '../utils/prisma'
+import { prisma, SUMMARY_DRAFT_TTL_MS } from '../utils'
 import { createLLMClient } from './llm'
 
 const MAX_MESSAGES = 300
 const RECENT_MESSAGE_RATIO = 0.6
 const SAMPLE_BUCKETS = 8
-const DRAFT_TTL_MS = 1000 * 60 * 60 * 24 * 7
-
 const buildEmptySummary = () =>
   [
     '## Summary',
@@ -151,7 +149,7 @@ export const generateSummaryDraft = async (
       : undefined
   }
 
-  const expiresAt = new Date(Date.now() + DRAFT_TTL_MS)
+  const expiresAt = new Date(Date.now() + SUMMARY_DRAFT_TTL_MS)
 
   const draft = await prisma.summaryDraft.upsert({
     where: {

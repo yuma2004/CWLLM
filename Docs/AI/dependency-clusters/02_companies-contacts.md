@@ -17,6 +17,7 @@
 - 監査ログ `backend/src/services/audit.ts`
 - 文字正規化 `backend/src/utils/normalize.ts`
 - TTLキャッシュ `backend/src/utils/ttlCache.ts`
+- `backend/src/utils/cacheKeys.ts`
 - ページング/バリデーション `backend/src/utils/pagination.ts`, `backend/src/utils/validation.ts`
 - RBAC `backend/src/middleware/rbac.ts`
 
@@ -39,6 +40,7 @@
 - `backend/src/utils/prisma.ts`
   - `handlePrismaError`, `connectOrDisconnect`
 - `backend/src/utils/ttlCache.ts`
+- `backend/src/utils/cacheKeys.ts`
   - `companies:options` の TTL キャッシュ
 
 ### API/エンドポイント詳細

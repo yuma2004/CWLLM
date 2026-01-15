@@ -2,7 +2,7 @@ import { Queue, Worker, Job as BullJob, type ConnectionOptions } from 'bullmq'
 import IORedis from 'ioredis'
 import { JobStatus, JobType, Prisma } from '@prisma/client'
 import { env } from '../config/env'
-import { prisma } from '../utils/prisma'
+import { prisma } from '../utils'
 import { generateSummaryDraft } from './summaryGenerator'
 import { JobCanceledError, syncChatworkMessages, syncChatworkRooms } from './chatworkSync'
 
@@ -227,6 +227,19 @@ export const enqueueJob = async (
 
   return job
 }
+
+export const enqueueChatworkRoomsSync = (userId?: string) =>
+  enqueueJob(JobType.chatwork_rooms_sync, {}, userId)
+
+export const enqueueChatworkMessagesSync = (roomId: string | undefined, userId?: string) =>
+  enqueueJob(JobType.chatwork_messages_sync, { roomId }, userId)
+
+export const enqueueSummaryDraftJob = (
+  companyId: string,
+  periodStart: string,
+  periodEnd: string,
+  userId?: string
+) => enqueueJob(JobType.summary_draft, { companyId, periodStart, periodEnd }, userId)
 
 export const cancelJob = async (jobId: string) => {
   const existing = await prisma.job.findUnique({ where: { id: jobId } })

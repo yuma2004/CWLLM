@@ -125,6 +125,16 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 ## Backup / Restore (PostgreSQL)
 
+`infra/scripts/` contains PowerShell helpers for PostgreSQL backup/restore.
+
+Prereqs:
+- `pg_dump` and `pg_restore` available in PATH
+- run from the repo root with `pwsh`
+
+Options:
+- `backup.ps1`: `-DatabaseUrl` (default: `DATABASE_URL`), `-OutputPath` (default: `backup_YYYYMMDD_HHmmss.dump`)
+- `restore.ps1`: `-DatabaseUrl` (default: `DATABASE_URL`), `-BackupPath` (required)
+
 ### Backup
 
 ```bash

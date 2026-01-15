@@ -1,30 +1,30 @@
 import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { JobType } from '@prisma/client'
 import { requireAdmin, requireAuth, requireWriteAccess } from '../middleware/rbac'
-import { env } from '../config/env'
-import { badRequest } from '../utils/errors'
-import { handlePrismaError, prisma } from '../utils/prisma'
-import { enqueueJob } from '../services/jobQueue'
 import { apiErrorSchema } from './shared/schemas'
-
-interface RoomToggleBody {
-  isActive: boolean
-}
-
-interface RoomLinkBody {
-  roomId?: string
-  chatworkRoomId?: string
-}
-
-interface MessageSyncQuery {
-  roomId?: string
-}
-
-const prismaErrorOverrides = {
-  P2002: { status: 409, message: 'Duplicate record' },
-}
+import {
+  chatworkCompanyRoomsResponseSchema,
+  chatworkJobResponseSchema,
+  chatworkLinkResponseSchema,
+  chatworkMessageSyncQuerySchema,
+  chatworkRoomLinkBodySchema,
+  chatworkRoomLinkParamsSchema,
+  chatworkRoomParamsSchema,
+  chatworkRoomResponseSchema,
+  chatworkRoomToggleBodySchema,
+  chatworkRoomsResponseSchema,
+} from './chatwork.schemas'
+import {
+  createCompanyChatworkRoomLinkHandler,
+  deleteCompanyChatworkRoomLinkHandler,
+  listChatworkRoomsHandler,
+  listCompanyChatworkRoomsHandler,
+  syncChatworkMessagesHandler,
+  syncChatworkRoomsHandler,
+  toggleChatworkRoomHandler,
+} from './chatwork.handlers'
+import type { MessageSyncQuery, RoomLinkBody, RoomToggleBody } from './chatwork.schemas'
 
 export async function chatworkRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
@@ -35,16 +35,11 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
       preHandler: requireAdmin(),
       schema: {
         response: {
-          200: z.object({ rooms: z.array(z.any()) }),
+          200: chatworkRoomsResponseSchema,
         },
       },
     },
-    async () => {
-      const rooms = await prisma.chatworkRoom.findMany({
-        orderBy: { updatedAt: 'desc' },
-      })
-      return { rooms }
-    }
+    listChatworkRoomsHandler
   )
 
   app.post(
@@ -53,19 +48,12 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
       preHandler: requireAdmin(),
       schema: {
         response: {
-          200: z.object({ jobId: z.string(), status: z.string() }),
+          200: chatworkJobResponseSchema,
           400: apiErrorSchema,
         },
       },
     },
-    async (request, reply) => {
-      if (!env.chatworkApiToken) {
-        return reply.code(400).send(badRequest('CHATWORK_API_TOKEN is not set'))
-      }
-      const userId = (request.user as { userId?: string } | undefined)?.userId
-      const job = await enqueueJob(JobType.chatwork_rooms_sync, {}, userId)
-      return { jobId: job.id, status: job.status }
-    }
+    syncChatworkRoomsHandler
   )
 
   app.patch<{ Params: { id: string }; Body: RoomToggleBody }>(
@@ -73,26 +61,14 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
     {
       preHandler: requireAdmin(),
       schema: {
-        params: z.object({ id: z.string().min(1) }),
-        body: z.object({ isActive: z.boolean() }),
+        params: chatworkRoomParamsSchema,
+        body: chatworkRoomToggleBodySchema,
         response: {
-          200: z.object({ room: z.any() }),
+          200: chatworkRoomResponseSchema,
         },
       },
     },
-    async (request, reply) => {
-      const { isActive } = request.body
-
-      try {
-        const room = await prisma.chatworkRoom.update({
-          where: { id: request.params.id },
-          data: { isActive },
-        })
-        return { room }
-      } catch (error) {
-        return handlePrismaError(reply, error, prismaErrorOverrides)
-      }
-    }
+    toggleChatworkRoomHandler
   )
 
   app.post<{ Querystring: MessageSyncQuery }>(
@@ -100,25 +76,14 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
     {
       preHandler: requireAdmin(),
       schema: {
-        querystring: z.object({ roomId: z.string().min(1).optional() }),
+        querystring: chatworkMessageSyncQuerySchema,
         response: {
-          200: z.object({ jobId: z.string(), status: z.string() }),
+          200: chatworkJobResponseSchema,
           400: apiErrorSchema,
         },
       },
     },
-    async (request, reply) => {
-      if (!env.chatworkApiToken) {
-        return reply.code(400).send(badRequest('CHATWORK_API_TOKEN is not set'))
-      }
-      const userId = (request.user as { userId?: string } | undefined)?.userId
-      const job = await enqueueJob(
-        JobType.chatwork_messages_sync,
-        { roomId: request.query.roomId },
-        userId
-      )
-      return { jobId: job.id, status: job.status }
-    }
+    syncChatworkMessagesHandler
   )
 
   app.get<{ Params: { id: string } }>(
@@ -126,34 +91,13 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
     {
       preHandler: requireAuth(),
       schema: {
-        params: z.object({ id: z.string().min(1) }),
+        params: chatworkRoomParamsSchema,
         response: {
-          200: z.object({ rooms: z.array(z.any()) }),
+          200: chatworkCompanyRoomsResponseSchema,
         },
       },
     },
-    async (request, reply) => {
-      const company = await prisma.company.findUnique({
-        where: { id: request.params.id },
-      })
-      if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
-      }
-
-      const links = await prisma.companyRoomLink.findMany({
-        where: { companyId: request.params.id },
-        include: { room: true },
-      })
-
-      return {
-        rooms: links.map((link) => ({
-          id: link.room.id,
-          roomId: link.room.roomId,
-          name: link.room.name,
-          isActive: link.room.isActive,
-        })),
-      }
-    }
+    listCompanyChatworkRoomsHandler
   )
 
   app.post<{ Params: { id: string }; Body: RoomLinkBody }>(
@@ -161,59 +105,14 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
     {
       preHandler: requireWriteAccess(),
       schema: {
-        params: z.object({ id: z.string().min(1) }),
-        body: z.object({
-          roomId: z.string().min(1).optional(),
-          chatworkRoomId: z.string().min(1).optional(),
-        }),
+        params: chatworkRoomParamsSchema,
+        body: chatworkRoomLinkBodySchema,
         response: {
-          201: z.object({ link: z.any() }),
+          201: chatworkLinkResponseSchema,
         },
       },
     },
-    async (request, reply) => {
-      const { roomId, chatworkRoomId } = request.body
-      if (!roomId && !chatworkRoomId) {
-        return reply.code(400).send({ error: 'roomId is required' })
-      }
-
-      const company = await prisma.company.findUnique({
-        where: { id: request.params.id },
-      })
-      if (!company) {
-        return reply.code(404).send({ error: 'Company not found' })
-      }
-
-      const room = await prisma.chatworkRoom.findFirst({
-        where: roomId ? { roomId } : { id: chatworkRoomId },
-      })
-      if (!room) {
-        return reply.code(404).send({ error: 'Room not found' })
-      }
-
-      try {
-        const link = await prisma.companyRoomLink.create({
-          data: {
-            companyId: company.id,
-            chatworkRoomId: room.id,
-          },
-        })
-
-        await prisma.message.updateMany({
-          where: {
-            chatworkRoomId: room.id,
-            companyId: null,
-          },
-          data: {
-            companyId: company.id,
-          },
-        })
-
-        return reply.code(201).send({ link })
-      } catch (error) {
-        return handlePrismaError(reply, error, prismaErrorOverrides)
-      }
-    }
+    createCompanyChatworkRoomLinkHandler
   )
 
   app.delete<{ Params: { id: string; roomId: string } }>(
@@ -221,36 +120,12 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
     {
       preHandler: requireWriteAccess(),
       schema: {
-        params: z.object({
-          id: z.string().min(1),
-          roomId: z.string().min(1),
-        }),
+        params: chatworkRoomLinkParamsSchema,
         response: {
           204: z.null(),
         },
       },
     },
-    async (request, reply) => {
-      const room = await prisma.chatworkRoom.findUnique({
-        where: { roomId: request.params.roomId },
-      })
-      if (!room) {
-        return reply.code(404).send({ error: 'Room not found' })
-      }
-
-      try {
-        await prisma.companyRoomLink.delete({
-          where: {
-            companyId_chatworkRoomId: {
-              companyId: request.params.id,
-              chatworkRoomId: room.id,
-            },
-          },
-        })
-        return reply.code(204).send()
-      } catch (error) {
-        return handlePrismaError(reply, error, prismaErrorOverrides)
-      }
-    }
+    deleteCompanyChatworkRoomLinkHandler
   )
 }

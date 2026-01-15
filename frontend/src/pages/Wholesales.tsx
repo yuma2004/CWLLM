@@ -14,13 +14,13 @@ import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { useListQuery } from '../hooks/useListQuery'
 import { useUrlSync } from '../hooks/useUrlSync'
 import { usePermissions } from '../hooks/usePermissions'
 import type { ApiListResponse, Wholesale, WholesalesFilters } from '../types'
 import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants'
 import { formatDateInput } from '../utils/date'
 import { formatCurrency } from '../utils/format'
-import { buildQueryString } from '../utils/queryString'
 import { apiRoutes } from '../lib/apiRoutes'
 
 const defaultFilters: WholesalesFilters = {
@@ -272,17 +272,7 @@ function Wholesales() {
   // 削除確認用state
   const [deleteTarget, setDeleteTarget] = useState<Wholesale | null>(null)
 
-  const queryString = useMemo(() => {
-    return buildQueryString({
-      status: filters.status,
-      projectId: filters.projectId,
-      companyId: filters.companyId,
-      unitPriceMin: filters.unitPriceMin,
-      unitPriceMax: filters.unitPriceMax,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-    })
-  }, [filters, pagination.page, pagination.pageSize])
+  const queryString = useListQuery(filters, pagination)
 
   const {
     data: wholesalesData,

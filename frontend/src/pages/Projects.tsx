@@ -14,11 +14,11 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { useListQuery } from '../hooks/useListQuery'
 import { useUrlSync } from '../hooks/useUrlSync'
 import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants'
 import type { ApiListResponse, Project, ProjectsFilters, User } from '../types'
 import { formatCurrency } from '../utils/format'
-import { buildQueryString } from '../utils/queryString'
 import { apiRoutes } from '../lib/apiRoutes'
 
 type ProjectCreatePayload = {
@@ -448,16 +448,7 @@ function Projects() {
   const userOptions = usersData?.users ?? []
 
   const trimmedQuery = debouncedQuery.trim()
-  const queryString = useMemo(() => {
-    return buildQueryString({
-      q: trimmedQuery,
-      status: filters.status,
-      companyId: filters.companyId,
-      ownerId: filters.ownerId,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-    })
-  }, [trimmedQuery, filters.status, filters.companyId, filters.ownerId, pagination.page, pagination.pageSize])
+  const queryString = useListQuery(filters, pagination, { q: trimmedQuery })
 
   const {
     data: projectsData,

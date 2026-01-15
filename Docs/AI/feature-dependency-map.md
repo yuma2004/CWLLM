@@ -7,6 +7,7 @@
 - `backend/src/worker.ts`: BullMQ/Redisのジョブワーカー単体起動。
 
 ### APIルート（`/api`）
+- routes は handlers/schemas に分割 (`routes/<name>.ts`, `routes/<name>.handlers.ts`, `routes/<name>.schemas.ts`)
 - auth (`/auth/*`): ログイン/ログアウト/現在ユーザー -> Prisma User + bcryptjs + fastify-jwt。
 - users (`/users*`): ユーザー一覧/オプション/ロール変更 -> Prisma + TTLキャッシュ。
 - companies/contacts (`/companies*`, `/contacts*`): 企業/連絡先CRUD -> Prisma + 監査ログ。
@@ -52,7 +53,9 @@
 ### APIレイヤー
 - `frontend/src/lib/apiRoutes.ts`: バックエンドURLマップ。
 - `frontend/src/lib/apiClient.ts`: fetchラッパ（認証ヘッダ + Cookie）。
+- `frontend/src/lib/apiRequest.ts`: Abort/リトライなどの共通リクエスト処理。
 - `frontend/src/hooks/useApi.ts`: fetch/mutation、キャッシュ、リトライ。
+- `frontend/src/hooks/useListQuery.ts`: 一覧のfilters/paginationからクエリ文字列を生成。
 - `frontend/src/lib/apiCache.ts`: メモリキャッシュ。
 
 ### 認証 / RBAC

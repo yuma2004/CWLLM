@@ -22,8 +22,12 @@
 ## バックエンド構成
 ### ルーティング/モジュール
 - `backend/src/routes/projects.ts`
+- `backend/src/routes/projects.handlers.ts`
+- `backend/src/routes/projects.schemas.ts`
   - 一覧/検索/CRUD/関連卸/会社別案件を一体で実装
 - `backend/src/routes/wholesales.ts`
+- `backend/src/routes/wholesales.handlers.ts`
+- `backend/src/routes/wholesales.schemas.ts`
   - 一覧/CRUD/会社別卸
 - `backend/src/routes/shared/schemas.ts`
   - `dateSchema`, `paginationSchema`

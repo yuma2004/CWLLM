@@ -38,6 +38,8 @@
 
 ### ルーティング
 - `backend/src/routes/chatwork.ts`
+- `backend/src/routes/chatwork.handlers.ts`
+- `backend/src/routes/chatwork.schemas.ts`
   - GET `/api/chatwork/rooms`（admin）登録済みルーム一覧。
   - POST `/api/chatwork/rooms/sync`（admin）ルーム同期ジョブを enqueue。
   - POST `/api/chatwork/messages/sync`（admin）メッセージ同期ジョブを enqueue。

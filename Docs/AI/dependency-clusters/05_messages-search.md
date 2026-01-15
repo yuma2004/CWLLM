@@ -8,15 +8,20 @@
 ## 依存関係
 - Prisma（Message ほか）
 - PostgreSQL全文検索（to_tsvector / plainto_tsquery）
-- TTLキャッシュ `utils/ttlCache.ts`（ラベル集計）
+- TTLキャッシュ `utils/ttlCache.ts` とキー定義 `utils/cacheKeys.ts`
 - Chatwork同期（データ供給元）
 
 ## バックエンド構成
 - `backend/src/routes/messages.ts`
+- `backend/src/routes/messages.handlers.ts`
+- `backend/src/routes/messages.schemas.ts`
 - `backend/src/routes/search.ts`
+- `backend/src/routes/search.handlers.ts`
+- `backend/src/routes/search.schemas.ts`
 - `backend/src/utils/pagination.ts`
 - `backend/src/utils/validation.ts`
 - `backend/src/utils/ttlCache.ts`
+- `backend/src/utils/cacheKeys.ts`
 - `backend/src/utils/prisma.ts`
 - `backend/src/utils/normalize.ts`（/search の company 正規化）
 

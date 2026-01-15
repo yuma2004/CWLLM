@@ -1,28 +1,17 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { z } from 'zod'
-import bcrypt from 'bcryptjs'
-import { JWTUser } from '../types/auth'
 import { env } from '../config/env'
-import { buildErrorPayload } from '../utils/errors'
-import { prisma } from '../utils/prisma'
-
-interface LoginBody {
-  email: string
-  password: string
-}
+import { buildLoginHandler, logoutHandler, meHandler } from './auth.handlers'
+import { LoginBody, loginBodySchema } from './auth.schemas'
 
 export async function authRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
-  // ログイン
+
   app.post<{ Body: LoginBody }>(
     '/auth/login',
     {
       schema: {
-        body: z.object({
-          email: z.string().email(),
-          password: z.string().min(1),
-        }),
+        body: loginBodySchema,
       },
       config: {
         rateLimit: {
@@ -31,68 +20,9 @@ export async function authRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    async (request: FastifyRequest<{ Body: LoginBody }>, reply: FastifyReply) => {
-      const { email, password } = request.body
-
-      const user = await prisma.user.findUnique({ where: { email } })
-      if (!user) {
-        return reply.code(401).send(buildErrorPayload(401, 'Invalid credentials'))
-      }
-
-      const isValid = await bcrypt.compare(password, user.password)
-      if (!isValid) {
-        return reply.code(401).send(buildErrorPayload(401, 'Invalid credentials'))
-      }
-
-      const token = fastify.jwt.sign({ userId: user.id, role: user.role }, { expiresIn: '7d' })
-      // Cookie も設定（ローカル開発用）
-      reply.setCookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        path: '/',
-      })
-
-      return {
-        token, // クロスドメイン対応: トークンをレスポンスに含める
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        },
-      }
-    }
+    buildLoginHandler(fastify)
   )
 
-  // ログアウト
-  app.post('/auth/logout', async (request: FastifyRequest, reply: FastifyReply) => {
-    void request
-    reply.clearCookie('token', {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    })
-    return { message: 'Logged out' }
-  })
-
-  // 現在のユーザー情報取得
-  app.get('/auth/me', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      await request.jwtVerify()
-      const { userId } = request.user as JWTUser
-
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, email: true, role: true },
-      })
-
-      if (!user) {
-        return reply.code(404).send(buildErrorPayload(404, 'User not found'))
-      }
-
-      return { user }
-    } catch (err) {
-      return reply.code(401).send(buildErrorPayload(401, 'Unauthorized'))
-    }
-  })
+  app.post('/auth/logout', logoutHandler)
+  app.get('/auth/me', meHandler)
 }

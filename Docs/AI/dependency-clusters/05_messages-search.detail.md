@@ -13,6 +13,8 @@
 ## バックエンド構成
 ### メッセージルートと挙動
 - `backend/src/routes/messages.ts`
+- `backend/src/routes/messages.handlers.ts`
+- `backend/src/routes/messages.schemas.ts`
   - GET `/api/companies/:id/messages`
     - フィルタ: `from`, `to`, `label`, ページネーション。
     - `parseDate` と `normalizeLabel` を使って Prisma `where` を構築。
@@ -50,9 +52,12 @@
   - 長さ <= 30。
   - 制御文字なし。
 - `backend/src/utils/ttlCache.ts` がラベル集計結果を30秒保持。
+- `backend/src/utils/cacheKeys.ts`
 
 ### 横断検索
 - `backend/src/routes/search.ts`
+- `backend/src/routes/search.handlers.ts`
+- `backend/src/routes/search.schemas.ts`
   - `q` と `limit` を受ける GET `/api/search`。
   - `normalizeCompanyName` で `companies.normalizedName` を照合。
   - `companies`, `projects`, `wholesales`, `tasks`, `contacts` を並列で返す。

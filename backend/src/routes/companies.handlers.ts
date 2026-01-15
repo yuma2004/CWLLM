@@ -1,16 +1,23 @@
 ﻿import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma } from '@prisma/client'
-import { logAudit } from '../services/audit'
-import { badRequest, notFound } from '../utils/errors'
-import { normalizeCompanyName } from '../utils/normalize'
-import { buildPaginatedResponse, parsePagination } from '../utils/pagination'
-import { connectOrDisconnect, handlePrismaError, prisma } from '../utils/prisma'
-import { getCache, setCache } from '../utils/ttlCache'
+import { logAuditEntry } from '../services'
 import {
+  CACHE_KEYS,
+  CACHE_TTLS_MS,
+  badRequest,
+  buildPaginatedResponse,
+  connectOrDisconnect,
+  getCache,
+  handlePrismaError,
   isNonEmptyString,
   isNullableString,
+  normalizeCompanyName,
+  notFound,
+  parsePagination,
   parseStringArray,
-} from '../utils/validation'
+  prisma,
+  setCache,
+} from '../utils'
 import { JWTUser } from '../types/auth'
 import {
   CompanyCreateBody,
@@ -25,8 +32,6 @@ import {
 const prismaErrorOverrides = {
   P2002: { status: 409, message: 'Duplicate record' },
 }
-
-const OPTIONS_CACHE_TTL_MS = 60_000
 
 export const listCompaniesHandler = async (
   request: FastifyRequest<{ Querystring: CompanyListQuery }>
@@ -136,7 +141,7 @@ export const createCompanyHandler = async (
       },
     })
     const userId = (request.user as JWTUser | undefined)?.userId
-    await logAudit(prisma, {
+    await logAuditEntry({
       entityType: 'Company',
       entityId: company.id,
       action: 'create',
@@ -224,7 +229,7 @@ export const updateCompanyHandler = async (
       data,
     })
     const userId = (request.user as JWTUser | undefined)?.userId
-    await logAudit(prisma, {
+    await logAuditEntry({
       entityType: 'Company',
       entityId: company.id,
       action: 'update',
@@ -254,7 +259,7 @@ export const deleteCompanyHandler = async (
       where: { id: request.params.id },
     })
     const userId = (request.user as JWTUser | undefined)?.userId
-    await logAudit(prisma, {
+    await logAuditEntry({
       entityType: 'Company',
       entityId: existing.id,
       action: 'delete',
@@ -430,7 +435,7 @@ export const reorderContactsHandler = async (
 }
 
 export const getCompanyOptionsHandler = async () => {
-  const cacheKey = 'companies:options'
+  const cacheKey = CACHE_KEYS.companyOptions
   const cached = getCache<{
     categories: string[]
     statuses: string[]
@@ -472,7 +477,7 @@ export const getCompanyOptionsHandler = async () => {
       .sort(),
   }
 
-  setCache(cacheKey, response, OPTIONS_CACHE_TTL_MS)
+  setCache(cacheKey, response, CACHE_TTLS_MS.companyOptions)
 
   return response
 }

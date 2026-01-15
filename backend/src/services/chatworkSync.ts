@@ -1,5 +1,5 @@
 import { env } from '../config/env'
-import { prisma } from '../utils/prisma'
+import { prisma } from '../utils'
 import { ChatworkApiError, createChatworkClient } from './chatwork'
 
 export class JobCanceledError extends Error {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiRequest } from '../lib/apiClient'
 import { getCache, setCache } from '../lib/apiCache'
-import { createAbortController, isAbortError, requestWithRetry } from './useApiClient'
+import { createAbortController, isAbortError, requestWithRetry } from '../lib/apiRequest'
 
 type HttpMethod = 'POST' | 'PATCH' | 'DELETE'
 

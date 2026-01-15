@@ -64,6 +64,8 @@
 
 ### API
 - `backend/src/routes/jobs.ts`
+- `backend/src/routes/jobs.handlers.ts`
+- `backend/src/routes/jobs.schemas.ts`
   - `GET /api/jobs`: type/status/limit で絞り込み（非 admin は自身の job のみ）。
   - `GET /api/jobs/:id`: 自分の job のみ参照可（admin は全件）。
   - `POST /api/jobs/:id/cancel`: `queued/processing` のみキャンセル可。

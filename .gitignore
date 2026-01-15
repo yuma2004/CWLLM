@@ -54,3 +54,6 @@ nul
 
 # OS
 Thumbs.db
+
+.Plan/
+.gitignore
