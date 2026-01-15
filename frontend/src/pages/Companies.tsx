@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { usePermissions } from '../hooks/usePermissions'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import LoadingState from '../components/ui/LoadingState'
+import ActiveFilters from '../components/ui/ActiveFilters'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
+import Card from '../components/ui/Card'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -71,10 +73,8 @@ function CompaniesFilters({
   searchInputRef,
 }: CompaniesFiltersProps) {
   return (
-    <form
-      onSubmit={onSubmit}
-      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-    >
+    <Card className="p-5">
+      <form onSubmit={onSubmit}>
       <div className="grid gap-3 md:grid-cols-6">
         <div className="relative md:col-span-2">
           <svg
@@ -150,8 +150,7 @@ function CompaniesFilters({
       </div>
 
       {/* Active Filters */}
-      {hasActiveFilters && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+      <ActiveFilters isActive={hasActiveFilters}>
           <span className="text-xs text-slate-500">絞り込み:</span>
           {filters.q && (
             <FilterBadge label={`企業名: ${filters.q}`} onRemove={() => onClearFilter('q')} />
@@ -184,9 +183,9 @@ function CompaniesFilters({
           >
             すべて解除
           </button>
-        </div>
-      )}
-    </form>
+      </ActiveFilters>
+      </form>
+    </Card>
   )
 }
 

@@ -4,10 +4,12 @@ import { CompanySearchSelect, ProjectSearchSelect } from '../components/SearchSe
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import EmptyState from '../components/ui/EmptyState'
+import ActiveFilters from '../components/ui/ActiveFilters'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
+import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
@@ -55,10 +57,8 @@ function WholesalesFilters({
   searchInputRef,
 }: WholesalesFiltersProps) {
   return (
-    <form
-      onSubmit={onSubmit}
-      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-    >
+    <Card className="p-5">
+      <form onSubmit={onSubmit}>
       <div className="grid gap-3 md:grid-cols-6">
         <FormSelect
           ref={searchInputRef}
@@ -112,8 +112,7 @@ function WholesalesFilters({
         </button>
       </div>
 
-      {hasActiveFilters && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+      <ActiveFilters isActive={hasActiveFilters}>
           <span className="text-xs text-slate-500">絞り込み:</span>
           {filters.status && (
             <FilterBadge
@@ -152,9 +151,9 @@ function WholesalesFilters({
           >
             すべて解除
           </button>
-        </div>
-      )}
-    </form>
+      </ActiveFilters>
+      </form>
+    </Card>
   )
 }
 

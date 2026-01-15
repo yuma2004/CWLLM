@@ -4,9 +4,11 @@ import { usePermissions } from '../hooks/usePermissions'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import EmptyState from '../components/ui/EmptyState'
+import ActiveFilters from '../components/ui/ActiveFilters'
 import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
+import Card from '../components/ui/Card'
 import StatusBadge from '../components/ui/StatusBadge'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
@@ -60,10 +62,8 @@ function TasksFilters({
   searchInputRef,
 }: TasksFiltersProps) {
   return (
-    <form
-      onSubmit={onSubmit}
-      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-    >
+    <Card className="p-5">
+      <form onSubmit={onSubmit}>
       <div className="grid gap-3 md:grid-cols-7">
         <FormSelect
           ref={searchInputRef}
@@ -122,8 +122,7 @@ function TasksFilters({
       </div>
 
       {/* Active Filters */}
-      {hasActiveFilters && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+      <ActiveFilters isActive={hasActiveFilters}>
           <span className="text-xs text-slate-500">絞り込み:</span>
           {filters.status && (
             <FilterBadge
@@ -162,9 +161,9 @@ function TasksFilters({
           >
             すべて解除
           </button>
-        </div>
-      )}
-    </form>
+      </ActiveFilters>
+      </form>
+    </Card>
   )
 }
 
