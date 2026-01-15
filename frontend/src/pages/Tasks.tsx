@@ -579,6 +579,26 @@ function Tasks() {
 
   useKeyboardShortcut(shortcuts)
 
+  const applyOptimisticTaskUpdate = (taskId: string, updateTask: (task: Task) => Task) => {
+    const previousItems = tasksData?.items ?? []
+    if (previousItems.length > 0) {
+      setTasksData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          items: prev.items.map((task) => (task.id === taskId ? updateTask(task) : task)),
+        }
+      })
+    }
+    return previousItems
+  }
+
+  const restoreOptimisticTasks = (previousItems: Task[]) => {
+    if (previousItems.length > 0) {
+      setTasksData((prev) => (prev ? { ...prev, items: previousItems } : prev))
+    }
+  }
+
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setPage(1)
@@ -587,18 +607,10 @@ function Tasks() {
   const handleStatusChange = async (taskId: string, nextStatus: string) => {
     if (!canWrite) return
     setError('')
-    const previousItems = tasksData?.items ?? []
-    if (previousItems.length > 0) {
-      setTasksData((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          items: prev.items.map((task) =>
-            task.id === taskId ? { ...task, status: nextStatus } : task
-          ),
-        }
-      })
-    }
+    const previousItems = applyOptimisticTaskUpdate(taskId, (task) => ({
+      ...task,
+      status: nextStatus,
+    }))
     try {
       await updateTaskStatus(
         { status: nextStatus },
@@ -606,9 +618,7 @@ function Tasks() {
       )
       void refetchTasks()
     } catch (err) {
-      if (previousItems.length > 0) {
-        setTasksData((prev) => (prev ? { ...prev, items: previousItems } : prev))
-      }
+      restoreOptimisticTasks(previousItems)
       setError(err instanceof Error ? err.message : 'Failed to update task')
     }
   }
@@ -618,26 +628,13 @@ function Tasks() {
     setError('')
     const assigneeId = value === '__unassigned__' ? null : value
     const nextAssignee = userOptions.find((option) => option.id === assigneeId)
-    const previousItems = tasksData?.items ?? []
-    if (previousItems.length > 0) {
-      setTasksData((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          items: prev.items.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  assigneeId: assigneeId ?? null,
-                  assignee: assigneeId
-                    ? { id: assigneeId, email: nextAssignee?.email ?? assigneeId }
-                    : null,
-                }
-              : task
-          ),
-        }
-      })
-    }
+    const previousItems = applyOptimisticTaskUpdate(taskId, (task) => ({
+      ...task,
+      assigneeId: assigneeId ?? null,
+      assignee: assigneeId
+        ? { id: assigneeId, email: nextAssignee?.email ?? assigneeId }
+        : null,
+    }))
     try {
       await updateTask(
         { assigneeId },
@@ -645,9 +642,7 @@ function Tasks() {
       )
       void refetchTasks()
     } catch (err) {
-      if (previousItems.length > 0) {
-        setTasksData((prev) => (prev ? { ...prev, items: previousItems } : prev))
-      }
+      restoreOptimisticTasks(previousItems)
       setError(err instanceof Error ? err.message : 'Failed to update task')
     }
   }
@@ -656,18 +651,10 @@ function Tasks() {
     if (!canWrite) return
     setError('')
     const dueDate = value ? value : null
-    const previousItems = tasksData?.items ?? []
-    if (previousItems.length > 0) {
-      setTasksData((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          items: prev.items.map((task) =>
-            task.id === taskId ? { ...task, dueDate } : task
-          ),
-        }
-      })
-    }
+    const previousItems = applyOptimisticTaskUpdate(taskId, (task) => ({
+      ...task,
+      dueDate,
+    }))
     try {
       await updateTask(
         { dueDate },
@@ -675,9 +662,7 @@ function Tasks() {
       )
       void refetchTasks()
     } catch (err) {
-      if (previousItems.length > 0) {
-        setTasksData((prev) => (prev ? { ...prev, items: previousItems } : prev))
-      }
+      restoreOptimisticTasks(previousItems)
       setError(err instanceof Error ? err.message : 'Failed to update task')
     }
   }
