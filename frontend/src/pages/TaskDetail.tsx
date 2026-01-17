@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -31,7 +31,6 @@ function TaskDetail() {
     description: '',
     status: '',
     dueDate: '',
-    assigneeId: '',
   })
 
   const {
@@ -49,24 +48,17 @@ function TaskDetail() {
           description: data.task.description || '',
           status: data.task.status,
           dueDate: data.task.dueDate ? formatDateInput(data.task.dueDate) : '',
-          assigneeId: data.task.assigneeId || '',
         })
       }
     },
   })
 
-  const { data: usersData } = useFetch<{
-    users: Array<{ id: string; email: string; role: string }>
-  }>(apiRoutes.users.options(), {
-    cacheTimeMs: 30_000,
-  })
 
-  const userOptions = usersData?.users ?? []
   const task = taskData?.task ?? null
 
   const { mutate: updateTask, isLoading: isUpdating } = useMutation<
     { task: Task },
-    { title?: string; description?: string; status?: string; dueDate?: string | null; assigneeId?: string | null }
+    { title?: string; description?: string; status?: string; dueDate?: string | null }
   >(apiRoutes.tasks.base(), 'PATCH')
 
   const { mutate: deleteTask, isLoading: isDeleting } = useMutation<void, void>(
@@ -78,7 +70,7 @@ function TaskDetail() {
     if (!id || !canWrite) return
     setError('')
     if (!form.title.trim()) {
-      setError('タイトルは必須です')
+      setError('タイトルは必須です)
       return
     }
     try {
@@ -88,7 +80,6 @@ function TaskDetail() {
           description: form.description.trim() || undefined,
           status: form.status,
           dueDate: form.dueDate || null,
-          assigneeId: form.assigneeId || null,
         },
         { url: apiRoutes.tasks.detail(id), errorMessage: 'タスクの更新に失敗しました' }
       )
@@ -120,7 +111,6 @@ function TaskDetail() {
         description: task.description || '',
         status: task.status,
         dueDate: task.dueDate ? formatDateInput(task.dueDate) : '',
-        assigneeId: task.assigneeId || '',
       })
     }
     setIsEditing(false)
@@ -128,12 +118,12 @@ function TaskDetail() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-up">
-        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
+      <div className="space-y-4 ">
+        <div className="h-8 w-48  rounded bg-slate-200" />
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="space-y-4">
-            <div className="h-6 w-32 animate-pulse rounded bg-slate-200" />
-            <div className="h-4 w-64 animate-pulse rounded bg-slate-200" />
+            <div className="h-6 w-32  rounded bg-slate-200" />
+            <div className="h-4 w-64  rounded bg-slate-200" />
           </div>
         </div>
       </div>
@@ -142,9 +132,9 @@ function TaskDetail() {
 
   if (fetchError || !task) {
     return (
-      <div className="space-y-6 animate-fade-up">
+      <div className="space-y-4 ">
         <Link to="/tasks" className="text-sm text-slate-500 hover:text-slate-700">
-          ← タスク一覧に戻る
+          タスク一覧に戻る
         </Link>
         <ErrorAlert message={fetchError || 'タスクが見つかりません'} />
       </div>
@@ -152,7 +142,7 @@ function TaskDetail() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4 ">
       {/* Breadcrumb */}
       <nav className="text-sm text-slate-500">
         <Link to="/tasks" className="hover:text-slate-700">
@@ -170,14 +160,14 @@ function TaskDetail() {
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
             >
               編集
             </button>
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
-              className="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+              className="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600  hover:bg-rose-50"
             >
               削除
             </button>
@@ -191,7 +181,7 @@ function TaskDetail() {
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title="タスクの削除"
-        description={`「${task.title}」を削除しますか？この操作は取り消せません。`}
+        description={`「${task.title}」を削除しますか？この操作は元に戻せません。`}
         confirmLabel="削除"
         cancelLabel="キャンセル"
         isLoading={isDeleting}
@@ -222,48 +212,20 @@ function TaskDetail() {
                 className="min-h-[100px]"
               />
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <div className="mb-1 block text-sm font-medium text-slate-700">ステータス</div>
-                <FormSelect
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
-                  {TASK_STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {statusLabel('task', status)}
-                    </option>
-                  ))}
-                </FormSelect>
-              </div>
-              <div>
-                <div className="mb-1 block text-sm font-medium text-slate-700">期日</div>
+                <div className="mb-1 block text-sm font-medium text-slate-700">期限</div>
                 <FormInput
                   type="date"
                   value={form.dueDate}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                 />
               </div>
-              <div>
-                <div className="mb-1 block text-sm font-medium text-slate-700">担当者</div>
-                <FormSelect
-                  value={form.assigneeId}
-                  onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}
-                >
-                  <option value="">未割り当て</option>
-                  {userOptions.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.email}
-                    </option>
-                  ))}
-                </FormSelect>
-              </div>
-            </div>
             <div className="flex justify-end gap-3 pt-4">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="rounded-full px-6 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+                className="rounded-full px-6 py-2 text-sm font-semibold text-slate-600  hover:bg-slate-100"
               >
                 キャンセル
               </button>
@@ -271,23 +233,23 @@ function TaskDetail() {
                 type="button"
                 onClick={handleSave}
                 disabled={isUpdating}
-                className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:bg-sky-300"
+                className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white  hover:bg-sky-700 disabled:bg-sky-300"
               >
-                {isUpdating ? '保存中...' : '保存'}
+                {isUpdating ? '保存中...' : '保存}
               </button>
             </div>
           </div>
         ) : (
           <dl className="space-y-4">
             <div>
-              <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              <dt className="text-xs font-medium uppercase r text-slate-500">
                 タイトル
               </dt>
               <dd className="mt-1 text-lg font-semibold text-slate-900">{task.title}</dd>
             </div>
             {task.description && (
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                <dt className="text-xs font-medium uppercase r text-slate-500">
                   説明
                 </dt>
                 <dd className="mt-1 whitespace-pre-wrap text-slate-700">{task.description}</dd>
@@ -295,7 +257,7 @@ function TaskDetail() {
             )}
             <div className="grid gap-4 md:grid-cols-4">
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                <dt className="text-xs font-medium uppercase r text-slate-500">
                   ステータス
                 </dt>
                 <dd className="mt-1">
@@ -303,20 +265,14 @@ function TaskDetail() {
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                  期日
+                <dt className="text-xs font-medium uppercase r text-slate-500">
+                  期限
                 </dt>
                 <dd className="mt-1 text-slate-700">{formatDate(task.dueDate)}</dd>
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                  担当者
-                </dt>
-                <dd className="mt-1 text-slate-700">{task.assignee?.email || '-'}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                  対象
+                <dt className="text-xs font-medium uppercase r text-slate-500">
+                  蟇ｾ雎｡
                 </dt>
                 <dd className="mt-1">
                   <Link
@@ -346,3 +302,7 @@ function TaskDetail() {
 }
 
 export default TaskDetail
+
+
+
+

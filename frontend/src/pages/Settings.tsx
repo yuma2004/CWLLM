@@ -64,10 +64,10 @@ function Settings() {
   const displayError = error || fetchError
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4">
       <div>
-        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">設定</p>
-        <h2 className="text-3xl font-bold text-slate-900">設定</h2>
+        <p className="text-sm uppercase text-slate-400">Settings</p>
+        <h2 className="text-3xl font-bold text-slate-900">Settings</h2>
       </div>
 
       {displayError && <ErrorAlert message={displayError} />}
@@ -100,7 +100,7 @@ function Settings() {
           <Button
             type="submit"
             isLoading={isLoading}
-            loadingLabel="保存中..."
+            loadingLabel="保存中…"
           >
             保存する
           </Button>

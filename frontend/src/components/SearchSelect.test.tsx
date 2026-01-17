@@ -27,7 +27,7 @@ describe('ProjectSearchSelect', () => {
   it('shows clear button when value is present', () => {
     render(<ProjectSearchSelect value="project-1" onChange={vi.fn()} />)
 
-    const clearButton = screen.getByLabelText('clear')
+    const clearButton = screen.getByLabelText('選択をクリア')
     expect(clearButton).toBeInTheDocument()
   })
 
@@ -35,7 +35,7 @@ describe('ProjectSearchSelect', () => {
     const handleChange = vi.fn()
     render(<ProjectSearchSelect value="project-1" onChange={handleChange} />)
 
-    const clearButton = screen.getByLabelText('clear')
+    const clearButton = screen.getByLabelText('選択をクリア')
     fireEvent.click(clearButton)
 
     expect(handleChange).toHaveBeenCalledWith('')

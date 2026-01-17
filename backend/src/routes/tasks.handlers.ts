@@ -12,6 +12,7 @@ import {
   parseDate,
   parsePagination,
   prisma,
+  unauthorized,
 } from '../utils'
 import { JWTUser } from '../types/auth'
 import {
@@ -100,6 +101,10 @@ export const listTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
   const filters = parseTaskListFilters(request.query)
   if (!filters.ok) {
     return reply.code(400).send(badRequest(filters.error))
@@ -110,7 +115,7 @@ export const listTasksHandler = async (
     request.query.pageSize
   )
 
-  const where: Prisma.TaskWhereInput = {}
+  const where: Prisma.TaskWhereInput = { assigneeId: userId }
   if (filters.status) {
     where.status = filters.status
   }
@@ -119,9 +124,6 @@ export const listTasksHandler = async (
   }
   if (request.query.targetId) {
     where.targetId = request.query.targetId
-  }
-  if (request.query.assigneeId) {
-    where.assigneeId = request.query.assigneeId
   }
   if (filters.dueFrom || filters.dueTo) {
     where.dueDate = {
@@ -137,8 +139,12 @@ export const getTaskHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) => {
-  const task = await prisma.task.findUnique({
-    where: { id: request.params.id },
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
+  const task = await prisma.task.findFirst({
+    where: { id: request.params.id, assigneeId: userId },
     include: { assignee: { select: { id: true, email: true } } },
   })
   if (!task) {
@@ -152,6 +158,10 @@ export const createTaskHandler = async (
   reply: FastifyReply
 ) => {
   const { targetId, title, description, assigneeId } = request.body
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
   const status = normalizeStatus(request.body.status)
   const normalizedTargetType = normalizeTargetType(request.body.targetType)
 
@@ -189,12 +199,11 @@ export const createTaskHandler = async (
         title: title.trim(),
         description,
         dueDate: dueDate ?? undefined,
-        assigneeId,
+        assigneeId: userId,
         status: status ?? 'todo',
       },
     })
 
-    const userId = (request.user as JWTUser | undefined)?.userId
     await logAuditEntry({
       entityType: 'Task',
       entityId: task.id,
@@ -214,6 +223,10 @@ export const updateTaskHandler = async (
   reply: FastifyReply
 ) => {
   const { title, description, assigneeId } = request.body
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
   const status = normalizeStatus(request.body.status)
 
   if (title !== undefined && !isNonEmptyString(title)) {
@@ -231,7 +244,9 @@ export const updateTaskHandler = async (
     return reply.code(400).send(badRequest('Invalid dueDate'))
   }
 
-  const existing = await prisma.task.findUnique({ where: { id: request.params.id } })
+  const existing = await prisma.task.findFirst({
+    where: { id: request.params.id, assigneeId: userId },
+  })
   if (!existing) {
     return reply.code(404).send(notFound('Task'))
   }
@@ -259,7 +274,6 @@ export const updateTaskHandler = async (
       data,
     })
 
-    const userId = (request.user as JWTUser | undefined)?.userId
     await logAuditEntry({
       entityType: 'Task',
       entityId: task.id,
@@ -280,6 +294,10 @@ export const bulkUpdateTasksHandler = async (
   reply: FastifyReply
 ) => {
   const { taskIds, assigneeId } = request.body
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
   const status = normalizeStatus(request.body.status)
   if (!Array.isArray(taskIds) || taskIds.length === 0) {
     return reply.code(400).send(badRequest('taskIds is required'))
@@ -297,6 +315,14 @@ export const bulkUpdateTasksHandler = async (
   const dueDate = parseDate(request.body.dueDate ?? undefined)
   if (request.body.dueDate !== undefined && request.body.dueDate !== null && !dueDate) {
     return reply.code(400).send(badRequest('Invalid dueDate'))
+  }
+
+  const ownedTasks = await prisma.task.findMany({
+    where: { id: { in: taskIds }, assigneeId: userId },
+    select: { id: true },
+  })
+  if (ownedTasks.length !== taskIds.length) {
+    return reply.code(404).send(notFound('Task'))
   }
 
   const updates = taskIds.map((taskId) => {
@@ -322,7 +348,13 @@ export const deleteTaskHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) => {
-  const existing = await prisma.task.findUnique({ where: { id: request.params.id } })
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
+  const existing = await prisma.task.findFirst({
+    where: { id: request.params.id, assigneeId: userId },
+  })
   if (!existing) {
     return reply.code(404).send(notFound('Task'))
   }
@@ -330,7 +362,6 @@ export const deleteTaskHandler = async (
   try {
     await prisma.task.delete({ where: { id: request.params.id } })
 
-    const userId = (request.user as JWTUser | undefined)?.userId
     await logAuditEntry({
       entityType: 'Task',
       entityId: existing.id,
@@ -349,7 +380,10 @@ export const listMyTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser).userId
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
   const filters = parseTaskListFilters(request.query)
   if (!filters.ok) {
     return reply.code(400).send(badRequest(filters.error))
@@ -381,8 +415,13 @@ export const listMyTasksHandler = async (
 }
 
 export const listCompanyTasksHandler = async (
-  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>
+  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
+  reply: FastifyReply
 ) => {
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
   const { page, pageSize, skip } = parsePagination(
     request.query.page,
     request.query.pageSize
@@ -391,6 +430,7 @@ export const listCompanyTasksHandler = async (
   const where: Prisma.TaskWhereInput = {
     targetType: 'company',
     targetId: request.params.id,
+    assigneeId: userId,
   }
   if (status) {
     where.status = status
@@ -400,8 +440,13 @@ export const listCompanyTasksHandler = async (
 }
 
 export const listProjectTasksHandler = async (
-  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>
+  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
+  reply: FastifyReply
 ) => {
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
   const { page, pageSize, skip } = parsePagination(
     request.query.page,
     request.query.pageSize
@@ -410,6 +455,7 @@ export const listProjectTasksHandler = async (
   const where: Prisma.TaskWhereInput = {
     targetType: 'project',
     targetId: request.params.id,
+    assigneeId: userId,
   }
   if (status) {
     where.status = status
@@ -419,8 +465,13 @@ export const listProjectTasksHandler = async (
 }
 
 export const listWholesaleTasksHandler = async (
-  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>
+  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
+  reply: FastifyReply
 ) => {
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
   const { page, pageSize, skip } = parsePagination(
     request.query.page,
     request.query.pageSize
@@ -429,6 +480,7 @@ export const listWholesaleTasksHandler = async (
   const where: Prisma.TaskWhereInput = {
     targetType: 'wholesale',
     targetId: request.params.id,
+    assigneeId: userId,
   }
   if (status) {
     where.status = status

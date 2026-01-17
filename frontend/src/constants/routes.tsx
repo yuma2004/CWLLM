@@ -31,7 +31,7 @@ export const protectedRoutes: RouteConfig[] = [
     section: 'main',
     end: true,
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -47,7 +47,7 @@ export const protectedRoutes: RouteConfig[] = [
     label: '企業管理',
     section: 'main',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -64,7 +64,7 @@ export const protectedRoutes: RouteConfig[] = [
     label: 'タスク管理',
     section: 'main',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -81,7 +81,7 @@ export const protectedRoutes: RouteConfig[] = [
     label: '案件管理',
     section: 'main',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -98,7 +98,7 @@ export const protectedRoutes: RouteConfig[] = [
     label: '卸管理',
     section: 'main',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -116,7 +116,7 @@ export const protectedRoutes: RouteConfig[] = [
     section: 'settings',
     allowedRoles: ['admin'],
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -139,7 +139,7 @@ export const protectedRoutes: RouteConfig[] = [
     section: 'settings',
     allowedRoles: ['admin'],
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -156,7 +156,7 @@ export const protectedRoutes: RouteConfig[] = [
     section: 'settings',
     allowedRoles: ['admin'],
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

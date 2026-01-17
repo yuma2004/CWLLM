@@ -1,3 +1,5 @@
+import { cn } from '../../lib/cn'
+
 type CardProps = {
   title?: string
   description?: string
@@ -7,12 +9,7 @@ type CardProps = {
 
 const Card = ({ title, description, children, className }: CardProps) => (
   <div
-    className={[
-      'rounded-xl border border-slate-200 bg-white p-6 shadow-sm',
-      className,
-    ]
-      .filter(Boolean)
-      .join(' ')}
+    className={cn('rounded-xl border border-slate-200 bg-white p-6 shadow-sm', className)}
   >
     {(title || description) && (
       <div className="mb-4 space-y-1">

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Task } from '../types'
 import { formatDate } from '../utils/date'
 import { getTargetPath } from '../utils/routes'
+import { cn } from '../lib/cn'
 
 type KanbanCardProps = {
   task: Task
@@ -40,11 +41,10 @@ function KanbanCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg border bg-white p-3 shadow-sm transition-shadow ${
-        isDragging
-          ? 'border-sky-300 shadow-lg opacity-90'
-          : 'border-slate-200 hover:shadow-md'
-      }`}
+      className={cn(
+        'rounded-lg border bg-white p-3 shadow-sm',
+        isDragging ? 'border-sky-300 shadow-md opacity-90' : 'border-slate-200 hover:shadow-sm'
+      )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -66,11 +66,12 @@ function KanbanCard({
             ref={setActivatorNodeRef}
             type="button"
             aria-label="drag"
-            className={`rounded border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-500 shadow-sm transition ${
+            className={cn(
+              'rounded border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-500 shadow-sm',
               canWrite && !disabled
                 ? 'cursor-grab hover:border-slate-300 active:cursor-grabbing'
                 : 'cursor-not-allowed opacity-50'
-            }`}
+            )}
             disabled={!canWrite || disabled}
             onClick={(event) => event.stopPropagation()}
             {...attributes}
@@ -87,6 +88,7 @@ function KanbanCard({
             }}
             className="mt-0.5 rounded border-slate-300"
             disabled={disabled}
+            aria-label={`${task.title}を選択`}
           />
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+﻿import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Tasks from './Tasks'
@@ -63,13 +63,10 @@ describe('Tasks page', () => {
     mockFetch.mockImplementation((input, init) => {
       const url =
         typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
-      if (url === '/api/users/options') {
-        return buildResponse({ users: [] })
-      }
       if (url === '/api/tasks/t1' && init?.method === 'PATCH') {
         return buildResponse({ task: { id: 't1', status: 'done' } })
       }
-      if (url.startsWith('/api/me/tasks') || url.startsWith('/api/tasks?')) {
+      if (url.startsWith('/api/me/tasks')) {
         taskFetchCount += 1
         return buildResponse(taskFetchCount === 1 ? initialTasks : updatedTasks)
       }
@@ -111,10 +108,7 @@ describe('Tasks page', () => {
     mockFetch.mockImplementation((input) => {
       const url =
         typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
-      if (url === '/api/users/options') {
-        return buildResponse({ users: [] })
-      }
-      if (url.startsWith('/api/me/tasks') || url.startsWith('/api/tasks?')) {
+      if (url.startsWith('/api/me/tasks')) {
         return buildResponse({
           items: [],
           pagination: { page: 1, pageSize: 20, total: 0 },
@@ -140,3 +134,4 @@ describe('Tasks page', () => {
     })
   })
 })
+

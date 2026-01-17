@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+﻿import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -80,67 +80,67 @@ function ProjectsFilters({
   return (
     <Card className="p-5">
       <form onSubmit={onSubmit}>
-      <div className="grid gap-3 md:grid-cols-5">
-        <div className="relative md:col-span-2">
-          <svg
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        <div className="grid gap-3 md:grid-cols-5">
+          <div className="relative md:col-span-2">
+            <svg
+              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <FormInput
+              ref={searchInputRef}
+              className="pl-10 pr-3"
+              placeholder="案件名で検索 (/ で移動)"
+              value={filters.q}
+              onChange={(event) => {
+                onFiltersChange({ ...filters, q: event.target.value })
+              }}
             />
-          </svg>
-          <FormInput
-            ref={searchInputRef}
-            className="pl-10 pr-3"
-            placeholder="案件名で検索 (/ で移動)"
-            value={filters.q}
+          </div>
+          <FormSelect
+            value={filters.status}
             onChange={(event) => {
-              onFiltersChange({ ...filters, q: event.target.value })
+              onFiltersChange({ ...filters, status: event.target.value })
             }}
-          />
+          >
+            <option value="">ステータス</option>
+            {PROJECT_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {statusLabel('project', status)}
+              </option>
+            ))}
+          </FormSelect>
+          <FormSelect
+            value={filters.ownerId}
+            onChange={(event) => {
+              onFiltersChange({ ...filters, ownerId: event.target.value })
+            }}
+          >
+            <option value="">担当者</option>
+            {userOptions.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.email}
+              </option>
+            ))}
+          </FormSelect>
+          <button
+            type="submit"
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            検索
+          </button>
         </div>
-        <FormSelect
-          value={filters.status}
-          onChange={(event) => {
-            onFiltersChange({ ...filters, status: event.target.value })
-          }}
-        >
-          <option value="">ステータス</option>
-          {PROJECT_STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status}>
-              {statusLabel('project', status)}
-            </option>
-          ))}
-        </FormSelect>
-        <FormSelect
-          value={filters.ownerId}
-          onChange={(event) => {
-            onFiltersChange({ ...filters, ownerId: event.target.value })
-          }}
-        >
-          <option value="">担当者</option>
-          {userOptions.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.email}
-            </option>
-          ))}
-        </FormSelect>
-        <button
-          type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-        >
-          検索
-        </button>
-      </div>
 
-      {/* Active Filters */}
-      <ActiveFilters isActive={hasActiveFilters}>
+        {/* Active Filters */}
+        <ActiveFilters isActive={hasActiveFilters}>
           <span className="text-xs text-slate-500">絞り込み:</span>
           {filters.q && (
             <FilterBadge label={`案件名: ${filters.q}`} onRemove={() => onClearFilter('q')} />
@@ -170,7 +170,7 @@ function ProjectsFilters({
           >
             すべて解除
           </button>
-      </ActiveFilters>
+        </ActiveFilters>
       </form>
     </Card>
   )
@@ -198,15 +198,16 @@ function ProjectsCreateForm({
   if (!isOpen) return null
 
   return (
-    <div className="animate-fade-up rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">案件を追加</h3>
+        <h3 className="text-balance text-lg font-semibold text-slate-900">案件を追加</h3>
         <button
           type="button"
           onClick={onClose}
-          className="text-slate-400 transition-colors hover:text-slate-600"
+          className="text-slate-400 hover:text-slate-600"
+          aria-label="案件作成フォームを閉じる"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -305,13 +306,13 @@ function ProjectsCreateForm({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full px-6 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+            className="rounded-full px-6 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
           >
             キャンセル
           </button>
           <button
             type="submit"
-            className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-700"
+            className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white hover:bg-sky-700"
             disabled={isCreating}
           >
             {isCreating ? '作成中...' : '作成'}
@@ -337,7 +338,7 @@ function ProjectsTable({ projects, isLoading, canWrite, onOpenCreateForm }: Proj
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
-        <thead className="bg-slate-50/80 text-left text-xs uppercase tracking-wider text-slate-500">
+        <thead className="bg-slate-50/80 text-left text-xs uppercase text-slate-500">
           <tr>
             <th className="px-5 py-3">案件名</th>
             <th className="px-5 py-3">企業</th>
@@ -354,7 +355,7 @@ function ProjectsTable({ projects, isLoading, canWrite, onOpenCreateForm }: Proj
                   message="案件が見つかりません"
                   icon={
                     <svg
-                      className="h-12 w-12 text-slate-300"
+                      className="size-12 text-slate-300"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -382,7 +383,7 @@ function ProjectsTable({ projects, isLoading, canWrite, onOpenCreateForm }: Proj
             </tr>
           ) : (
             projects.map((project) => (
-              <tr key={project.id} className="group transition-colors hover:bg-slate-50/80">
+              <tr key={project.id} className="group hover:bg-slate-50/80">
                 <td className="px-5 py-4">
                   <Link
                     to={`/projects/${project.id}`}
@@ -406,7 +407,7 @@ function ProjectsTable({ projects, isLoading, canWrite, onOpenCreateForm }: Proj
                 <td className="px-5 py-4">
                   <StatusBadge status={project.status ?? 'active'} kind="project" size="sm" />
                 </td>
-                <td className="px-5 py-4 text-slate-600">
+                <td className="px-5 py-4 text-slate-600 tabular-nums">
                   {project.unitPrice ? formatCurrency(project.unitPrice) : '-'}
                 </td>
                 <td className="px-5 py-4 text-slate-600">
@@ -553,23 +554,23 @@ function Projects() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Project</p>
-          <h2 className="text-3xl font-bold text-slate-900">案件管理</h2>
+          <p className="text-pretty text-sm uppercase text-slate-400">Project</p>
+          <h2 className="text-balance text-3xl font-bold text-slate-900">案件管理</h2>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-500">
-            登録数: <span className="font-semibold text-slate-700">{pagination.total}</span>
+          <span className="text-sm text-slate-500 tabular-nums">
+            登録数: <span className="font-semibold text-slate-700 tabular-nums">{pagination.total}</span>
           </span>
           {canWrite && (
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               案件を追加
@@ -605,7 +606,7 @@ function Projects() {
 
       {/* Readonly Notice */}
       {!canWrite && (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+        <div className="text-pretty rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
           閲覧専用ロールのため、案件の追加・編集はできません。
         </div>
       )}
@@ -633,7 +634,7 @@ function Projects() {
       )}
 
       {/* Keyboard Shortcuts Hint */}
-      <div className="text-center text-xs text-slate-400">
+      <div className="text-pretty text-center text-xs text-slate-400">
         <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">/</kbd> 検索
         {canWrite && (
           <>

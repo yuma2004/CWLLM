@@ -164,7 +164,7 @@ function WholesaleDetail() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4 ">
       <div className="flex items-center gap-2 text-sm text-slate-500">
         <Link to="/wholesales" className="hover:text-slate-700">
           卸管理
@@ -175,7 +175,7 @@ function WholesaleDetail() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Wholesale Detail</p>
+          <p className="text-sm uppercase  text-slate-400">Wholesale Detail</p>
           <h2 className="text-3xl font-bold text-slate-900">卸詳細</h2>
         </div>
         {wholesaleStatus && <StatusBadge status={wholesaleStatus} kind="wholesale" />}
@@ -399,7 +399,7 @@ function WholesaleDetail() {
           message={toast.message}
           variant={toast.variant === 'error' ? 'error' : 'success'}
           onClose={clearToast}
-          className="fixed bottom-6 right-6 z-50"
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
         />
       )}
     </div>

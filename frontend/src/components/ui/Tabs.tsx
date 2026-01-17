@@ -1,4 +1,5 @@
 import { useState, useEffect, ReactNode } from 'react'
+import { cn } from '../../lib/cn'
 
 export interface Tab {
   id: string
@@ -64,25 +65,20 @@ export default function Tabs({
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
-                className={`
-                  relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium
-                  transition-colors duration-200
-                  ${
-                    isActive
-                      ? 'text-slate-900'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }
-                `}
+                className={cn(
+                  'relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium',
+                  isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'
+                )}
                 aria-current={isActive ? 'page' : undefined}
               >
                 {tab.icon && <span className="text-current">{tab.icon}</span>}
                 {tab.label}
                 {tab.count !== undefined && (
                   <span
-                    className={`
-                      ml-1 rounded-full px-2 py-0.5 text-xs font-medium
-                      ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}
-                    `}
+                    className={cn(
+                      'ml-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                      isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                    )}
                   >
                     {tab.count}
                   </span>

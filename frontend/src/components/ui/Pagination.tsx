@@ -1,3 +1,5 @@
+import { cn } from '../../lib/cn'
+
 interface PaginationProps {
   page: number
   pageSize: number
@@ -100,17 +102,15 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page === 1}
-            className={`
-              flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors
-              ${
-                page === 1
-                  ? 'cursor-not-allowed text-slate-300'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }
-            `}
+            className={cn(
+              'flex size-8 items-center justify-center rounded-lg text-sm',
+              page === 1
+                ? 'cursor-not-allowed text-slate-300'
+                : 'text-slate-600 hover:bg-slate-100'
+            )}
             aria-label="前のページ"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -119,20 +119,18 @@ export default function Pagination({
           {getPageNumbers().map((pageNum, index) =>
             pageNum === 'ellipsis' ? (
               <span key={`ellipsis-${index}`} className="px-1 text-slate-400">
-                ...
+                …
               </span>
             ) : (
               <button
                 key={pageNum}
                 onClick={() => onPageChange(pageNum)}
-                className={`
-                  flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-sm font-medium transition-colors
-                  ${
-                    page === pageNum
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }
-                `}
+                className={cn(
+                  'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-medium',
+                  page === pageNum
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+                )}
                 aria-current={page === pageNum ? 'page' : undefined}
               >
                 {pageNum}
@@ -144,17 +142,15 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(page + 1)}
             disabled={page === totalPages}
-            className={`
-              flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors
-              ${
-                page === totalPages
-                  ? 'cursor-not-allowed text-slate-300'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }
-            `}
+            className={cn(
+              'flex size-8 items-center justify-center rounded-lg text-sm',
+              page === totalPages
+                ? 'cursor-not-allowed text-slate-300'
+                : 'text-slate-600 hover:bg-slate-100'
+            )}
             aria-label="次のページ"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>

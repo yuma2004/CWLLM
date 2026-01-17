@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePermissions } from '../hooks/usePermissions'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -18,6 +18,7 @@ import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useListQuery } from '../hooks/useListQuery'
 import { useUrlSync } from '../hooks/useUrlSync'
 import { formatDate, formatDateInput } from '../utils/date'
+import { cn } from '../lib/cn'
 import { getTargetPath } from '../utils/routes'
 import type { ApiListResponse, Task, TasksFilters } from '../types'
 import { apiRoutes } from '../lib/apiRoutes'
@@ -33,10 +34,7 @@ const defaultFilters: TasksFilters = {
   targetType: '',
   dueFrom: '',
   dueTo: '',
-  assigneeId: '',
 }
-
-type TaskUserOption = { id: string; email: string; role?: string }
 
 type TasksFiltersProps = {
   filters: TasksFilters
@@ -45,8 +43,6 @@ type TasksFiltersProps = {
   hasActiveFilters: boolean
   onClearFilter: (key: keyof TasksFilters) => void
   onClearAll: () => void
-  scope: 'me' | 'all'
-  userOptions: TaskUserOption[]
   searchInputRef: React.RefObject<HTMLSelectElement>
 }
 
@@ -57,14 +53,12 @@ function TasksFilters({
   hasActiveFilters,
   onClearFilter,
   onClearAll,
-  scope,
-  userOptions,
   searchInputRef,
 }: TasksFiltersProps) {
   return (
     <Card className="p-5">
       <form onSubmit={onSubmit}>
-      <div className="grid gap-3 md:grid-cols-7">
+      <div className="grid gap-3 md:grid-cols-5">
         <FormSelect
           ref={searchInputRef}
           value={filters.status}
@@ -92,30 +86,17 @@ function TasksFilters({
           type="date"
           value={filters.dueFrom}
           onChange={(e) => onFiltersChange({ ...filters, dueFrom: e.target.value })}
-          placeholder="期日(開始)"
+          placeholder="期限(開始)"
         />
         <FormInput
           type="date"
           value={filters.dueTo}
           onChange={(e) => onFiltersChange({ ...filters, dueTo: e.target.value })}
-          placeholder="期日(終了)"
+          placeholder="期限(終了)"
         />
-        {scope === 'all' && (
-          <FormSelect
-            value={filters.assigneeId}
-            onChange={(e) => onFiltersChange({ ...filters, assigneeId: e.target.value })}
-          >
-            <option value="">担当者</option>
-            {userOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.email}
-              </option>
-            ))}
-          </FormSelect>
-        )}
         <button
           type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
         >
           検索
         </button>
@@ -138,20 +119,14 @@ function TasksFilters({
           )}
           {filters.dueFrom && (
             <FilterBadge
-              label={`期日(開始): ${filters.dueFrom}`}
+              label={`期限(開始): ${filters.dueFrom}`}
               onRemove={() => onClearFilter('dueFrom')}
             />
           )}
           {filters.dueTo && (
             <FilterBadge
-              label={`期日(終了): ${filters.dueTo}`}
+              label={`期限(終了): ${filters.dueTo}`}
               onRemove={() => onClearFilter('dueTo')}
-            />
-          )}
-          {filters.assigneeId && (
-            <FilterBadge
-              label={`担当者: ${userOptions.find((option) => option.id === filters.assigneeId)?.email || filters.assigneeId}`}
-              onRemove={() => onClearFilter('assigneeId')}
             />
           )}
           <button
@@ -173,15 +148,12 @@ type TasksBulkActionsProps = {
   onToggleSelectAll: () => void
   bulkStatus: string
   onBulkStatusChange: (value: string) => void
-  bulkAssigneeId: string
-  onBulkAssigneeChange: (value: string) => void
   bulkDueDate: string
   onBulkDueDateChange: (value: string) => void
   clearBulkDueDate: boolean
   onClearBulkDueDateChange: (value: boolean) => void
   onBulkUpdate: () => void
   isBulkUpdating: boolean
-  userOptions: TaskUserOption[]
 }
 
 function TasksBulkActions({
@@ -190,15 +162,12 @@ function TasksBulkActions({
   onToggleSelectAll,
   bulkStatus,
   onBulkStatusChange,
-  bulkAssigneeId,
-  onBulkAssigneeChange,
   bulkDueDate,
   onBulkDueDateChange,
   clearBulkDueDate,
   onClearBulkDueDateChange,
   onBulkUpdate,
   isBulkUpdating,
-  userOptions,
 }: TasksBulkActionsProps) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -226,7 +195,7 @@ function TasksBulkActions({
           type="date"
           value={bulkDueDate}
           onChange={(e) => onBulkDueDateChange(e.target.value)}
-          placeholder="期日"
+          placeholder="期限"
           disabled={clearBulkDueDate}
         />
         <label className="flex items-center gap-2">
@@ -236,17 +205,8 @@ function TasksBulkActions({
             onChange={(e) => onClearBulkDueDateChange(e.target.checked)}
             className="rounded border-slate-300"
           />
-          期日をクリア
+          期限をクリア
         </label>
-        <FormSelect value={bulkAssigneeId} onChange={(e) => onBulkAssigneeChange(e.target.value)}>
-          <option value="">担当者</option>
-          <option value="__unassigned__">未割当</option>
-          {userOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.email}
-            </option>
-          ))}
-        </FormSelect>
         <button
           type="button"
           onClick={onBulkUpdate}
@@ -267,12 +227,10 @@ type TasksTableProps = {
   onToggleSelectAll: () => void
   onToggleSelected: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
-  onAssigneeChange: (taskId: string, assigneeId: string) => void
   onDueDateChange: (taskId: string, dueDate: string) => void
   onDelete: (task: Task) => void
   canWrite: boolean
   isBulkUpdating: boolean
-  userOptions: TaskUserOption[]
 }
 
 function TasksTable({
@@ -282,17 +240,15 @@ function TasksTable({
   onToggleSelectAll,
   onToggleSelected,
   onStatusChange,
-  onAssigneeChange,
   onDueDateChange,
   onDelete,
   canWrite,
   isBulkUpdating,
-  userOptions,
 }: TasksTableProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
-        <thead className="bg-slate-50/80 text-left text-xs uppercase tracking-wider text-slate-500">
+        <thead className="bg-slate-50/80 text-left text-xs uppercase r text-slate-500">
           <tr>
             <th className="px-4 py-3">
               <input
@@ -306,20 +262,19 @@ function TasksTable({
             <th className="px-4 py-3">タイトル</th>
             <th className="px-4 py-3">ステータス</th>
             <th className="px-4 py-3">対象</th>
-            <th className="px-4 py-3">期日</th>
-            <th className="px-4 py-3">担当者</th>
+            <th className="px-4 py-3">期限</th>
             <th className="px-4 py-3">操作</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 bg-white">
           {tasks.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-5 py-12 text-center">
+              <td colSpan={6} className="px-5 py-12 text-center">
                 <EmptyState
                   message="タスクが見つかりません"
                   icon={
                     <svg
-                      className="h-12 w-12 text-slate-300"
+                      className="size-12 text-slate-300"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -337,7 +292,7 @@ function TasksTable({
             </tr>
           ) : (
             tasks.map((task) => (
-              <tr key={task.id} className="group transition-colors hover:bg-slate-50/80">
+              <tr key={task.id} className="group  hover:bg-slate-50/80">
                 <td className="px-4 py-4">
                   <input
                     type="checkbox"
@@ -405,32 +360,12 @@ function TasksTable({
                   )}
                 </td>
                 <td className="px-4 py-4">
-                  {canWrite ? (
-                    <FormSelect
-                      className="w-auto rounded-full px-3 py-1 text-xs"
-                      value={task.assigneeId ?? '__unassigned__'}
-                      onChange={(e) => onAssigneeChange(task.id, e.target.value)}
-                    >
-                      <option value="__unassigned__">未割当</option>
-                      {userOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.email}
-                        </option>
-                      ))}
-                    </FormSelect>
-                  ) : (
-                    <span className="text-xs text-slate-600">
-                      {task.assignee?.email || '-'}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-4">
                   <div className="flex items-center gap-2">
                     <Link
                       to={getTargetPath(task.targetType, task.targetId)}
                       className="text-xs font-semibold text-slate-600 hover:text-slate-900"
                     >
-                      詳細
+                      隧ｳ邏ｰ
                     </Link>
                     {canWrite && (
                       <button
@@ -438,7 +373,7 @@ function TasksTable({
                         onClick={() => onDelete(task)}
                         className="text-xs font-semibold text-rose-600 hover:text-rose-700"
                       >
-                        削除
+                        蜑企勁
                       </button>
                     )}
                   </div>
@@ -493,27 +428,19 @@ function Tasks() {
   } = useUrlSync({
     pathname: '/tasks',
     defaultFilters,
-    defaultParams: { scope: 'me', view: 'list' },
+    defaultParams: { view: 'list' },
     resetPageOnFilterChange: false,
   })
-  const scope = extraParams.scope === 'all' ? 'all' : 'me'
   const viewMode = extraParams.view === 'kanban' ? 'kanban' : 'list'
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkStatus, setBulkStatus] = useState('')
-  const [bulkAssigneeId, setBulkAssigneeId] = useState('')
   const [bulkDueDate, setBulkDueDate] = useState('')
   const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
 
   const queryString = useListQuery(filters, pagination)
 
-  const tasksUrl = useMemo(
-    () =>
-      scope === 'all'
-        ? apiRoutes.tasks.list(queryString)
-        : apiRoutes.tasks.myList(queryString),
-    [queryString, scope]
-  )
+  const tasksUrl = useMemo(() => apiRoutes.tasks.myList(queryString), [queryString])
 
   const {
     data: tasksData,
@@ -536,12 +463,12 @@ function Tasks() {
 
   const { mutate: updateTask } = useMutation<
     Task,
-    { status?: string; dueDate?: string | null; assigneeId?: string | null }
+    { status?: string; dueDate?: string | null }
   >(apiRoutes.tasks.base(), 'PATCH')
 
   const { mutate: bulkUpdateTasks, isLoading: isBulkUpdating } = useMutation<
     { updated: number },
-    { taskIds: string[]; status?: string; assigneeId?: string | null; dueDate?: string | null }
+    { taskIds: string[]; status?: string; dueDate?: string | null }
   >(apiRoutes.tasks.bulk(), 'PATCH')
 
   const { mutate: deleteTask, isLoading: isDeleting } = useMutation<void, void>(
@@ -549,14 +476,7 @@ function Tasks() {
     'DELETE'
   )
 
-  const { data: userOptionsData } = useFetch<{
-    users: Array<{ id: string; email: string; role: string }>
-  }>(apiRoutes.users.options(), {
-    errorMessage: 'Failed to load users',
-    cacheTimeMs: 30_000,
-  })
 
-  const userOptions = userOptionsData?.users ?? []
 
   const tasks = useMemo(() => tasksData?.items ?? [], [tasksData])
 
@@ -623,29 +543,6 @@ function Tasks() {
     }
   }
 
-  const handleAssigneeChange = async (taskId: string, value: string) => {
-    if (!canWrite) return
-    setError('')
-    const assigneeId = value === '__unassigned__' ? null : value
-    const nextAssignee = userOptions.find((option) => option.id === assigneeId)
-    const previousItems = applyOptimisticTaskUpdate(taskId, (task) => ({
-      ...task,
-      assigneeId: assigneeId ?? null,
-      assignee: assigneeId
-        ? { id: assigneeId, email: nextAssignee?.email ?? assigneeId }
-        : null,
-    }))
-    try {
-      await updateTask(
-        { assigneeId },
-        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'Failed to update assignee' }
-      )
-      void refetchTasks()
-    } catch (err) {
-      restoreOptimisticTasks(previousItems)
-      setError(err instanceof Error ? err.message : 'Failed to update task')
-    }
-  }
 
   const handleDueDateChange = async (taskId: string, value: string) => {
     if (!canWrite) return
@@ -673,7 +570,7 @@ function Tasks() {
       setError('Select tasks to update')
       return
     }
-    if (!bulkStatus && !bulkAssigneeId && !bulkDueDate && !clearBulkDueDate) {
+    if (!bulkStatus && !bulkDueDate && !clearBulkDueDate) {
       setError('Choose fields to update')
       return
     }
@@ -682,19 +579,14 @@ function Tasks() {
       const payload: {
         taskIds: string[]
         status?: string
-        assigneeId?: string | null
         dueDate?: string | null
       } = { taskIds: selectedIds }
       if (bulkStatus) payload.status = bulkStatus
-      if (bulkAssigneeId) {
-        payload.assigneeId = bulkAssigneeId === '__unassigned__' ? null : bulkAssigneeId
-      }
       if (bulkDueDate) payload.dueDate = bulkDueDate
       if (clearBulkDueDate) payload.dueDate = null
       await bulkUpdateTasks(payload, { errorMessage: '一括更新に失敗しました' })
       setSelectedIds([])
       setBulkStatus('')
-      setBulkAssigneeId('')
       setBulkDueDate('')
       setClearBulkDueDate(false)
       void refetchTasks()
@@ -734,13 +626,6 @@ function Tasks() {
     )
   }
 
-  const handleScopeChange = (nextScope: 'me' | 'all') => {
-    setExtraParams((prev) => ({ ...prev, scope: nextScope }))
-    if (nextScope === 'me') {
-      setFilters({ ...filters, assigneeId: '' })
-    }
-    setPage(1)
-  }
 
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage)
@@ -759,16 +644,16 @@ function Tasks() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4 ">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Tasks</p>
+          <p className="text-sm uppercase  text-slate-400">Tasks</p>
           <h2 className="text-3xl font-bold text-slate-900">マイタスク</h2>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-500">
-            登録数: <span className="font-semibold text-slate-700">{pagination.total}</span>
+            合計件数: <span className="font-semibold text-slate-700">{pagination.total}</span>
           </span>
         </div>
       </div>
@@ -777,31 +662,21 @@ function Tasks() {
         <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold text-slate-600 shadow-sm">
           <button
             type="button"
-            onClick={() => handleScopeChange('me')}
-            className={`rounded-full px-3 py-1 ${scope === 'me' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
-          >
-            マイタスク
-          </button>
-          <button
-            type="button"
-            onClick={() => handleScopeChange('all')}
-            className={`rounded-full px-3 py-1 ${scope === 'all' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
-          >
-            すべてのタスク
-          </button>
-        </div>
-        <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold text-slate-600 shadow-sm">
-          <button
-            type="button"
             onClick={() => setExtraParams((prev) => ({ ...prev, view: 'list' }))}
-            className={`rounded-full px-3 py-1 ${viewMode === 'list' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
+            className={cn(
+              'rounded-full px-3 py-1',
+              viewMode === 'list' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'
+            )}
           >
             リスト
           </button>
           <button
             type="button"
             onClick={() => setExtraParams((prev) => ({ ...prev, view: 'kanban' }))}
-            className={`rounded-full px-3 py-1 ${viewMode === 'kanban' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
+            className={cn(
+              'rounded-full px-3 py-1',
+              viewMode === 'kanban' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'
+            )}
           >
             カンバン
           </button>
@@ -816,8 +691,6 @@ function Tasks() {
         hasActiveFilters={hasActiveFilters}
         onClearFilter={handleClearFilter}
         onClearAll={handleClearAllFilters}
-        scope={scope}
-        userOptions={userOptions}
         searchInputRef={searchInputRef}
       />
 
@@ -828,15 +701,12 @@ function Tasks() {
           onToggleSelectAll={toggleSelectAll}
           bulkStatus={bulkStatus}
           onBulkStatusChange={setBulkStatus}
-          bulkAssigneeId={bulkAssigneeId}
-          onBulkAssigneeChange={setBulkAssigneeId}
           bulkDueDate={bulkDueDate}
           onBulkDueDateChange={setBulkDueDate}
           clearBulkDueDate={clearBulkDueDate}
           onClearBulkDueDateChange={setClearBulkDueDate}
           onBulkUpdate={handleBulkUpdate}
           isBulkUpdating={isBulkUpdating}
-          userOptions={userOptions}
         />
       )}
 
@@ -851,7 +721,7 @@ function Tasks() {
       <ConfirmDialog
         isOpen={!!deleteTarget}
         title="タスクの削除"
-        description={`「${deleteTarget?.title}」を削除しますか？この操作は取り消せません。`}
+        description={`「${deleteTarget?.title}」を削除しますか？この操作は元に戻せません。`}
         confirmLabel="削除"
         cancelLabel="キャンセル"
         isLoading={isDeleting}
@@ -873,12 +743,10 @@ function Tasks() {
           onToggleSelectAll={toggleSelectAll}
           onToggleSelected={toggleSelected}
           onStatusChange={handleStatusChange}
-          onAssigneeChange={handleAssigneeChange}
           onDueDateChange={handleDueDateChange}
           onDelete={setDeleteTarget}
           canWrite={canWrite}
           isBulkUpdating={isBulkUpdating}
-          userOptions={userOptions}
         />
       ) : (
         <TasksKanban
@@ -911,3 +779,12 @@ function Tasks() {
 }
 
 export default Tasks
+
+
+
+
+
+
+
+
+

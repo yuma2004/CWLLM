@@ -8,6 +8,7 @@ import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
+import { cn } from '../lib/cn'
 import { ChatworkRoom, JobRecord } from '../types'
 
 type RefetchResult<T> = (overrideInit?: RequestInit, options?: { ignoreCache?: boolean }) => Promise<T | null>
@@ -167,11 +168,10 @@ function ChatworkRoomList({ rooms, isLoading, onToggle }: ChatworkRoomListProps)
                 <button
                   type="button"
                   onClick={() => onToggle(room)}
-                  className={`rounded-full px-4 py-1 text-xs font-semibold ${
-                    room.isActive
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}
+                  className={cn(
+                    'rounded-full px-4 py-1 text-xs font-semibold',
+                    room.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                  )}
                 >
                   {room.isActive ? '有効' : '無効'}
                 </button>
@@ -316,9 +316,9 @@ function ChatworkSettings() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4 ">
       <div>
-        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Chatwork</p>
+        <p className="text-sm uppercase  text-slate-400">Chatwork</p>
         <h2 className="text-3xl font-bold text-slate-900">Chatwork 設定</h2>
       </div>
 

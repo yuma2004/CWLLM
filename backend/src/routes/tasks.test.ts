@@ -59,8 +59,7 @@ describe('Task endpoints', () => {
 
   it('creates task and lists by company and assignee', async () => {
     const user = await createUser(`task-owner-${Date.now()}@example.com`, UserRole.sales)
-    const token = fastify.jwt.sign({ userId: user.id, role: 'admin' })
-    const assigneeToken = fastify.jwt.sign({ userId: user.id, role: 'sales' })
+    const token = fastify.jwt.sign({ userId: user.id, role: 'sales' })
 
     const company = await prisma.company.create({
       data: {
@@ -105,7 +104,7 @@ describe('Task endpoints', () => {
       method: 'GET',
       url: '/api/me/tasks',
       headers: {
-        authorization: `Bearer ${assigneeToken}`,
+        authorization: `Bearer ${token}`,
       },
     })
 

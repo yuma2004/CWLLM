@@ -179,7 +179,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
           <div className="flex justify-end">
             <button
               type="submit"
-              className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
             >
               タスクを追加
             </button>

@@ -13,7 +13,7 @@ function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <LoadingState className="text-base text-gray-600" />
       </div>
     )
@@ -25,7 +25,7 @@ function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <div className="text-red-600">アクセス権限がありません</div>
       </div>
     )

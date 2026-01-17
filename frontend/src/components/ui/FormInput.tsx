@@ -1,4 +1,5 @@
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
+import { cn } from '../../lib/cn'
 
 type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string
@@ -11,12 +12,36 @@ const BASE_CLASS =
   'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400'
 
 const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
-  ({ label, hint, className, containerClassName, id, noContainer, ...props }, ref) => {
-    const inputClassName = [BASE_CLASS, className].filter(Boolean).join(' ')
-    const inputId = id ?? (label ? `form-input-${label}` : undefined)
+  (
+    {
+      label,
+      hint,
+      className,
+      containerClassName,
+      id,
+      noContainer,
+      placeholder,
+      'aria-label': ariaLabelProp,
+      ...props
+    },
+    ref
+  ) => {
+    const generatedId = useId()
+    const inputClassName = cn(BASE_CLASS, className)
+    const inputId = id ?? (label ? generatedId : undefined)
+    const ariaLabel = ariaLabelProp ?? (label ? undefined : placeholder)
 
     if (noContainer) {
-      return <input ref={ref} id={inputId} className={inputClassName} {...props} />
+      return (
+        <input
+          ref={ref}
+          id={inputId}
+          className={inputClassName}
+          placeholder={placeholder}
+          aria-label={ariaLabel}
+          {...props}
+        />
+      )
     }
 
     return (
@@ -26,7 +51,14 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
             {label}
           </label>
         )}
-        <input ref={ref} id={inputId} className={inputClassName} {...props} />
+        <input
+          ref={ref}
+          id={inputId}
+          className={inputClassName}
+          placeholder={placeholder}
+          aria-label={ariaLabel}
+          {...props}
+        />
         {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
       </div>
     )

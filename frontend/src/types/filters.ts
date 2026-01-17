@@ -1,4 +1,4 @@
-export type CompaniesFilters = {
+﻿export type CompaniesFilters = {
   q: string
   category: string
   status: string
@@ -11,7 +11,6 @@ export type TasksFilters = {
   targetType: string
   dueFrom: string
   dueTo: string
-  assigneeId: string
 }
 
 export type WholesalesFilters = {
@@ -45,3 +44,4 @@ export type ExportTaskFilters = {
   targetType: string
   assigneeId: string
 }
+

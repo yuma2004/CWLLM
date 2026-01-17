@@ -106,7 +106,7 @@ function WholesalesFilters({
         />
         <button
           type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
         >
           検索
         </button>
@@ -397,10 +397,10 @@ function Wholesales() {
 
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4 ">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Wholesales</p>
+          <p className="text-sm uppercase  text-slate-400">Wholesales</p>
           <h2 className="text-3xl font-bold text-slate-900">卸管理</h2>
         </div>
         <div className="flex items-center gap-3">

@@ -1,5 +1,6 @@
-import Button from './Button'
+﻿import Button from './Button'
 import { JobRecord } from '../../types'
+import { cn } from '../../lib/cn'
 
 type JobProgressSummaryItem = {
   label: string
@@ -70,9 +71,7 @@ const JobProgressCard = ({
             </Button>
           )}
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${getStatusTone(
-              job.status
-            )}`}
+            className={cn('rounded-full px-2 py-0.5 text-xs font-semibold uppercase', getStatusTone(job.status))}
           >
             {getStatusLabel(job.status)}
           </span>
@@ -84,7 +83,7 @@ const JobProgressCard = ({
           <>
             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-slate-900 transition-all"
+                className="h-full rounded-full bg-slate-900"
                 style={{ width: `${percent}%` }}
               />
             </div>
@@ -94,7 +93,7 @@ const JobProgressCard = ({
           </>
         ) : (
           <div className="h-2 w-full rounded-full bg-slate-100">
-            <div className="h-2 w-1/3 rounded-full bg-slate-400/70 animate-pulse" />
+            <div className="h-2 w-1/3 rounded-full bg-slate-400/70" />
           </div>
         )}
       </div>

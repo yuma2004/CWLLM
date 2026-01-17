@@ -6,6 +6,7 @@ import {
   statusLabel,
   type StatusKind,
 } from '../../constants/labels'
+import { cn } from '../../lib/cn'
 
 interface StatusBadgeProps {
   status?: string
@@ -90,13 +91,18 @@ export default function StatusBadge({ status, size = 'md', kind }: StatusBadgePr
     ? 'px-2 py-0.5 text-xs'
     : 'px-2.5 py-1 text-xs'
 
-  const dotSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2'
+  const dotSize = size === 'sm' ? 'size-1.5' : 'size-2'
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-medium ${colors.bg} ${colors.text} ${sizeClasses}`}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full font-medium',
+        colors.bg,
+        colors.text,
+        sizeClasses
+      )}
     >
-      <span className={`${dotSize} rounded-full ${colors.dot}`} />
+      <span className={cn(dotSize, 'rounded-full', colors.dot)} />
       {label}
     </span>
   )

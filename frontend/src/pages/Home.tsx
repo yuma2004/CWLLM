@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom'
+﻿import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import { useAuth } from '../contexts/AuthContext'
 import { useFetch } from '../hooks/useApi'
 import { apiRoutes } from '../lib/apiRoutes'
+import { cn } from '../lib/cn'
 import { statusLabel, targetTypeLabel } from '../constants/labels'
 import { DashboardResponse } from '../types'
 import { formatDate } from '../utils/date'
@@ -37,52 +38,59 @@ function Home() {
     },
     [dashboardData]
   )
+  const totalTasks = useMemo(
+    () => taskGroups.reduce((sum, group) => sum + group.tasks.length, 0),
+    [taskGroups]
+  )
 
   return (
-    <div className="space-y-8 pb-12">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 pb-12">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">
+          <h2 className="text-balance text-2xl font-bold text-slate-900">
             ダッシュボード
           </h2>
-          <p className="text-slate-500 text-sm mt-1">ワークスペースの概要</p>
+          <p className="text-pretty text-slate-500 text-sm mt-1">ワークスペースの概要</p>
         </div>
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-md border border-slate-200">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-slate-600 font-medium">
-              {user?.email}
-            </span>
+        <div className="flex items-center text-sm">
+          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <div className="size-1.5 rounded-full bg-green-500" />
+              <span className="text-slate-600 font-medium">
+                {user?.email}
+              </span>
+            </div>
+            <span className="h-4 w-px bg-slate-200" aria-hidden="true" />
+            <button
+              onClick={logout}
+              className="text-slate-500 hover:text-slate-900 font-medium"
+            >
+              ログアウト
+            </button>
           </div>
-          <button
-            onClick={logout}
-            className="text-slate-500 hover:text-slate-900 font-medium transition-colors"
-          >
-            ログアウト
-          </button>
         </div>
       </div>
 
       {error && <ErrorAlert message={error} />}
 
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         {/* Task Triage Panel */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col h-full shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-6 bg-slate-900 rounded-sm"></span>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col h-full shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-balance font-bold text-slate-900 flex items-center gap-2">
+              <span className="w-2 h-6 bg-slate-800 rounded-sm"></span>
               タスクトリアージ
             </h3>
             <Link
               to="/tasks"
               className="text-xs font-semibold text-slate-500 hover:text-slate-900"
             >
-              全てのタスクへ
+              マイタスクへ
             </Link>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {taskGroups.map((group) => (
               <div
                 key={group.id}
@@ -90,10 +98,10 @@ function Home() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                    <span className={`h-2 w-2 rounded-full ${group.dotClass}`} />
+                    <span className={cn('size-2 rounded-full', group.dotClass)} />
                     {group.label}
                   </div>
-                  <span className="text-xs text-slate-500">{group.tasks.length}件</span>
+                  <span className="text-xs text-slate-500 tabular-nums">{group.tasks.length}件</span>
                 </div>
                 <div className="mt-2 space-y-2">
                   {isLoading ? (
@@ -102,8 +110,6 @@ function Home() {
                         <div key={index} className="h-10 rounded bg-white/70" />
                       ))}
                     </div>
-                  ) : group.tasks.length === 0 ? (
-                    <div className="text-xs text-slate-400">該当タスクはありません</div>
                   ) : (
                     group.tasks.map((task) => (
                       <div
@@ -114,7 +120,7 @@ function Home() {
                           <div className="truncate text-sm font-medium text-slate-900">
                             {task.title}
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 tabular-nums">
                             <span>
                               期限: {formatDate(task.dueDate)}
                             </span>
@@ -131,7 +137,7 @@ function Home() {
                           to={getTargetPath(task.targetType, task.targetId)}
                           className="mt-1 text-slate-400 hover:text-slate-600"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </Link>
@@ -142,25 +148,45 @@ function Home() {
               </div>
             ))}
           </div>
+          {!isLoading && totalTasks === 0 && (
+            <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-center">
+              <p className="text-xs text-slate-500">タスクがまだありません。まずは作成して流れを作りましょう。</p>
+              <Link
+                to="/tasks"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
+              >
+                タスク管理へ
+                <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Latest Summaries Panel */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col h-full shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-6 bg-purple-500 rounded-sm"></span>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col h-full shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-balance font-bold text-slate-900 flex items-center gap-2">
+              <span className="w-2 h-6 bg-slate-800 rounded-sm"></span>
               最新の要約
             </h3>
           </div>
 
           <div className="flex-1 space-y-4">
             {isLoading ? (
-              <div className="animate-pulse space-y-4">
+              <div className="space-y-4">
                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-50 rounded" />)}
               </div>
             ) : latestSummaries.length === 0 ? (
-              <div className="h-32 flex flex-col items-center justify-center text-center text-slate-400">
-                <p className="text-sm">要約はまだありません</p>
+              <div className="h-32 flex flex-col items-center justify-center text-center text-slate-400 gap-2">
+                <p className="text-pretty text-sm">要約はまだありません</p>
+                <Link
+                  to="/companies"
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+                >
+                  企業を確認する
+                </Link>
               </div>
             ) : (
               latestSummaries.map((summary) => {
@@ -169,15 +195,15 @@ function Home() {
                 return (
                   <div
                     key={summary.id}
-                    className="relative pl-4 border-l-2 border-slate-100 hover:border-purple-200 transition-colors"
+                    className="relative pl-4 border-l-2 border-slate-100 hover:border-slate-200"
                   >
                     <div className="flex justify-between items-baseline mb-1">
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-slate-400 tabular-nums">
                         {new Date(summary.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="font-medium text-slate-900 text-sm mb-1">{companyName}</div>
-                    <p className="line-clamp-2 text-xs text-slate-500 leading-relaxed">
+                    <p className="text-pretty line-clamp-2 text-xs text-slate-500 leading-relaxed">
                       {summary.content}
                     </p>
                     <Link
@@ -193,22 +219,28 @@ function Home() {
         </div>
 
         {/* Recent Companies Panel */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col h-full shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2">
-               <span className="w-2 h-6 bg-sky-500 rounded-sm"></span>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col h-full shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-balance font-bold text-slate-900 flex items-center gap-2">
+               <span className="w-2 h-6 bg-slate-800 rounded-sm"></span>
               最近更新した企業
             </h3>
           </div>
 
           <div className="flex-1 space-y-3">
             {isLoading ? (
-              <div className="animate-pulse space-y-3">
+              <div className="space-y-3">
                 {[1, 2, 3].map(i => <div key={i} className="h-12 bg-slate-50 rounded" />)}
               </div>
             ) : recentCompanies.length === 0 ? (
-              <div className="h-32 flex flex-col items-center justify-center text-center text-slate-400">
-                <p className="text-sm">企業はまだありません</p>
+              <div className="h-32 flex flex-col items-center justify-center text-center text-slate-400 gap-2">
+                <p className="text-pretty text-sm">企業はまだありません</p>
+                <Link
+                  to="/companies"
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+                >
+                  企業管理へ
+                </Link>
               </div>
             ) : (
               recentCompanies.map((company) => {
@@ -218,22 +250,22 @@ function Home() {
                 return (
                   <div
                     key={company.id}
-                    className="flex items-center justify-between group p-2 -mx-2 hover:bg-slate-50 rounded-lg transition-colors"
+                    className="flex items-center justify-between group p-2 -mx-2 hover:bg-slate-50 rounded-lg"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
+                      <div className="size-8 rounded bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
                         {company.name.slice(0, 1)}
                       </div>
                       <div>
                         <div className="font-medium text-slate-900 text-sm">{company.name}</div>
-                        <div className="text-xs text-slate-400">{updatedAtLabel}</div>
+                        <div className="text-xs text-slate-400 tabular-nums">{updatedAtLabel}</div>
                       </div>
                     </div>
                     <Link
                       to={`/companies/${company.id}`}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-sky-600 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-sky-600"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </Link>
@@ -245,10 +277,10 @@ function Home() {
           <div className="mt-6 pt-4 border-t border-slate-100">
             <Link
               to="/companies"
-              className="text-sm font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1 transition-colors"
+              className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 hover:text-slate-900"
             >
               全ての企業を表示
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </Link>
@@ -260,3 +292,4 @@ function Home() {
 }
 
 export default Home
+

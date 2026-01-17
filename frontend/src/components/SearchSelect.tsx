@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useFetch } from '../hooks/useApi'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { apiRoutes } from '../lib/apiRoutes'
@@ -36,6 +36,7 @@ function SearchSelect<T extends BaseOption>({
   const [selected, setSelected] = useState<T | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputId = useId()
   const debouncedQuery = useDebouncedValue(query.trim(), 300)
 
   const { data: selectedData } = useFetch<Record<string, T>>(
@@ -77,6 +78,7 @@ function SearchSelect<T extends BaseOption>({
   }, [selected?.id, selectedData, value, responseKey])
 
   useEffect(() => {
+    if (!isOpen) return undefined
     const handleClickOutside = (event: MouseEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) {
         setIsOpen(false)
@@ -84,7 +86,7 @@ function SearchSelect<T extends BaseOption>({
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [isOpen])
 
   const handleClear = () => {
     setQuery('')
@@ -95,9 +97,12 @@ function SearchSelect<T extends BaseOption>({
   return (
     <div ref={containerRef} className="relative">
       {label && (
-        <label className="mb-1 block text-xs font-medium text-slate-600">{label}</label>
+        <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-slate-600">
+          {label}
+        </label>
       )}
       <FormInput
+        id={inputId}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value)
@@ -108,21 +113,22 @@ function SearchSelect<T extends BaseOption>({
         onFocus={() => setIsOpen(true)}
         placeholder={placeholder}
         disabled={disabled}
+        aria-label={label ? undefined : placeholder}
       />
       {value && (
         <button
           type="button"
           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
           onClick={handleClear}
-          aria-label="clear"
+          aria-label="選択をクリア"
         >
-          <CloseIcon className="h-4 w-4" />
+          <CloseIcon className="size-4" />
         </button>
       )}
       {isOpen && (
         <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-lg">
           {isSearching ? (
-            <div className="px-3 py-2 text-xs text-slate-500">検索中...</div>
+            <div className="px-3 py-2 text-xs text-slate-500">検索中…</div>
           ) : options.length === 0 ? (
             <div className="px-3 py-2 text-xs text-slate-500">候補がありません</div>
           ) : (

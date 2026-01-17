@@ -19,6 +19,7 @@ import { useListQuery } from '../hooks/useListQuery'
 import { useUrlSync } from '../hooks/useUrlSync'
 import { getAvatarColor, getInitials } from '../utils/string'
 import { apiRoutes } from '../lib/apiRoutes'
+import { cn } from '../lib/cn'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
   COMPANY_STATUS_DEFAULT_OPTIONS,
@@ -75,10 +76,10 @@ function CompaniesFilters({
   return (
     <Card className="p-5">
       <form onSubmit={onSubmit}>
-      <div className="grid gap-3 md:grid-cols-6">
-        <div className="relative md:col-span-2">
+      <div className="grid gap-3 md:grid-cols-7">
+        <div className="relative md:col-span-3">
           <svg
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -92,7 +93,7 @@ function CompaniesFilters({
           </svg>
           <FormInput
             ref={searchInputRef}
-            className="pl-10 pr-3"
+            className="h-11 bg-slate-50/70 pl-10 pr-4"
             placeholder="企業名で検索 (/ で移動)"
             value={filters.q}
             onChange={(event) => {
@@ -143,7 +144,7 @@ function CompaniesFilters({
         </div>
         <button
           type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+          className="h-11 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white  hover:bg-slate-800"
         >
           検索
         </button>
@@ -233,36 +234,66 @@ function CompaniesCreateForm({
   if (!isOpen) return null
 
   return (
-    <div className="animate-fade-up rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">企業を追加</h3>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onToggleChatworkSelector}
-            disabled={!isAdmin}
-            title={!isAdmin ? '管理者のみ' : undefined}
-            className="rounded-full bg-indigo-50 px-3 py-1 text-xs text-indigo-600 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {showChatworkSelector ? '手動入力' : 'Chatworkから追加'}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-400 transition-colors hover:text-slate-600"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">企業を追加</h3>
+          <p className="mt-1 text-xs text-slate-500">Chatwork連携または手動入力で追加できます。</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!showChatworkSelector) {
+                  onToggleChatworkSelector()
+                }
+              }}
+              disabled={!isAdmin}
+              title={!isAdmin ? '管理者のみ利用可能' : undefined}
+              className={cn(
+                'rounded-full px-4 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60',
+                showChatworkSelector
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              )}
+            >
+              Chatworkから追加
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (showChatworkSelector) {
+                  onToggleChatworkSelector()
+                }
+              }}
+              className={cn(
+                'rounded-full px-4 py-1.5 text-xs font-semibold transition',
+                showChatworkSelector
+                  ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-slate-900 text-white'
+              )}
+            >
+              手動入力
+            </button>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          aria-label="閉じる"
+        >
+          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
-      {showChatworkSelector ? (
+      <div className="p-6">
+        {showChatworkSelector ? (
         <div className="space-y-4">
           <div className="relative">
             <svg
-              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -276,8 +307,8 @@ function CompaniesCreateForm({
             </svg>
             <FormInput
               type="text"
-              className="pl-10 pr-3"
-              placeholder="Chatwork Room IDで検索"
+              className="h-11 bg-slate-50/70 pl-10 pr-4"
+              placeholder="Chatwork Room IDまたはルーム名で検索"
               value={roomSearchQuery}
               onChange={(e) => onRoomSearchChange(e.target.value)}
             />
@@ -285,29 +316,47 @@ function CompaniesCreateForm({
           {isLoadingRooms ? (
             <LoadingState className="py-4" message="Chatworkルームを読み込み中..." />
           ) : chatworkRooms.length === 0 ? (
-            <div className="py-4 text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-500">
               Chatworkルームが見つかりません。同期を実行してください。
             </div>
           ) : filteredChatworkRooms.length === 0 ? (
-            <div className="py-4 text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-500">
               「${roomSearchQuery}」に一致するルームが見つかりません。
             </div>
           ) : (
-            <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-3">
-              {filteredChatworkRooms.map((room) => (
-                <button
-                  key={room.id}
-                  type="button"
-                  onClick={() => onRoomSelect(room)}
-                  className="w-full rounded-lg border border-slate-200 p-3 text-left transition-colors hover:border-indigo-300 hover:bg-slate-50"
-                >
-                  <div className="font-medium text-slate-900">{room.name}</div>
-                  {room.description && (
-                    <div className="mt-1 line-clamp-1 text-xs text-slate-500">{room.description}</div>
-                  )}
-                  <div className="mt-1 text-xs text-slate-400">Room ID: {room.roomId}</div>
-                </button>
-              ))}
+            <div className="max-h-72 divide-y divide-slate-200 overflow-y-auto rounded-xl border border-slate-200">
+              {filteredChatworkRooms.map((room) => {
+                const isSelected = selectedRoomId === room.id
+                return (
+                  <button
+                    key={room.id}
+                    type="button"
+                    onClick={() => onRoomSelect(room)}
+                    className={cn(
+                      'group flex w-full items-start justify-between gap-4 px-4 py-3 text-left transition',
+                      isSelected ? 'bg-sky-50/70' : 'bg-white hover:bg-slate-50'
+                    )}
+                  >
+                    <div>
+                      <div className="font-medium text-slate-900">{room.name}</div>
+                      {room.description && (
+                        <div className="mt-1 line-clamp-1 text-xs text-slate-500">{room.description}</div>
+                      )}
+                      <div className="mt-1 text-xs text-slate-400">Room ID: {room.roomId}</div>
+                    </div>
+                    <span
+                      className={cn(
+                        'mt-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                        isSelected
+                          ? 'bg-sky-600 text-white'
+                          : 'bg-slate-100 text-slate-500 group-hover:bg-sky-100 group-hover:text-sky-700'
+                      )}
+                    >
+                      追加
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -372,19 +421,20 @@ function CompaniesCreateForm({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full px-6 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+              className="rounded-full px-6 py-2 text-sm font-semibold text-slate-600  hover:bg-slate-100"
             >
               キャンセル
             </button>
             <button
               type="submit"
-              className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-700"
+              className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white  hover:bg-sky-700"
             >
               登録
             </button>
           </div>
         </form>
       )}
+      </div>
     </div>
   )
 }
@@ -404,7 +454,7 @@ function CompaniesTable({ companies, isLoading, canWrite, onOpenCreateForm }: Co
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
-        <thead className="bg-slate-50/80 text-left text-xs uppercase tracking-wider text-slate-500">
+        <thead className="bg-slate-50/80 text-left text-xs uppercase r text-slate-500">
           <tr>
             <th className="px-5 py-3">企業名</th>
             <th className="px-5 py-3">区分</th>
@@ -419,7 +469,7 @@ function CompaniesTable({ companies, isLoading, canWrite, onOpenCreateForm }: Co
               <td colSpan={5} className="px-5 py-12 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <svg
-                    className="h-12 w-12 text-slate-300"
+                    className="size-12 text-slate-300"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -435,8 +485,11 @@ function CompaniesTable({ companies, isLoading, canWrite, onOpenCreateForm }: Co
                   {canWrite && (
                     <button
                       onClick={onOpenCreateForm}
-                      className="mt-2 text-sm text-sky-600 hover:text-sky-700"
+                      className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                     >
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
                       企業を追加
                     </button>
                   )}
@@ -445,11 +498,14 @@ function CompaniesTable({ companies, isLoading, canWrite, onOpenCreateForm }: Co
             </tr>
           ) : (
             companies.map((company) => (
-              <tr key={company.id} className="group transition-colors hover:bg-slate-50/80">
+              <tr key={company.id} className="group  hover:bg-slate-50/80">
                 <td className="px-5 py-4">
                   <Link to={`/companies/${company.id}`} className="flex items-center gap-3">
                     <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${getAvatarColor(company.name)}`}
+                      className={cn(
+                        'flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
+                        getAvatarColor(company.name)
+                      )}
                     >
                       {getInitials(company.name)}
                     </div>
@@ -718,11 +774,11 @@ function Companies() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4 ">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Company</p>
+          <p className="text-sm uppercase  text-slate-400">Company</p>
           <h2 className="text-3xl font-bold text-slate-900">企業一覧</h2>
         </div>
         <div className="flex items-center gap-3">
@@ -732,9 +788,9 @@ function Companies() {
           {canWrite && (
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               企業を追加

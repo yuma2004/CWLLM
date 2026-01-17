@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { cn } from '../../lib/cn'
 
 type ActiveFiltersProps = {
   isActive: boolean
@@ -15,9 +16,7 @@ const ActiveFilters = ({
 
   return (
     <div
-      className={['mt-4 flex flex-wrap items-center gap-2', className]
-        .filter(Boolean)
-        .join(' ')}
+      className={cn('mt-4 flex flex-wrap items-center gap-2', className)}
     >
       {children}
     </div>

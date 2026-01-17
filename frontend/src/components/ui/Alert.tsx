@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import CloseIcon from './CloseIcon'
+import { cn } from '../../lib/cn'
 
 export type AlertVariant = 'error' | 'success' | 'warning' | 'info'
 
@@ -58,14 +59,12 @@ const Alert = ({ variant, message, onClose, className, children }: AlertProps) =
 
   return (
     <div
-      className={[
+      className={cn(
         'flex items-start justify-between gap-3 rounded-xl px-4 py-3 text-sm',
         styles.bg,
         styles.text,
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+        className
+      )}
       role="alert"
       aria-live="polite"
     >
@@ -75,9 +74,9 @@ const Alert = ({ variant, message, onClose, className, children }: AlertProps) =
           type="button"
           onClick={handleClose}
           className={styles.button}
-          aria-label="閉じる"
+          aria-label="閉じめE"
         >
-          <CloseIcon className="h-4 w-4" />
+          <CloseIcon className="size-4" />
         </button>
       )}
     </div>

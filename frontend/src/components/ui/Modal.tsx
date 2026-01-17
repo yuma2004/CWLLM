@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import CloseIcon from './CloseIcon'
+import { cn } from '../../lib/cn'
 
 type ModalProps = {
   isOpen: boolean
@@ -22,19 +23,6 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
         'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
       )
     ).filter((element) => element.tabIndex >= 0 && !element.hasAttribute('disabled'))
-
-  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) {
-      onClose()
-    }
-  }
-
-  const handleBackdropKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      onClose()
-    }
-  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -102,18 +90,18 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
   if (!isOpen) return null
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-      role="button"
-      tabIndex={0}
-      aria-label="close modal"
-      onClick={handleBackdropClick}
-      onKeyDown={handleBackdropKeyDown}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 overscroll-contain safe-area-top safe-area-bottom">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50 border-0 p-0"
+        aria-label="閉じる"
+        onClick={onClose}
+      />
       <div
-        className={['w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl', className]
-          .filter(Boolean)
-          .join(' ')}
+        className={cn(
+          'relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl',
+          className
+        )}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? dialogId : undefined}
@@ -128,10 +116,10 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-400 transition-colors hover:text-slate-600"
-              aria-label="close"
+              className="text-slate-400 hover:text-slate-600"
+              aria-label="閉じる"
             >
-              <CloseIcon className="h-4 w-4" />
+              <CloseIcon className="size-4" />
             </button>
           </div>
         )}

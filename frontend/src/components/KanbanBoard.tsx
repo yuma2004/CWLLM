@@ -27,6 +27,7 @@ const columns = ['todo', 'in_progress', 'done', 'cancelled'].map((key) => ({
   key,
   label: statusLabel('task', key),
 }))
+const columnKeys = new Set(columns.map((column) => column.key))
 
 function KanbanBoard({
   tasks,
@@ -47,6 +48,8 @@ function KanbanBoard({
     useSensor(KeyboardSensor)
   )
 
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
+  const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
   const tasksByStatus = useMemo(() => {
     const groups: Record<string, Task[]> = {
       todo: [],
@@ -64,7 +67,7 @@ function KanbanBoard({
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
-    const task = tasks.find((t) => t.id === active.id)
+    const task = tasksById.get(active.id as string)
     if (task) {
       setActiveTask(task)
     }
@@ -77,13 +80,13 @@ function KanbanBoard({
     if (!over || !canWrite) return
 
     const taskId = active.id as string
-    const task = tasks.find((t) => t.id === taskId)
+    const task = tasksById.get(taskId)
     if (!task) return
 
     // ドロップ先のカラムを特定
-    const newStatus = columns.some((col) => col.key === over.id)
-      ? (over.id as string)
-      : null
+
+    const overId = over.id as string
+    const newStatus = columnKeys.has(overId) ? overId : null
 
     // ステータスが変わる場合のみ更新
     if (newStatus && newStatus !== task.status) {
@@ -105,7 +108,7 @@ function KanbanBoard({
             label={column.label}
             tasks={tasksByStatus[column.key] || []}
             canWrite={canWrite}
-            selectedIds={selectedIds}
+            selectedIdSet={selectedIdSet}
             onToggleSelect={onToggleSelect}
             disabled={disabled}
           />
@@ -116,7 +119,7 @@ function KanbanBoard({
           <KanbanCard
             task={activeTask}
             canWrite={canWrite}
-            isSelected={selectedIds.includes(activeTask.id)}
+            isSelected={selectedIdSet.has(activeTask.id)}
             onToggleSelect={() => {}}
             disabled
           />

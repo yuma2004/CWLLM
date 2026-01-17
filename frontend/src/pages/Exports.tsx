@@ -68,9 +68,9 @@ function Exports() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4 ">
       <div>
-        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Export</p>
+        <p className="text-sm uppercase  text-slate-400">Export</p>
         <h2 className="text-3xl font-bold text-slate-900">CSVエクスポート</h2>
       </div>
 

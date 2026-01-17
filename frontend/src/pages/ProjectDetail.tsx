@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
+import Modal from '../components/ui/Modal'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingState from '../components/ui/LoadingState'
@@ -300,7 +301,7 @@ function ProjectDetail() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4 ">
       <nav className="text-xs text-slate-400">
         <Link to="/projects" className="hover:text-slate-600">
           案件一覧
@@ -310,7 +311,7 @@ function ProjectDetail() {
       </nav>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.25em] text-slate-400">案件詳細</p>
+          <p className="text-sm uppercase  text-slate-400">案件詳細</p>
           <h2 className="text-3xl font-bold text-slate-900">{project.name}</h2>
         </div>
         <Link to="/projects" className="text-sm text-slate-500 hover:text-slate-700">
@@ -418,13 +419,13 @@ function ProjectDetail() {
               <button
                 type="button"
                 onClick={handleCancelProjectEdit}
-                className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 "
               >
                 キャンセル
               </button>
               <button
                 type="submit"
-                className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition-colors disabled:bg-sky-300"
+                className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700  disabled:bg-sky-300"
                 disabled={isUpdatingProject}
               >
                 {isUpdatingProject ? '保存中...' : '保存'}
@@ -434,13 +435,13 @@ function ProjectDetail() {
         ) : (
           <dl className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">ステータス</dt>
+              <dt className="text-xs uppercase  text-slate-400">ステータス</dt>
               <dd className="mt-1">
                 <StatusBadge status={project.status ?? '-'} kind="project" />
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">企業</dt>
+              <dt className="text-xs uppercase  text-slate-400">企業</dt>
               <dd className="mt-1 text-slate-800">
                 <Link to={`/companies/${project.companyId}`} className="text-sky-600 hover:text-sky-700 hover:underline">
                   {project.company?.name || project.companyId}
@@ -448,15 +449,15 @@ function ProjectDetail() {
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">単価</dt>
+              <dt className="text-xs uppercase  text-slate-400">単価</dt>
               <dd className="mt-1 text-slate-800">{formatCurrency(project.unitPrice)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">担当者</dt>
+              <dt className="text-xs uppercase  text-slate-400">担当者</dt>
               <dd className="mt-1 text-slate-800">{project.owner?.email || '-'}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">期間</dt>
+              <dt className="text-xs uppercase  text-slate-400">期間</dt>
               <dd className="mt-1 text-slate-800">
                 {project.periodStart || project.periodEnd
                   ? `${formatDate(project.periodStart)} 〜 ${formatDate(project.periodEnd)}`
@@ -464,7 +465,7 @@ function ProjectDetail() {
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">条件</dt>
+              <dt className="text-xs uppercase  text-slate-400">条件</dt>
               <dd className="mt-1 text-slate-800 whitespace-pre-wrap">{project.conditions || '-'}</dd>
             </div>
           </dl>
@@ -481,7 +482,7 @@ function ProjectDetail() {
           {canWrite && (
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition-colors"
+              className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 "
             >
               {showCreateForm ? 'キャンセル' : '+ 卸先を追加'}
             </button>
@@ -562,7 +563,7 @@ function ProjectDetail() {
             <div className="mt-4 flex justify-end">
               <button
                 type="submit"
-                className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition-colors"
+                className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700 "
                 disabled={isCreatingWholesale}
               >
                 {isCreatingWholesale ? '追加中...' : '追加'}
@@ -577,7 +578,7 @@ function ProjectDetail() {
             <EmptyState className="py-8" message="卸先がありません" />
           ) : (
             <table className="min-w-full divide-y divide-slate-100 text-sm">
-              <thead className="bg-slate-50/80 text-left text-xs uppercase tracking-wider text-slate-500">
+              <thead className="bg-slate-50/80 text-left text-xs uppercase r text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">卸先企業</th>
                   <th className="px-4 py-3 font-medium">ステータス</th>
@@ -631,110 +632,96 @@ function ProjectDetail() {
       </div>
 
       {/* 編集モーダル */}
-      {editingWholesale && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          role="button"
-          tabIndex={0}
-          aria-label="close modal"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setEditingWholesale(null)
-            }
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              setEditingWholesale(null)
-            }
-          }}
-        >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">卸情報を編集</h3>
-            <form onSubmit={handleUpdateWholesale}>
-              <div className="space-y-4">
-                <div>
-                  <div className="block text-xs font-medium text-slate-600 mb-1">卸先企業</div>
-                  <div className="text-sm text-slate-800 bg-slate-50 px-3 py-2 rounded-lg">
-                    {editingWholesale.company?.name || editingWholesale.companyId}
-                  </div>
+      <Modal
+        isOpen={Boolean(editingWholesale)}
+        onClose={() => setEditingWholesale(null)}
+        title="卸情報を編集"
+        className="max-w-md"
+      >
+        {editingWholesale && (
+          <form onSubmit={handleUpdateWholesale}>
+            <div className="space-y-4">
+              <div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">卸先企業</div>
+                <div className="text-sm text-slate-800 bg-slate-50 px-3 py-2 rounded-lg">
+                  {editingWholesale.company?.name || editingWholesale.companyId}
                 </div>
-                <div>
-                  <div className="block text-xs font-medium text-slate-600 mb-1">ステータス</div>
-                  <FormSelect
+              </div>
+              <div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">ステータス</div>
+                <FormSelect
+                  className="rounded-lg"
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                >
+                  <option value="active">有効</option>
+                  <option value="paused">停止中</option>
+                  <option value="closed">終了</option>
+                </FormSelect>
+              </div>
+              <div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
+                <div className="flex gap-2">
+                  <FormInput
+                    type="number"
+                    value={editForm.unitPrice}
+                    onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
+                    containerClassName="flex-1"
                     className="rounded-lg"
-                    value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  />
+                  <FormSelect
+                    value={editForm.taxType}
+                    onChange={(e) => setEditForm({ ...editForm, taxType: e.target.value as 'excluded' | 'included' })}
+                    containerClassName="w-24"
+                    className="w-24 rounded-lg"
                   >
-                    <option value="active">有効</option>
-                    <option value="paused">停止中</option>
-                    <option value="closed">終了</option>
+                    <option value="excluded">税抜</option>
+                    <option value="included">税込</option>
                   </FormSelect>
                 </div>
-                <div>
-                  <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
-                  <div className="flex gap-2">
-                    <FormInput
-                      type="number"
-                      value={editForm.unitPrice}
-                      onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
-                      containerClassName="flex-1"
-                      className="rounded-lg"
-                    />
-                    <FormSelect
-                      value={editForm.taxType}
-                      onChange={(e) => setEditForm({ ...editForm, taxType: e.target.value as 'excluded' | 'included' })}
-                      containerClassName="w-24"
-                      className="w-24 rounded-lg"
-                    >
-                      <option value="excluded">税抜</option>
-                      <option value="included">税込</option>
-                    </FormSelect>
-                  </div>
-                </div>
-                <div>
-                  <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
-                  <FormInput
-                    type="date"
-                    value={editForm.agreedDate}
-                    onChange={(e) => setEditForm({ ...editForm, agreedDate: e.target.value })}
-                    className="rounded-lg"
-                  />
-                </div>
-                <div>
-                  <div className="block text-xs font-medium text-slate-600 mb-1">条件・備考</div>
-                  <FormTextarea
-                    rows={3}
-                    value={editForm.conditions}
-                    onChange={(e) => setEditForm({ ...editForm, conditions: e.target.value })}
-                    className="rounded-lg"
-                  />
-                </div>
               </div>
-              {editError && (
-                <div className="mt-3 rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">
-                  {editError}
-                </div>
-              )}
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setEditingWholesale(null)}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  キャンセル
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition-colors"
-                >
-                  保存
-                </button>
+              <div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
+                <FormInput
+                  type="date"
+                  value={editForm.agreedDate}
+                  onChange={(e) => setEditForm({ ...editForm, agreedDate: e.target.value })}
+                  className="rounded-lg"
+                />
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">条件・備考</div>
+                <FormTextarea
+                  rows={3}
+                  value={editForm.conditions}
+                  onChange={(e) => setEditForm({ ...editForm, conditions: e.target.value })}
+                  className="rounded-lg"
+                />
+              </div>
+            </div>
+            {editError && (
+              <div className="mt-3 rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">
+                {editError}
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingWholesale(null)}
+                className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 "
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700 "
+              >
+                保存
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {!canWrite && (
         <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">

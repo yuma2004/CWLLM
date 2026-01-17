@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 type Shortcut = {
   key: string
@@ -30,6 +30,11 @@ const isEditableTarget = (target: EventTarget | null) => {
 
 export function useKeyboardShortcut(shortcuts: Shortcut[], options: ShortcutOptions = {}) {
   const { enabled = true, ignoreInput = true, target } = options
+  const shortcutsRef = useRef(shortcuts)
+
+  useEffect(() => {
+    shortcutsRef.current = shortcuts
+  }, [shortcuts])
 
   useEffect(() => {
     if (!enabled) return undefined
@@ -38,7 +43,7 @@ export function useKeyboardShortcut(shortcuts: Shortcut[], options: ShortcutOpti
     const handleKeyDown = (event: KeyboardEvent) => {
       if (ignoreInput && isEditableTarget(event.target)) return
 
-      shortcuts.forEach((shortcut) => {
+      shortcutsRef.current.forEach((shortcut) => {
         if (shortcut.enabled === false) return
         if (event.key !== shortcut.key) return
         if (shortcut.ctrlKey !== undefined && shortcut.ctrlKey !== event.ctrlKey) return
@@ -55,5 +60,5 @@ export function useKeyboardShortcut(shortcuts: Shortcut[], options: ShortcutOpti
 
     eventTarget.addEventListener('keydown', handleKeyDown as EventListener)
     return () => eventTarget.removeEventListener('keydown', handleKeyDown as EventListener)
-  }, [enabled, ignoreInput, shortcuts, target])
+  }, [enabled, ignoreInput, target])
 }

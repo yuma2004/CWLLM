@@ -1,13 +1,14 @@
 import { useDroppable } from '@dnd-kit/core'
 import KanbanCard from './KanbanCard'
 import { Task } from '../types'
+import { cn } from '../lib/cn'
 
 type KanbanColumnProps = {
   id: string
   label: string
   tasks: Task[]
   canWrite: boolean
-  selectedIds: string[]
+  selectedIdSet: Set<string>
   onToggleSelect: (taskId: string) => void
   disabled?: boolean
 }
@@ -17,7 +18,7 @@ function KanbanColumn({
   label,
   tasks,
   canWrite,
-  selectedIds,
+  selectedIdSet,
   onToggleSelect,
   disabled,
 }: KanbanColumnProps) {
@@ -26,12 +27,13 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-xl border bg-slate-50/50 p-4 shadow-sm transition-colors ${
+      className={cn(
+        'flex flex-col rounded-xl border bg-slate-50/50 p-4 shadow-sm',
         isOver ? 'border-sky-300 bg-sky-50/50' : 'border-slate-200'
-      }`}
+      )}
     >
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+        <span className="text-xs font-semibold uppercase text-slate-600">
           {label}
         </span>
         <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
@@ -45,7 +47,7 @@ function KanbanColumn({
               key={task.id}
               task={task}
               canWrite={canWrite}
-              isSelected={selectedIds.includes(task.id)}
+              isSelected={selectedIdSet.has(task.id)}
               onToggleSelect={() => onToggleSelect(task.id)}
               disabled={disabled}
             />

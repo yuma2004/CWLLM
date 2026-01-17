@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CompanyTasksSection from '../components/CompanyTasksSection'
 import Badge from '../components/ui/Badge'
@@ -16,6 +16,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
+import { cn } from '../lib/cn'
 import {
   ApiListResponse,
   AvailableRoom,
@@ -692,7 +693,7 @@ function CompanyDetail() {
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-up">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Skeleton className="h-12 w-12 rounded-xl" />
@@ -732,9 +733,9 @@ function CompanyDetail() {
                           <button
                             type="button"
                             onClick={() => setShowContactForm(true)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white transition-colors hover:bg-slate-800"
+                            className="flex size-7 items-center justify-center rounded-full bg-slate-900 text-white hover:bg-slate-800"
                           >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
                           </button>
@@ -746,9 +747,10 @@ function CompanyDetail() {
                     {canWrite && (
                       <form
                         onSubmit={handleAddContact}
-                        className={`mb-4 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 ${
-                          showContactForm ? '' : 'pointer-events-none max-h-0 opacity-0 overflow-hidden'
-                        }`}
+                        className={cn(
+                          'mb-4 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4',
+                          showContactForm ? '' : 'pointer-events-none max-h-0 overflow-hidden opacity-0'
+                        )}
                       >
                         <FormInput
                           placeholder="担当者名（必須）"
@@ -833,12 +835,15 @@ function CompanyDetail() {
                           return (
                             <div
                               key={contact.id}
-                              className="rounded-lg border border-slate-100 bg-white p-3 transition-colors hover:border-slate-200"
+                              className="rounded-lg border border-slate-100 bg-white p-3 hover:border-slate-200"
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-start gap-3">
                                   <div
-                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${getAvatarColor(contact.name)}`}
+                                    className={cn(
+                                      'flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
+                                      getAvatarColor(contact.name)
+                                    )}
                                   >
                                     {getInitials(contact.name)}
                                   </div>
@@ -925,7 +930,7 @@ function CompanyDetail() {
                                           disabled={index === 0 || isReorderWorking}
                                           className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
                                         >
-                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                                           </svg>
                                         </button>
@@ -935,7 +940,7 @@ function CompanyDetail() {
                                           disabled={index === contacts.length - 1 || isReorderWorking}
                                           className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
                                         >
-                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                           </svg>
                                         </button>
@@ -986,72 +991,6 @@ function CompanyDetail() {
                         })
                       )}
                     </div>
-                  </div>
-  )
-
-  const CompanyChatworkSection = () => (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="font-medium text-slate-900">Chatworkルーム</h4>
-                      <span className="text-xs text-slate-500">{linkedRooms.length}件</span>
-                    </div>
-                    {roomErrorMessage && <ErrorAlert message={roomErrorMessage} className="mb-3" />}
-                    <div className="flex flex-wrap gap-2">
-                      {linkedRooms.length === 0 ? (
-                        <span className="text-sm text-slate-500">ルームが紐づいていません</span>
-                      ) : (
-                        linkedRooms.map((room) => (
-                          <div
-                            key={room.id}
-                            className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm shadow-sm"
-                          >
-                            <span className="text-slate-700">{room.name}</span>
-                            {canWrite && (
-                              <button
-                                onClick={() => handleRemoveRoom(room.roomId)}
-                                className="text-slate-400 hover:text-rose-600"
-                              >
-                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    {canManageChatwork ? (
-                      <form onSubmit={handleAddRoom} className="mt-3 flex gap-2">
-                        <FormSelect
-                          value={roomInput}
-                          onChange={(e) => setRoomInput(e.target.value)}
-                          containerClassName="min-w-0 flex-1"
-                          className="rounded-lg py-1.5 text-sm"
-                        >
-                          <option value="">ルームを追加...</option>
-                          {isLoadingRooms ? (
-                            <option disabled>読み込み中...</option>
-                          ) : (
-                            availableRooms.map((room) => (
-                              <option key={room.id} value={room.roomId}>
-                                {room.name}
-                              </option>
-                            ))
-                          )}
-                        </FormSelect>
-                        <button
-                          type="submit"
-                          disabled={!roomInput}
-                          className="rounded-lg bg-slate-900 px-4 py-1.5 text-sm font-medium text-white disabled:bg-slate-300"
-                        >
-                          追加
-                        </button>
-                      </form>
-                    ) : canWrite ? (
-                      <div className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
-                        ルームの追加は管理者のみ可能です。
-                      </div>
-                    ) : null}
                   </div>
   )
 
@@ -1383,8 +1322,7 @@ function CompanyDetail() {
   )
 
   const CompanyTimelineTab = () => (
-                <div className="space-y-6">
-                  <CompanyChatworkSection />
+                <div className="space-y-4">
 
                   {/* Message Filters */}
                   <div className="flex flex-wrap items-center gap-2">
@@ -1445,7 +1383,7 @@ function CompanyDetail() {
                       メッセージがありません
                     </div>
                   ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       {Array.from(groupedMessages.entries()).map(([dateLabel, msgs]) => (
                         <div key={dateLabel}>
                           <div className="mb-3 flex items-center gap-3">
@@ -1547,7 +1485,7 @@ function CompanyDetail() {
   const CompanyTasksTab = () => (id ? <CompanyTasksSection companyId={id} canWrite={canWrite} /> : null)
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-4">
       <nav className="text-xs text-slate-400">
         <Link to="/companies" className="hover:text-slate-600">
           企業一覧
@@ -1559,12 +1497,15 @@ function CompanyDetail() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white ${getAvatarColor(company.name)}`}
+            className={cn(
+              'flex size-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white',
+              getAvatarColor(company.name)
+            )}
           >
             {getInitials(company.name)}
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Company</p>
+            <p className="text-xs uppercase  text-slate-400">Company</p>
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold text-slate-900">{company.name}</h2>
               <StatusBadge status={company.status} />
@@ -1573,9 +1514,9 @@ function CompanyDetail() {
         </div>
         <Link
           to="/companies"
-          className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
+          className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm  hover:bg-slate-50"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           一覧に戻る
@@ -1624,7 +1565,7 @@ function CompanyDetail() {
           message={toast.message}
           variant={toast.variant || 'success'}
           onClose={clearToast}
-          className="fixed bottom-6 right-6 z-50"
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
         />
       )}
     </div>

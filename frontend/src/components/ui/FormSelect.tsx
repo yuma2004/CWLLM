@@ -1,4 +1,5 @@
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
+import { cn } from '../../lib/cn'
 
 type FormSelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
   label?: string
@@ -11,8 +12,9 @@ const BASE_CLASS =
 
 const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
   ({ label, hint, className, containerClassName, id, children, ...props }, ref) => {
-    const selectClassName = [BASE_CLASS, className].filter(Boolean).join(' ')
-    const selectId = id ?? (label ? `form-select-${label}` : undefined)
+    const generatedId = useId()
+    const selectClassName = cn(BASE_CLASS, className)
+    const selectId = id ?? (label ? generatedId : undefined)
 
     return (
       <div className={containerClassName}>

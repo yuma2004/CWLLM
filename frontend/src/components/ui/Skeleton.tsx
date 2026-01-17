@@ -1,23 +1,22 @@
+import { cn } from '../../lib/cn'
+
 interface SkeletonProps {
   className?: string
 }
 
 export function Skeleton({ className = '' }: SkeletonProps) {
   return (
-    <div
-      className={`animate-pulse rounded bg-slate-200 ${className}`}
-      aria-hidden="true"
-    />
+    <div className={cn('rounded bg-slate-200', className)} aria-hidden="true" />
   )
 }
 
 export function SkeletonText({ lines = 1, className = '' }: { lines?: number; className?: string }) {
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={cn('space-y-2', className)}>
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
           key={i}
-          className={`h-4 ${i === lines - 1 && lines > 1 ? 'w-3/4' : 'w-full'}`}
+          className={cn('h-4', i === lines - 1 && lines > 1 ? 'w-3/4' : 'w-full')}
         />
       ))}
     </div>
@@ -26,11 +25,11 @@ export function SkeletonText({ lines = 1, className = '' }: { lines?: number; cl
 
 export function SkeletonAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const sizeClasses = {
-    sm: 'h-8 w-8',
-    md: 'h-10 w-10',
-    lg: 'h-12 w-12',
+    sm: 'size-8',
+    md: 'size-10',
+    lg: 'size-12',
   }
-  return <Skeleton className={`${sizeClasses[size]} rounded-full`} />
+  return <Skeleton className={cn(sizeClasses[size], 'rounded-full')} />
 }
 
 export function SkeletonTableRow({ columns = 5 }: { columns?: number }) {
@@ -38,7 +37,7 @@ export function SkeletonTableRow({ columns = 5 }: { columns?: number }) {
     <tr className="border-b border-slate-100">
       {Array.from({ length: columns }).map((_, i) => (
         <td key={i} className="px-4 py-3">
-          <Skeleton className={`h-4 ${i === 0 ? 'w-32' : 'w-20'}`} />
+          <Skeleton className={cn('h-4', i === 0 ? 'w-32' : 'w-20')} />
         </td>
       ))}
     </tr>
@@ -70,7 +69,7 @@ export function SkeletonTable({ rows = 5, columns = 5 }: { rows?: number; column
 
 export function SkeletonCard({ className = '' }: { className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white p-4 ${className}`}>
+    <div className={cn('rounded-xl border border-slate-200 bg-white p-4', className)}>
       <div className="flex items-start gap-3">
         <SkeletonAvatar size="sm" />
         <div className="flex-1 space-y-2">

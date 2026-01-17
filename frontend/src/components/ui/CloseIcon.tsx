@@ -2,7 +2,7 @@ import type { SVGProps } from 'react'
 
 type CloseIconProps = SVGProps<SVGSVGElement>
 
-const CloseIcon = ({ className = 'h-4 w-4', ...props }: CloseIconProps) => (
+const CloseIcon = ({ className = 'size-4', ...props }: CloseIconProps) => (
   <svg
     className={className}
     fill="none"
