@@ -5,16 +5,45 @@ type FormSelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
   label?: string
   hint?: string
   containerClassName?: string
+  noContainer?: boolean
 }
 
 const BASE_CLASS =
   'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400'
 
 const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
-  ({ label, hint, className, containerClassName, id, children, ...props }, ref) => {
+  (
+    {
+      label,
+      hint,
+      className,
+      containerClassName,
+      id,
+      noContainer,
+      children,
+      'aria-label': ariaLabelProp,
+      ...props
+    },
+    ref
+  ) => {
     const generatedId = useId()
     const selectClassName = cn(BASE_CLASS, className)
     const selectId = id ?? (label ? generatedId : undefined)
+    const ariaLabel = ariaLabelProp ?? (label ? undefined : undefined)
+
+    if (noContainer) {
+      return (
+        <select
+          ref={ref}
+          id={selectId}
+          className={selectClassName}
+          aria-label={ariaLabel}
+          {...props}
+        >
+          {children}
+        </select>
+      )
+    }
 
     return (
       <div className={containerClassName}>
@@ -23,7 +52,7 @@ const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
             {label}
           </label>
         )}
-        <select ref={ref} id={selectId} className={selectClassName} {...props}>
+        <select ref={ref} id={selectId} className={selectClassName} aria-label={ariaLabel} {...props}>
           {children}
         </select>
         {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}

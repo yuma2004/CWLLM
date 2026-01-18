@@ -1,412 +1,33 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePermissions } from '../hooks/usePermissions'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
-import EmptyState from '../components/ui/EmptyState'
-import ActiveFilters from '../components/ui/ActiveFilters'
-import FilterBadge from '../components/ui/FilterBadge'
+import SuccessAlert from '../components/ui/SuccessAlert'
+import Button from '../components/ui/Button'
 import FormInput from '../components/ui/FormInput'
-import FormSelect from '../components/ui/FormSelect'
+import FormTextarea from '../components/ui/FormTextarea'
 import Card from '../components/ui/Card'
-import StatusBadge from '../components/ui/StatusBadge'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
-import KanbanBoard from '../components/KanbanBoard'
+import { CompanySearchSelect } from '../components/SearchSelect'
+import { TaskFilters } from '../components/tasks/TaskFilters'
+import { TaskTable } from '../components/tasks/TaskTable'
+import { TaskKanban } from '../components/tasks/TaskKanban'
+import { TaskBulkActions } from '../components/tasks/TaskBulkActions'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useListQuery } from '../hooks/useListQuery'
 import { useUrlSync } from '../hooks/useUrlSync'
-import { formatDate, formatDateInput } from '../utils/date'
+import { toErrorMessage } from '../utils/errorState'
 import { cn } from '../lib/cn'
-import { getTargetPath } from '../utils/routes'
 import type { ApiListResponse, Task, TasksFilters } from '../types'
 import { apiRoutes } from '../lib/apiRoutes'
-import {
-  TASK_STATUS_OPTIONS,
-  TARGET_TYPE_OPTIONS,
-  statusLabel,
-  targetTypeLabel,
-} from '../constants/labels'
 
 const defaultFilters: TasksFilters = {
   status: '',
   targetType: '',
   dueFrom: '',
   dueTo: '',
-}
-
-type TasksFiltersProps = {
-  filters: TasksFilters
-  onFiltersChange: (next: TasksFilters) => void
-  onSubmit: (event: React.FormEvent) => void
-  hasActiveFilters: boolean
-  onClearFilter: (key: keyof TasksFilters) => void
-  onClearAll: () => void
-  searchInputRef: React.RefObject<HTMLSelectElement>
-}
-
-function TasksFilters({
-  filters,
-  onFiltersChange,
-  onSubmit,
-  hasActiveFilters,
-  onClearFilter,
-  onClearAll,
-  searchInputRef,
-}: TasksFiltersProps) {
-  return (
-    <Card className="p-5">
-      <form onSubmit={onSubmit}>
-      <div className="grid gap-3 md:grid-cols-5">
-        <FormSelect
-          ref={searchInputRef}
-          value={filters.status}
-          onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
-        >
-          <option value="">ステータス</option>
-          {TASK_STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status}>
-              {statusLabel('task', status)}
-            </option>
-          ))}
-        </FormSelect>
-        <FormSelect
-          value={filters.targetType}
-          onChange={(e) => onFiltersChange({ ...filters, targetType: e.target.value })}
-        >
-          <option value="">対象</option>
-          {TARGET_TYPE_OPTIONS.map((type) => (
-            <option key={type} value={type}>
-              {targetTypeLabel(type)}
-            </option>
-          ))}
-        </FormSelect>
-        <FormInput
-          type="date"
-          value={filters.dueFrom}
-          onChange={(e) => onFiltersChange({ ...filters, dueFrom: e.target.value })}
-          placeholder="期限(開始)"
-        />
-        <FormInput
-          type="date"
-          value={filters.dueTo}
-          onChange={(e) => onFiltersChange({ ...filters, dueTo: e.target.value })}
-          placeholder="期限(終了)"
-        />
-        <button
-          type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
-        >
-          検索
-        </button>
-      </div>
-
-      {/* Active Filters */}
-      <ActiveFilters isActive={hasActiveFilters}>
-          <span className="text-xs text-slate-500">絞り込み:</span>
-          {filters.status && (
-            <FilterBadge
-              label={`ステータス: ${statusLabel('task', filters.status)}`}
-              onRemove={() => onClearFilter('status')}
-            />
-          )}
-          {filters.targetType && (
-            <FilterBadge
-              label={`対象: ${targetTypeLabel(filters.targetType)}`}
-              onRemove={() => onClearFilter('targetType')}
-            />
-          )}
-          {filters.dueFrom && (
-            <FilterBadge
-              label={`期限(開始): ${filters.dueFrom}`}
-              onRemove={() => onClearFilter('dueFrom')}
-            />
-          )}
-          {filters.dueTo && (
-            <FilterBadge
-              label={`期限(終了): ${filters.dueTo}`}
-              onRemove={() => onClearFilter('dueTo')}
-            />
-          )}
-          <button
-            type="button"
-            onClick={onClearAll}
-            className="text-xs text-rose-600 hover:text-rose-700"
-          >
-            すべて解除
-          </button>
-      </ActiveFilters>
-      </form>
-    </Card>
-  )
-}
-
-type TasksBulkActionsProps = {
-  selectedIds: string[]
-  allSelected: boolean
-  onToggleSelectAll: () => void
-  bulkStatus: string
-  onBulkStatusChange: (value: string) => void
-  bulkDueDate: string
-  onBulkDueDateChange: (value: string) => void
-  clearBulkDueDate: boolean
-  onClearBulkDueDateChange: (value: boolean) => void
-  onBulkUpdate: () => void
-  isBulkUpdating: boolean
-}
-
-function TasksBulkActions({
-  selectedIds,
-  allSelected,
-  onToggleSelectAll,
-  bulkStatus,
-  onBulkStatusChange,
-  bulkDueDate,
-  onBulkDueDateChange,
-  clearBulkDueDate,
-  onClearBulkDueDateChange,
-  onBulkUpdate,
-  isBulkUpdating,
-}: TasksBulkActionsProps) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={onToggleSelectAll}
-            className="rounded border-slate-300"
-            disabled={isBulkUpdating}
-          />
-          全選択
-        </label>
-        <span>{selectedIds.length}件選択中</span>
-        <FormSelect value={bulkStatus} onChange={(e) => onBulkStatusChange(e.target.value)}>
-          <option value="">ステータス</option>
-          {TASK_STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status}>
-              {statusLabel('task', status)}
-            </option>
-          ))}
-        </FormSelect>
-        <FormInput
-          type="date"
-          value={bulkDueDate}
-          onChange={(e) => onBulkDueDateChange(e.target.value)}
-          placeholder="期限"
-          disabled={clearBulkDueDate}
-        />
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={clearBulkDueDate}
-            onChange={(e) => onClearBulkDueDateChange(e.target.checked)}
-            className="rounded border-slate-300"
-          />
-          期限をクリア
-        </label>
-        <button
-          type="button"
-          onClick={onBulkUpdate}
-          disabled={isBulkUpdating || selectedIds.length === 0}
-          className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white disabled:bg-slate-300"
-        >
-          一括更新
-        </button>
-      </div>
-    </div>
-  )
-}
-
-type TasksTableProps = {
-  tasks: Task[]
-  selectedIds: string[]
-  allSelected: boolean
-  onToggleSelectAll: () => void
-  onToggleSelected: (taskId: string) => void
-  onStatusChange: (taskId: string, status: string) => void
-  onDueDateChange: (taskId: string, dueDate: string) => void
-  onDelete: (task: Task) => void
-  canWrite: boolean
-  isBulkUpdating: boolean
-}
-
-function TasksTable({
-  tasks,
-  selectedIds,
-  allSelected,
-  onToggleSelectAll,
-  onToggleSelected,
-  onStatusChange,
-  onDueDateChange,
-  onDelete,
-  canWrite,
-  isBulkUpdating,
-}: TasksTableProps) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full divide-y divide-slate-100 text-sm">
-        <thead className="bg-slate-50/80 text-left text-xs uppercase r text-slate-500">
-          <tr>
-            <th className="px-4 py-3">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={onToggleSelectAll}
-                className="rounded border-slate-300"
-                disabled={isBulkUpdating}
-              />
-            </th>
-            <th className="px-4 py-3">タイトル</th>
-            <th className="px-4 py-3">ステータス</th>
-            <th className="px-4 py-3">対象</th>
-            <th className="px-4 py-3">期限</th>
-            <th className="px-4 py-3">操作</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100 bg-white">
-          {tasks.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="px-5 py-12 text-center">
-                <EmptyState
-                  message="タスクが見つかりません"
-                  icon={
-                    <svg
-                      className="size-12 text-slate-300"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1}
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                      />
-                    </svg>
-                  }
-                />
-              </td>
-            </tr>
-          ) : (
-            tasks.map((task) => (
-              <tr key={task.id} className="group  hover:bg-slate-50/80">
-                <td className="px-4 py-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(task.id)}
-                    onChange={() => onToggleSelected(task.id)}
-                    className="rounded border-slate-300"
-                    disabled={isBulkUpdating}
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <div>
-                    <Link
-                      to={`/tasks/${task.id}`}
-                      className="font-semibold text-slate-900 hover:text-sky-600"
-                    >
-                      {task.title}
-                    </Link>
-                    {task.description && (
-                      <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">
-                        {task.description}
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  {canWrite ? (
-                    <FormSelect
-                      className="w-auto rounded-full px-3 py-1 text-xs"
-                      value={task.status}
-                      onChange={(e) => onStatusChange(task.id, e.target.value)}
-                    >
-                      {TASK_STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {statusLabel('task', status)}
-                        </option>
-                      ))}
-                    </FormSelect>
-                  ) : (
-                    <StatusBadge status={task.status} kind="task" size="sm" />
-                  )}
-                </td>
-                <td className="px-4 py-4">
-                  <Link
-                    to={getTargetPath(task.targetType, task.targetId)}
-                    className="inline-flex flex-col items-start gap-1 text-slate-600 hover:text-sky-600"
-                  >
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">
-                      {targetTypeLabel(task.targetType)}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {task.target?.name || task.targetId}
-                    </span>
-                  </Link>
-                </td>
-                <td className="px-4 py-4 text-slate-600">
-                  {canWrite ? (
-                    <FormInput
-                      type="date"
-                      className="w-auto rounded border border-slate-200 px-2 py-1 text-xs"
-                      value={task.dueDate ? formatDateInput(task.dueDate) : ''}
-                      onChange={(e) => onDueDateChange(task.id, e.target.value)}
-                    />
-                  ) : (
-                    formatDate(task.dueDate)
-                  )}
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-2">
-                    <Link
-                      to={getTargetPath(task.targetType, task.targetId)}
-                      className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                    >
-                      隧ｳ邏ｰ
-                    </Link>
-                    {canWrite && (
-                      <button
-                        type="button"
-                        onClick={() => onDelete(task)}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                      >
-                        蜑企勁
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-type TasksKanbanProps = {
-  tasks: Task[]
-  canWrite: boolean
-  selectedIds: string[]
-  onToggleSelect: (taskId: string) => void
-  onStatusChange: (taskId: string, status: string) => Promise<void>
-  disabled: boolean
-}
-
-function TasksKanban({ tasks, canWrite, selectedIds, onToggleSelect, onStatusChange, disabled }: TasksKanbanProps) {
-  return (
-    <KanbanBoard
-      tasks={tasks}
-      canWrite={canWrite}
-      selectedIds={selectedIds}
-      onToggleSelect={onToggleSelect}
-      onStatusChange={onStatusChange}
-      disabled={disabled}
-    />
-  )
 }
 
 function Tasks() {
@@ -437,6 +58,14 @@ function Tasks() {
   const [bulkDueDate, setBulkDueDate] = useState('')
   const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
+  const [createForm, setCreateForm] = useState({
+    title: '',
+    description: '',
+    dueDate: '',
+    companyId: '',
+  })
+  const [createError, setCreateError] = useState('')
+  const [createSuccess, setCreateSuccess] = useState('')
 
   const queryString = useListQuery(filters, pagination)
 
@@ -455,6 +84,17 @@ function Tasks() {
       setPagination((prev) => ({ ...prev, ...data.pagination }))
     },
   })
+
+  const { mutate: createTask, isLoading: isCreating } = useMutation<
+    Task,
+    {
+      targetType: string
+      targetId: string
+      title: string
+      description?: string
+      dueDate?: string
+    }
+  >(apiRoutes.tasks.base(), 'POST')
 
   const { mutate: updateTaskStatus } = useMutation<Task, { status: string }>(
     apiRoutes.tasks.base(),
@@ -564,6 +204,39 @@ function Tasks() {
     }
   }
 
+  const handleCreateTask = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setCreateError('')
+    setCreateSuccess('')
+
+    if (!createForm.title.trim()) {
+      setCreateError('タスクタイトルを入力してください')
+      return
+    }
+    if (!createForm.companyId) {
+      setCreateError('紐づける企業を選択してください')
+      return
+    }
+
+    try {
+      await createTask(
+        {
+          targetType: 'company',
+          targetId: createForm.companyId,
+          title: createForm.title.trim(),
+          description: createForm.description.trim() || undefined,
+          dueDate: createForm.dueDate || undefined,
+        },
+        { errorMessage: 'タスクの作成に失敗しました' }
+      )
+      setCreateSuccess('タスクを作成しました')
+      setCreateForm((prev) => ({ ...prev, title: '', description: '', dueDate: '' }))
+      void refetchTasks()
+    } catch (err) {
+      setCreateError(toErrorMessage(err, 'タスクの作成に失敗しました'))
+    }
+  }
+
   const handleBulkUpdate = async () => {
     if (!canWrite) return
     if (selectedIds.length === 0) {
@@ -626,6 +299,8 @@ function Tasks() {
     )
   }
 
+  const canSubmitCreate = Boolean(createForm.title.trim() && createForm.companyId)
+
 
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage)
@@ -683,8 +358,80 @@ function Tasks() {
         </div>
       </div>
 
+      {canWrite && (
+        <Card
+          title="タスク作成"
+          description="タスク管理から企業に紐づけて追加できます。"
+        >
+          <form onSubmit={handleCreateTask} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <FormInput
+                label="タスクタイトル"
+                value={createForm.title}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, title: event.target.value }))
+                }
+                placeholder="対応内容を入力"
+                disabled={isCreating}
+                containerClassName="md:col-span-2"
+              />
+              <CompanySearchSelect
+                label="紐づける企業"
+                value={createForm.companyId}
+                onChange={(companyId) =>
+                  setCreateForm((prev) => ({ ...prev, companyId }))
+                }
+                placeholder="企業名で検索"
+                disabled={isCreating}
+              />
+              <FormTextarea
+                label="詳細"
+                rows={3}
+                value={createForm.description}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, description: event.target.value }))
+                }
+                placeholder="背景や補足メモ"
+                disabled={isCreating}
+                containerClassName="md:col-span-2"
+              />
+              <FormInput
+                label="期限"
+                type="date"
+                value={createForm.dueDate}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, dueDate: event.target.value }))
+                }
+                disabled={isCreating}
+              />
+            </div>
+
+            {createError && (
+              <ErrorAlert message={createError} onClose={() => setCreateError('')} />
+            )}
+            {createSuccess && (
+              <SuccessAlert
+                message={createSuccess}
+                onClose={() => setCreateSuccess('')}
+              />
+            )}
+
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                isLoading={isCreating}
+                loadingLabel="作成中..."
+                disabled={!canSubmitCreate}
+              >
+                タスクを作成
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
       {/* Search & Filter */}
-      <TasksFilters
+      <TaskFilters
         filters={filters}
         onFiltersChange={setFilters}
         onSubmit={handleSearchSubmit}
@@ -695,7 +442,7 @@ function Tasks() {
       />
 
       {canWrite && tasks.length > 0 && (
-        <TasksBulkActions
+        <TaskBulkActions
           selectedIds={selectedIds}
           allSelected={allSelected}
           onToggleSelectAll={toggleSelectAll}
@@ -736,7 +483,7 @@ function Tasks() {
       {isLoadingTasks ? (
         <SkeletonTable rows={5} columns={6} />
       ) : viewMode === 'list' ? (
-        <TasksTable
+        <TaskTable
           tasks={tasks}
           selectedIds={selectedIds}
           allSelected={allSelected}
@@ -749,7 +496,7 @@ function Tasks() {
           isBulkUpdating={isBulkUpdating}
         />
       ) : (
-        <TasksKanban
+        <TaskKanban
           tasks={tasks}
           canWrite={canWrite}
           selectedIds={selectedIds}
@@ -779,12 +526,3 @@ function Tasks() {
 }
 
 export default Tasks
-
-
-
-
-
-
-
-
-

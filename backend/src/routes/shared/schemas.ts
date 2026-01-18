@@ -18,3 +18,25 @@ export const apiErrorSchema = z.object({
     details: z.unknown().optional(),
   }),
 })
+
+// Shared query schemas for reuse across routes
+
+/** Common pagination query parameters (page, pageSize as strings for query params) */
+export const paginationQuerySchema = z.object({
+  page: z.string().optional(),
+  pageSize: z.string().optional(),
+})
+
+/** Common ID parameter for route params */
+export const idParamsSchema = z.object({ id: z.string().min(1) })
+
+/** Common timestamps schema for entities */
+export const timestampsSchema = z.object({
+  createdAt: dateSchema.optional(),
+  updatedAt: dateSchema.optional(),
+})
+
+/** Common sort query parameter */
+export const sortQuerySchema = z.object({
+  sort: z.string().optional(),
+})

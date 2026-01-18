@@ -17,14 +17,7 @@ import { useFetch, useMutation } from '../hooks/useApi'
 import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
 import { cn } from '../lib/cn'
-import {
-  ApiListResponse,
-  AvailableRoom,
-  Company,
-  Contact,
-  LinkedRoom,
-  MessageItem,
-} from '../types'
+import { ApiListResponse, Company, Contact, MessageItem } from '../types'
 import { formatDateGroup } from '../utils/date'
 import { toErrorMessage } from '../utils/errorState'
 import { getAvatarColor, getInitials } from '../utils/string'
@@ -68,8 +61,7 @@ const highlightText = (text: string, keyword: string) => {
 
 function CompanyDetail() {
   const { id } = useParams<{ id: string }>()
-  const { canWrite, isAdmin } = usePermissions()
-  const canManageChatwork = isAdmin
+  const { canWrite } = usePermissions()
   const [company, setCompany] = useState<Company | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [contactError, setContactError] = useState('')
@@ -81,9 +73,6 @@ function CompanyDetail() {
   const [messageLabel, setMessageLabel] = useState('')
   const [messageError, setMessageError] = useState('')
   const labelInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const [linkedRooms, setLinkedRooms] = useState<LinkedRoom[]>([])
-  const [roomInput, setRoomInput] = useState('')
-  const [roomError, setRoomError] = useState('')
   const [showContactForm, setShowContactForm] = useState(false)
   const hasOpenedContactForm = useRef(false)
   const [isEditingTags, setIsEditingTags] = useState(false)
@@ -222,30 +211,6 @@ function CompanyDetail() {
     onError: setMessageError,
   })
 
-  const { error: linkedRoomsFetchError, refetch: refetchLinkedRooms } = useFetch<{
-    rooms: LinkedRoom[]
-  }>(id ? apiRoutes.companies.chatworkRooms(id) : null, {
-    enabled: Boolean(id),
-    errorMessage: NETWORK_ERROR_MESSAGE,
-    onSuccess: (data) => setLinkedRooms(data.rooms ?? []),
-    onError: setRoomError,
-  })
-
-  const {
-    data: availableRoomsData,
-    isLoading: isLoadingRooms,
-    error: availableRoomsFetchError,
-  } = useFetch<{ rooms: AvailableRoom[] }>(apiRoutes.chatwork.rooms(), {
-    enabled: canManageChatwork,
-    errorMessage: 'Chatworkルーム一覧の取得に失敗しました。管理者権限が必要な場合があります。',
-  })
-
-  const availableRooms = useMemo(() => {
-    const rooms = availableRoomsData?.rooms ?? []
-    if (rooms.length === 0) return []
-    const linkedRoomIds = new Set(linkedRooms.map((room) => room.roomId))
-    return rooms.filter((room) => !linkedRoomIds.has(room.roomId))
-  }, [availableRoomsData, linkedRooms])
 
   const { data: companyOptionsData } = useFetch<{
     categories: string[]
@@ -313,16 +278,6 @@ function CompanyDetail() {
     { tags?: string[]; profile?: string | null; category?: string | null; status?: string }
   >(id ? apiRoutes.companies.detail(id) : '', 'PATCH')
 
-  const { mutate: addRoom } = useMutation<unknown, { roomId: string }>(
-    id ? apiRoutes.companies.chatworkRooms(id) : '',
-    'POST'
-  )
-
-  const { mutate: removeRoom } = useMutation<unknown, void>(
-    id ? apiRoutes.companies.chatworkRooms(id) : '',
-    'DELETE'
-  )
-
   const { mutate: addLabel } = useMutation<unknown, { label: string }>(
     apiRoutes.messages.base(),
     'POST'
@@ -332,7 +287,6 @@ function CompanyDetail() {
 
   const isLoading = isLoadingCompany || isLoadingContacts
   const pageError = companyFetchError || contactsFetchError
-  const roomErrorMessage = roomError || linkedRoomsFetchError || availableRoomsFetchError
 
   useEffect(() => {
     if (!hasOpenedContactForm.current && canWrite && contacts.length === 0) {
@@ -618,37 +572,7 @@ function CompanyDetail() {
       setCompanyError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
     }
   }
-  const handleAddRoom = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setRoomError('')
-    if (!roomInput.trim() || !id) {
-      setRoomError('')
-      return
-    }
-    try {
-      await addRoom(
-        { roomId: roomInput.trim() },
-        { errorMessage: NETWORK_ERROR_MESSAGE }
-      )
-      setRoomInput('')
-      void refetchLinkedRooms(undefined, { ignoreCache: true })
-    } catch (err) {
-      setRoomError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
-    }
-  }
-  const handleRemoveRoom = async (roomId: string) => {
-    if (!id) return
-    setRoomError('')
-    try {
-      await removeRoom(undefined, {
-        url: apiRoutes.companies.chatworkRoom(id, roomId),
-        errorMessage: NETWORK_ERROR_MESSAGE,
-      })
-      void refetchLinkedRooms(undefined, { ignoreCache: true })
-    } catch (err) {
-      setRoomError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
-    }
-  }
+
   const handleAddLabel = async (messageId: string) => {
     const label = (labelInputRefs.current[messageId]?.value || '').trim()
     if (!label) {

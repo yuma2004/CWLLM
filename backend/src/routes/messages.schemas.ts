@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { dateSchema, paginationSchema } from './shared/schemas'
+import {
+  dateSchema,
+  paginationQuerySchema,
+  paginationSchema,
+  timestampsSchema,
+} from './shared/schemas'
 
 export interface MessageListQuery {
   page?: string
@@ -61,35 +66,34 @@ export const messageSchema = z
     companyId: z.string().nullable().optional(),
     projectId: z.string().nullable().optional(),
     wholesaleId: z.string().nullable().optional(),
-    createdAt: dateSchema.optional(),
-    updatedAt: dateSchema.optional(),
   })
+  .merge(timestampsSchema)
   .passthrough()
 
-export const messageListQuerySchema = z.object({
-  page: z.string().optional(),
-  pageSize: z.string().optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
-  label: z.string().optional(),
-})
+export const messageListQuerySchema = z
+  .object({
+    from: z.string().optional(),
+    to: z.string().optional(),
+    label: z.string().optional(),
+  })
+  .merge(paginationQuerySchema)
 
-export const messageSearchQuerySchema = z.object({
-  q: z.string().optional(),
-  messageId: z.string().optional(),
-  companyId: z.string().optional(),
-  page: z.string().optional(),
-  pageSize: z.string().optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
-  label: z.string().optional(),
-})
+export const messageSearchQuerySchema = z
+  .object({
+    q: z.string().optional(),
+    messageId: z.string().optional(),
+    companyId: z.string().optional(),
+    from: z.string().optional(),
+    to: z.string().optional(),
+    label: z.string().optional(),
+  })
+  .merge(paginationQuerySchema)
 
-export const messageUnassignedQuerySchema = z.object({
-  q: z.string().optional(),
-  page: z.string().optional(),
-  pageSize: z.string().optional(),
-})
+export const messageUnassignedQuerySchema = z
+  .object({
+    q: z.string().optional(),
+  })
+  .merge(paginationQuerySchema)
 
 export const messageAssignBodySchema = z.object({
   companyId: z.string().min(1),

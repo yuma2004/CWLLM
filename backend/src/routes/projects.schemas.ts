@@ -1,6 +1,13 @@
 import { ProjectStatus } from '@prisma/client'
 import { z } from 'zod'
-import { dateSchema, paginationSchema } from './shared/schemas'
+import {
+  dateSchema,
+  idParamsSchema,
+  paginationQuerySchema,
+  paginationSchema,
+  sortQuerySchema,
+  timestampsSchema,
+} from './shared/schemas'
 
 export interface ProjectCreateBody {
   companyId: string
@@ -49,8 +56,6 @@ export const projectSchema = z
     periodEnd: dateSchema.nullable().optional(),
     status: z.nativeEnum(ProjectStatus).optional(),
     ownerId: z.string().nullable().optional(),
-    createdAt: dateSchema.optional(),
-    updatedAt: dateSchema.optional(),
     company: z
       .object({
         id: z.string(),
@@ -58,6 +63,7 @@ export const projectSchema = z
       })
       .optional(),
   })
+  .merge(timestampsSchema)
   .passthrough()
 
 export const wholesaleSchema = z
@@ -71,8 +77,6 @@ export const wholesaleSchema = z
     status: z.string(),
     agreedDate: dateSchema.nullable().optional(),
     ownerId: z.string().nullable().optional(),
-    createdAt: dateSchema.optional(),
-    updatedAt: dateSchema.optional(),
     company: z
       .object({
         id: z.string(),
@@ -99,16 +103,17 @@ export const wholesaleSchema = z
       })
       .optional(),
   })
+  .merge(timestampsSchema)
   .passthrough()
 
-export const projectListQuerySchema = z.object({
-  q: z.string().optional(),
-  companyId: z.string().optional(),
-  status: z.nativeEnum(ProjectStatus).optional(),
-  sort: z.string().optional(),
-  page: z.string().optional(),
-  pageSize: z.string().optional(),
-})
+export const projectListQuerySchema = z
+  .object({
+    q: z.string().optional(),
+    companyId: z.string().optional(),
+    status: z.nativeEnum(ProjectStatus).optional(),
+  })
+  .merge(sortQuerySchema)
+  .merge(paginationQuerySchema)
 
 export const projectSearchQuerySchema = z.object({
   q: z.string().min(1),
@@ -137,7 +142,7 @@ export const projectUpdateBodySchema = z.object({
   ownerId: z.string().nullable().optional(),
 })
 
-export const projectParamsSchema = z.object({ id: z.string().min(1) })
+export const projectParamsSchema = idParamsSchema
 
 export const projectResponseSchema = z.object({ project: projectSchema }).passthrough()
 export const projectListResponseSchema = z

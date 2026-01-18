@@ -1,5 +1,10 @@
-﻿import { z } from 'zod'
-import { dateSchema, paginationSchema } from './shared/schemas'
+import { z } from 'zod'
+import {
+  idParamsSchema,
+  paginationQuerySchema,
+  paginationSchema,
+  timestampsSchema,
+} from './shared/schemas'
 
 export interface CompanyCreateBody {
   name: string
@@ -65,9 +70,8 @@ export const companySchema = z
     tags: z.array(z.string()),
     profile: z.string().nullable().optional(),
     ownerId: z.string().nullable().optional(),
-    createdAt: dateSchema.optional(),
-    updatedAt: dateSchema.optional(),
   })
+  .merge(timestampsSchema)
   .passthrough()
 
 export const contactSchema = z
@@ -80,20 +84,19 @@ export const contactSchema = z
     phone: z.string().nullable().optional(),
     memo: z.string().nullable().optional(),
     sortOrder: z.number().optional(),
-    createdAt: dateSchema.optional(),
-    updatedAt: dateSchema.optional(),
   })
+  .merge(timestampsSchema)
   .passthrough()
 
-export const companyListQuerySchema = z.object({
-  q: z.string().optional(),
-  category: z.string().optional(),
-  status: z.string().optional(),
-  tag: z.string().optional(),
-  ownerId: z.string().optional(),
-  page: z.string().optional(),
-  pageSize: z.string().optional(),
-})
+export const companyListQuerySchema = z
+  .object({
+    q: z.string().optional(),
+    category: z.string().optional(),
+    status: z.string().optional(),
+    tag: z.string().optional(),
+    ownerId: z.string().optional(),
+  })
+  .merge(paginationQuerySchema)
 
 export const companySearchQuerySchema = z.object({
   q: z.string().min(1),
@@ -139,8 +142,8 @@ export const contactReorderBodySchema = z.object({
   orderedIds: z.array(z.string().min(1)).min(1),
 })
 
-export const companyParamsSchema = z.object({ id: z.string().min(1) })
-export const contactParamsSchema = z.object({ id: z.string().min(1) })
+export const companyParamsSchema = idParamsSchema
+export const contactParamsSchema = idParamsSchema
 
 export const companyResponseSchema = z.object({ company: companySchema }).passthrough()
 export const companyListResponseSchema = z

@@ -1,6 +1,12 @@
-﻿import { TaskStatus, TargetType } from '@prisma/client'
+import { TaskStatus, TargetType } from '@prisma/client'
 import { z } from 'zod'
-import { dateSchema, paginationSchema } from './shared/schemas'
+import {
+  dateSchema,
+  idParamsSchema,
+  paginationQuerySchema,
+  paginationSchema,
+  timestampsSchema,
+} from './shared/schemas'
 
 export interface TaskCreateBody {
   targetType: TargetType
@@ -62,23 +68,22 @@ export const taskSchema = z
       })
       .nullable()
       .optional(),
-    createdAt: dateSchema.optional(),
-    updatedAt: dateSchema.optional(),
   })
+  .merge(timestampsSchema)
   .passthrough()
 
-export const taskListQuerySchema = z.object({
-  status: z.nativeEnum(TaskStatus).optional(),
-  assigneeId: z.string().optional(),
-  targetType: z.nativeEnum(TargetType).optional(),
-  targetId: z.string().optional(),
-  dueFrom: z.string().optional(),
-  dueTo: z.string().optional(),
-  page: z.string().optional(),
-  pageSize: z.string().optional(),
-})
+export const taskListQuerySchema = z
+  .object({
+    status: z.nativeEnum(TaskStatus).optional(),
+    assigneeId: z.string().optional(),
+    targetType: z.nativeEnum(TargetType).optional(),
+    targetId: z.string().optional(),
+    dueFrom: z.string().optional(),
+    dueTo: z.string().optional(),
+  })
+  .merge(paginationQuerySchema)
 
-export const taskParamsSchema = z.object({ id: z.string().min(1) })
+export const taskParamsSchema = idParamsSchema
 
 export const taskCreateBodySchema = z.object({
   targetType: z.nativeEnum(TargetType),

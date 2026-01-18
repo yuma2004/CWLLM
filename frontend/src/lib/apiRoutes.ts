@@ -51,6 +51,7 @@ export const apiRoutes = {
   users: {
     list: () => '/api/users',
     options: () => '/api/users/options',
+    create: () => '/api/users',
   },
   projects: {
     list: (query: string) => withQuery('/api/projects', query),

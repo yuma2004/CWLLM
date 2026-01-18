@@ -1,5 +1,6 @@
 import { UserRole } from '@prisma/client'
 import { z } from 'zod'
+import { dateSchema, idParamsSchema } from './shared/schemas'
 
 export interface CreateUserBody {
   email: string
@@ -15,7 +16,7 @@ export const userSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   role: z.nativeEnum(UserRole),
-  createdAt: z.string().optional(),
+  createdAt: dateSchema.optional(),
 })
 
 export const userListResponseSchema = z.object({
@@ -42,9 +43,7 @@ export const createUserBodySchema = z.object({
   role: z.nativeEnum(UserRole),
 })
 
-export const updateUserRoleParamsSchema = z.object({
-  id: z.string().min(1),
-})
+export const updateUserRoleParamsSchema = idParamsSchema
 
 export const updateUserRoleBodySchema = z.object({
   role: z.nativeEnum(UserRole),

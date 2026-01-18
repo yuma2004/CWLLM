@@ -21,6 +21,7 @@ const ProjectDetail = lazy(() => import('../pages/ProjectDetail'))
 const Wholesales = lazy(() => import('../pages/Wholesales'))
 const WholesaleDetail = lazy(() => import('../pages/WholesaleDetail'))
 const Settings = lazy(() => import('../pages/Settings'))
+const AccountCreate = lazy(() => import('../pages/AccountCreate'))
 const Exports = lazy(() => import('../pages/Exports'))
 
 export const protectedRoutes: RouteConfig[] = [
@@ -128,6 +129,35 @@ export const protectedRoutes: RouteConfig[] = [
           strokeLinejoin="round"
           strokeWidth={1.5}
           d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+        />
+      </svg>
+    ),
+  },
+  {
+    path: '/settings/accounts',
+    element: <AccountCreate />,
+    label: 'アカウント作成',
+    section: 'settings',
+    allowedRoles: ['admin'],
+    icon: (
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M18 9c0 1.657-1.79 3-4 3s-4-1.343-4-3 1.79-3 4-3 4 1.343 4 3z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M6 20a6 6 0 0112 0"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M20 8v4m2-2h-4"
         />
       </svg>
     ),

@@ -70,7 +70,7 @@ function TaskDetail() {
     if (!id || !canWrite) return
     setError('')
     if (!form.title.trim()) {
-      setError('タイトルは必須です)
+      setError('タイトルは必須です')
       return
     }
     try {
@@ -214,6 +214,19 @@ function TaskDetail() {
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
+                <div className="mb-1 block text-sm font-medium text-slate-700">ステータス</div>
+                <FormSelect
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                >
+                  {TASK_STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {statusLabel('task', s)}
+                    </option>
+                  ))}
+                </FormSelect>
+              </div>
+              <div>
                 <div className="mb-1 block text-sm font-medium text-slate-700">期限</div>
                 <FormInput
                   type="date"
@@ -221,6 +234,7 @@ function TaskDetail() {
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                 />
               </div>
+            </div>
             <div className="flex justify-end gap-3 pt-4">
               <button
                 type="button"
@@ -235,7 +249,7 @@ function TaskDetail() {
                 disabled={isUpdating}
                 className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white  hover:bg-sky-700 disabled:bg-sky-300"
               >
-                {isUpdating ? '保存中...' : '保存}
+                {isUpdating ? '保存中...' : '保存'}
               </button>
             </div>
           </div>
