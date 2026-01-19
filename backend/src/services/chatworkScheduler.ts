@@ -21,6 +21,7 @@ export const startChatworkAutoSync = (logger?: Logger) => {
 
   const intervalMinutes = env.chatworkAutoSyncIntervalMinutes
   const intervalMs = toIntervalMs(intervalMinutes)
+  const roomLimit = env.chatworkAutoSyncRoomLimit
   let running = false
 
   const run = async () => {
@@ -28,7 +29,9 @@ export const startChatworkAutoSync = (logger?: Logger) => {
     running = true
     try {
       const roomsJob = await enqueueChatworkRoomsSync()
-      const messagesJob = await enqueueChatworkMessagesSync(undefined)
+      const messagesJob = await enqueueChatworkMessagesSync(undefined, undefined, {
+        roomLimit,
+      })
       logger?.info?.(
         { roomsJobId: roomsJob.id, messagesJobId: messagesJob.id },
         'Chatwork auto-sync enqueued'

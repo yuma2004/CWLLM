@@ -22,6 +22,8 @@ const envSchema = z.object({
   CHATWORK_API_BASE_URL: z.string().optional(),
   CHATWORK_AUTO_SYNC_ENABLED: z.string().optional(),
   CHATWORK_AUTO_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().optional(),
+  CHATWORK_AUTO_SYNC_ROOM_LIMIT: z.coerce.number().int().optional(),
+  CHATWORK_NEW_ROOMS_ACTIVE: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
   REDIS_URL: z.string().optional(),
@@ -42,6 +44,12 @@ const parseBoolean = (value: string | undefined, defaultValue: boolean) => {
   if (value === 'true' || value === '1') return true
   if (value === 'false' || value === '0') return false
   return defaultValue
+}
+
+const parsePositiveInt = (value: number | undefined) => {
+  if (typeof value !== 'number') return undefined
+  if (!Number.isFinite(value) || value <= 0) return undefined
+  return value
 }
 
 const parsed = envSchema.safeParse(process.env)
@@ -76,6 +84,8 @@ export const env = {
   chatworkApiBaseUrl: raw.CHATWORK_API_BASE_URL,
   chatworkAutoSyncEnabled: parseBoolean(raw.CHATWORK_AUTO_SYNC_ENABLED, false),
   chatworkAutoSyncIntervalMinutes: raw.CHATWORK_AUTO_SYNC_INTERVAL_MINUTES ?? 15,
+  chatworkAutoSyncRoomLimit: parsePositiveInt(raw.CHATWORK_AUTO_SYNC_ROOM_LIMIT),
+  chatworkNewRoomsActive: parseBoolean(raw.CHATWORK_NEW_ROOMS_ACTIVE, true),
   openaiApiKey: raw.OPENAI_API_KEY,
   openaiModel: raw.OPENAI_MODEL,
   redisUrl: raw.REDIS_URL,

@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { env } from '../config/env'
 import { prisma } from '../utils'
 import { ChatworkApiError, createChatworkClient } from './chatwork'
@@ -49,6 +50,9 @@ const truncateError = (message: string) =>
   message.length > 500 ? `${message.slice(0, 497)}...` : message
 
 type CancelChecker = () => Promise<boolean>
+type MessageSyncOptions = {
+  roomLimit?: number
+}
 
 export interface ChatworkRoomsSyncResult {
   created: number
@@ -92,7 +96,7 @@ export const syncChatworkRooms = async (
         roomId: String(room.room_id),
         name: room.name,
         description: room.description ?? null,
-        isActive: true,
+        isActive: env.chatworkNewRoomsActive,
       },
     })
 
@@ -106,10 +110,42 @@ export const syncChatworkRooms = async (
   return { created, updated, total: rooms.length }
 }
 
+const fetchRoomsForSync = async (
+  where: Prisma.ChatworkRoomWhereInput,
+  limit?: number
+) => {
+  if (!limit) {
+    return prisma.chatworkRoom.findMany({
+      where,
+      include: { roomLinks: true },
+    })
+  }
+
+  const rooms = await prisma.chatworkRoom.findMany({
+    where: { ...where, lastSyncAt: null },
+    include: { roomLinks: true },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
+  })
+
+  const remaining = limit - rooms.length
+  if (remaining <= 0) return rooms
+
+  const syncedRooms = await prisma.chatworkRoom.findMany({
+    where: { ...where, lastSyncAt: { not: null } },
+    include: { roomLinks: true },
+    orderBy: { lastSyncAt: 'asc' },
+    take: remaining,
+  })
+
+  return [...rooms, ...syncedRooms]
+}
+
 export const syncChatworkMessages = async (
   roomId: string | undefined,
   shouldCancel?: CancelChecker,
-  logger?: { warn: (message: string) => void }
+  logger?: { warn: (message: string) => void },
+  options?: MessageSyncOptions
 ): Promise<ChatworkMessagesSyncResult> => {
   const client = createChatworkClient({
     token: env.chatworkApiToken,
@@ -118,10 +154,9 @@ export const syncChatworkMessages = async (
   })
 
   const where = roomId ? { roomId } : { isActive: true }
-  const rooms = await prisma.chatworkRoom.findMany({
-    where,
-    include: { roomLinks: true },
-  })
+  const rooms = roomId
+    ? await prisma.chatworkRoom.findMany({ where, include: { roomLinks: true } })
+    : await fetchRoomsForSync(where, options?.roomLimit)
 
   const results: ChatworkMessagesSyncResult['rooms'] = []
   const errors: ChatworkMessagesSyncResult['errors'] = []

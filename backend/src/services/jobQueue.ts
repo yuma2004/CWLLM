@@ -20,6 +20,11 @@ type JobQueueOptions = {
   enableWorker?: boolean
 }
 
+type ChatworkMessagesPayload = {
+  roomId?: string
+  roomLimit?: number
+}
+
 const serializeError = (error: unknown) => {
   if (error instanceof Error) {
     return { name: error.name, message: error.message, stack: error.stack }
@@ -59,11 +64,14 @@ const handleChatworkMessagesSync = async (
   payload: Prisma.JsonValue,
   logger?: { warn: (message: string) => void }
 ) => {
-  const roomId = (payload as { roomId?: string } | null)?.roomId
+  const parsedPayload = payload as ChatworkMessagesPayload | null
+  const roomId = parsedPayload?.roomId
+  const roomLimit = parsedPayload?.roomLimit
   const rooms = await prisma.chatworkRoom.count({
     where: roomId ? { roomId } : { isActive: true },
   })
-  await updateProgress(jobId, toJsonInput({ totalRooms: rooms, processedRooms: 0 }))
+  const totalRooms = roomId || !roomLimit ? rooms : Math.min(rooms, roomLimit)
+  await updateProgress(jobId, toJsonInput({ totalRooms, processedRooms: 0 }))
 
   const data = await syncChatworkMessages(
     roomId,
@@ -71,12 +79,13 @@ const handleChatworkMessagesSync = async (
       const canceled = await isCanceled(jobId)
       return canceled
     },
-    logger
+    logger,
+    { roomLimit }
   )
   const processed = data.rooms.length + data.errors.length
   await updateProgress(
     jobId,
-    toJsonInput({ totalRooms: rooms, processedRooms: processed, summary: data })
+    toJsonInput({ totalRooms, processedRooms: processed, summary: data })
   )
   return toJsonInput(data)
 }
@@ -231,8 +240,11 @@ export const enqueueJob = async (
 export const enqueueChatworkRoomsSync = (userId?: string) =>
   enqueueJob(JobType.chatwork_rooms_sync, {}, userId)
 
-export const enqueueChatworkMessagesSync = (roomId: string | undefined, userId?: string) =>
-  enqueueJob(JobType.chatwork_messages_sync, { roomId }, userId)
+export const enqueueChatworkMessagesSync = (
+  roomId: string | undefined,
+  userId?: string,
+  options: { roomLimit?: number } = {}
+) => enqueueJob(JobType.chatwork_messages_sync, { roomId, roomLimit: options.roomLimit }, userId)
 
 export const enqueueSummaryDraftJob = (
   companyId: string,

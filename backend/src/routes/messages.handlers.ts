@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma } from '@prisma/client'
+import { env } from '../config/env'
 import {
   CACHE_KEYS,
   CACHE_TTLS_MS,
@@ -13,6 +14,7 @@ import {
   prisma,
   setCache,
 } from '../utils'
+import { enqueueChatworkMessagesSync } from '../services'
 import type {
   AssignBody,
   BulkAssignBody,
@@ -25,6 +27,7 @@ import type {
 } from './messages.schemas'
 
 const MAX_LABEL_LENGTH = 30
+const ON_DEMAND_SYNC_MIN_INTERVAL_MS = 60_000
 
 const normalizeLabel = (value?: string) => {
   if (value === undefined) return undefined
@@ -76,6 +79,65 @@ const buildMessageSearchWhere = (filters: MessageSearchFilters) => {
   return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
 }
 
+const isRoomSyncEligible = (room: {
+  isActive: boolean
+  lastSyncAt: Date | null
+  lastErrorAt: Date | null
+  lastErrorStatus: number | null
+}) => {
+  if (!room.isActive) return false
+  const now = Date.now()
+  const minIntervalMs = Math.max(
+    ON_DEMAND_SYNC_MIN_INTERVAL_MS,
+    env.chatworkAutoSyncIntervalMinutes * 60_000
+  )
+  if (room.lastErrorStatus === 429 && room.lastErrorAt) {
+    const errorAgeMs = now - room.lastErrorAt.getTime()
+    if (errorAgeMs < minIntervalMs) return false
+  }
+  if (!room.lastSyncAt) return true
+  return now - room.lastSyncAt.getTime() >= minIntervalMs
+}
+
+type Logger = { warn: (obj: unknown, msg?: string) => void }
+
+const enqueueOnDemandRoomSync = async (
+  companyId: string,
+  userId?: string,
+  logger?: Logger
+) => {
+  if (!env.chatworkApiToken || !env.redisUrl) return
+
+  const links = await prisma.companyRoomLink.findMany({
+    where: { companyId },
+    include: { room: true },
+  })
+
+  const rooms = links
+    .map((link) => link.room)
+    .filter((room) => isRoomSyncEligible(room))
+
+  if (rooms.length === 0) return
+
+  rooms.sort((a, b) => {
+    const aTime = a.lastSyncAt ? a.lastSyncAt.getTime() : 0
+    const bTime = b.lastSyncAt ? b.lastSyncAt.getTime() : 0
+    return aTime - bTime
+  })
+
+  const roomLimit = env.chatworkAutoSyncRoomLimit
+  const targets = roomLimit ? rooms.slice(0, roomLimit) : rooms
+
+  const results = await Promise.allSettled(
+    targets.map((room) => enqueueChatworkMessagesSync(room.roomId, userId))
+  )
+  results.forEach((result) => {
+    if (result.status === 'rejected') {
+      logger?.warn({ err: result.reason }, 'Chatwork on-demand sync enqueue failed')
+    }
+  })
+}
+
 export const listCompanyMessagesHandler = async (
   request: FastifyRequest<{ Params: { id: string }; Querystring: MessageListQuery }>,
   reply: FastifyReply
@@ -99,6 +161,13 @@ export const listCompanyMessagesHandler = async (
     request.query.page,
     request.query.pageSize
   )
+
+  if (page === 1) {
+    const userId = (request.user as { userId?: string } | undefined)?.userId
+    void enqueueOnDemandRoomSync(request.params.id, userId, request.log).catch((err) => {
+      request.log.warn({ err }, 'Chatwork on-demand sync failed to enqueue')
+    })
+  }
 
   const where: Prisma.MessageWhereInput = {
     companyId: request.params.id,

@@ -44,9 +44,11 @@ fastify.log.info(
   {
     chatworkAutoSyncEnabled: env.chatworkAutoSyncEnabled,
     chatworkAutoSyncIntervalMinutes: env.chatworkAutoSyncIntervalMinutes,
+    chatworkAutoSyncRoomLimit: env.chatworkAutoSyncRoomLimit ?? null,
     hasChatworkToken: Boolean(env.chatworkApiToken),
     hasRedisUrl: Boolean(env.redisUrl),
     chatworkApiBaseUrl: env.chatworkApiBaseUrl ?? 'default',
+    chatworkNewRoomsActive: env.chatworkNewRoomsActive,
   },
   'Chatwork env status'
 )
