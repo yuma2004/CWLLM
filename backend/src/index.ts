@@ -40,6 +40,17 @@ const fastify = Fastify({
   },
 })
 
+fastify.log.info(
+  {
+    chatworkAutoSyncEnabled: env.chatworkAutoSyncEnabled,
+    chatworkAutoSyncIntervalMinutes: env.chatworkAutoSyncIntervalMinutes,
+    hasChatworkToken: Boolean(env.chatworkApiToken),
+    hasRedisUrl: Boolean(env.redisUrl),
+    chatworkApiBaseUrl: env.chatworkApiBaseUrl ?? 'default',
+  },
+  'Chatwork env status'
+)
+
 fastify.register(cors, {
   origin: env.corsOrigins.length
     ? (origin, callback) => {
