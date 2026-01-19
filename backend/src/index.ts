@@ -18,6 +18,7 @@ import { env } from './config/env'
 import { normalizeErrorPayload } from './utils/errors'
 import { JWTUser } from './types/auth'
 import { initJobQueue } from './services/jobQueue'
+import { startChatworkAutoSync } from './services/chatworkScheduler'
 import { prisma } from './utils/prisma'
 
 const fastify = Fastify({
@@ -164,6 +165,7 @@ fastify.addHook('preSerialization', async (_request, reply, payload) => {
 registerRoutes(fastify)
 
 initJobQueue(fastify.log, { enableWorker: env.jobWorkerEnabled, enableQueue: true })
+startChatworkAutoSync(fastify.log)
 
 fastify.get('/healthz', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() }

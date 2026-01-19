@@ -43,6 +43,10 @@ services:
         generateValue: true
       - key: CHATWORK_API_TOKEN
         sync: false  # Dashboard で設定
+      - key: CHATWORK_AUTO_SYNC_ENABLED
+        value: "true"
+      - key: CHATWORK_AUTO_SYNC_INTERVAL_MINUTES
+        value: "15"
       - key: OPENAI_API_KEY
         sync: false  # Dashboard で設定
       - key: ADMIN_EMAIL
