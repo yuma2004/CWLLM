@@ -190,6 +190,17 @@ export const syncChatworkMessages = async (
           data,
           skipDuplicates: true,
         })
+        const updates = data.map((message) =>
+          prisma.message.updateMany({
+            where: { roomId: message.roomId, messageId: message.messageId },
+            data: {
+              body: message.body,
+              sender: message.sender,
+              sentAt: message.sentAt,
+            },
+          })
+        )
+        await prisma.$transaction(updates)
       }
 
       const latestMessageId = pickLatestMessageId(

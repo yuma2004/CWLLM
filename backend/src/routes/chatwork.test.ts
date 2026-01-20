@@ -136,6 +136,69 @@ describe('Chatwork sync', () => {
     expect(messagesAfter.length).toBe(1)
   })
 
+  it('updates existing messages when content changes', async () => {
+    mockFetch.mockImplementation((input) => {
+      const url = input.toString()
+      if (url.includes('/rooms/600/messages')) {
+        return buildResponse([
+          {
+            message_id: '601',
+            body: 'first',
+            send_time: 1700000400,
+            account: { account_id: 6, name: 'user6' },
+          },
+        ])
+      }
+      return buildResponse([])
+    })
+
+    await prisma.chatworkRoom.create({
+      data: {
+        roomId: '600',
+        name: 'Room Update',
+        isActive: true,
+      },
+    })
+
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
+    await fastify.inject({
+      method: 'POST',
+      url: '/api/chatwork/messages/sync',
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    const original = await prisma.message.findFirst({
+      where: { roomId: '600', messageId: '601' },
+    })
+    expect(original?.body).toBe('first')
+
+    mockFetch.mockImplementation((input) => {
+      const url = input.toString()
+      if (url.includes('/rooms/600/messages')) {
+        return buildResponse([
+          {
+            message_id: '601',
+            body: 'second',
+            send_time: 1700000400,
+            account: { account_id: 6, name: 'user6' },
+          },
+        ])
+      }
+      return buildResponse([])
+    })
+
+    await fastify.inject({
+      method: 'POST',
+      url: '/api/chatwork/messages/sync',
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    const updated = await prisma.message.findFirst({
+      where: { roomId: '600', messageId: '601' },
+    })
+    expect(updated?.body).toBe('second')
+  })
+
   it('skips inactive rooms during message sync', async () => {
     mockFetch.mockImplementation((input) => {
       const url = input.toString()
