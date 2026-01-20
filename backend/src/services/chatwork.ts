@@ -96,6 +96,15 @@ const parseErrorBody = async (response: Response) => {
   }
 }
 
+const parseJsonResponse = async <T>(response: Response, fallback?: T): Promise<T> => {
+  const text = await response.text()
+  if (!text) {
+    if (fallback !== undefined) return fallback
+    throw new Error('Chatwork API returned empty response')
+  }
+  return JSON.parse(text) as T
+}
+
 const updateRateLimitFromHeaders = (headers: Headers) => {
   if (MIN_REQUEST_INTERVAL_MS <= 0) return
   const remaining = Number(headers.get('x-ratelimit-remaining'))
@@ -118,7 +127,7 @@ export const createChatworkClient = ({
     throw new Error('CHATWORK_API_TOKEN is not set')
   }
 
-  const request = async <T>(path: string, retry = 0): Promise<T> => {
+  const request = async <T>(path: string, retry = 0, fallback?: T): Promise<T> => {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
     let response: Response
@@ -163,15 +172,15 @@ export const createChatworkClient = ({
       throw new ChatworkApiError(response.status, body)
     }
 
-    return response.json() as Promise<T>
+    return parseJsonResponse<T>(response, fallback)
   }
 
-  const listRooms = () => request<ChatworkRoom[]>('/rooms')
+  const listRooms = () => request<ChatworkRoom[]>('/rooms', 0, [])
 
   const listMessages = (roomId: string, force = false) => {
     const query = new URLSearchParams()
     query.set('force', force ? '1' : '0')
-    return request<ChatworkMessage[]>(`/rooms/${roomId}/messages?${query.toString()}`)
+    return request<ChatworkMessage[]>(`/rooms/${roomId}/messages?${query.toString()}`, 0, [])
   }
 
   return {
