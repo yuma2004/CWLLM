@@ -1,14 +1,82 @@
+import crypto from 'node:crypto'
 import { FastifyReply, FastifyRequest } from 'fastify'
-import { badRequest, handlePrismaError, prisma } from '../utils'
+import { badRequest, handlePrismaError, prisma, unauthorized } from '../utils'
 import { env } from '../config/env'
 import {
   enqueueChatworkMessagesSync,
   enqueueChatworkRoomsSync,
 } from '../services'
-import type { MessageSyncQuery, RoomLinkBody, RoomToggleBody } from './chatwork.schemas'
+import type {
+  ChatworkWebhookBody,
+  MessageSyncQuery,
+  RoomLinkBody,
+  RoomToggleBody,
+} from './chatwork.schemas'
 
 const prismaErrorOverrides = {
   P2002: { status: 409, message: 'Duplicate record' },
+}
+
+const webhookEventTypes = new Set(['message_created', 'message_updated', 'mention_to_me'])
+const webhookRoomCooldowns = new Map<string, number>()
+
+const getHeaderValue = (value: string | string[] | undefined) => {
+  if (!value) return undefined
+  if (Array.isArray(value)) return value[0]
+  return value
+}
+
+const parseWebhookPayload = (rawBody: string) => {
+  try {
+    const parsed = JSON.parse(rawBody)
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+const toRoomId = (value: unknown) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'string' && value.trim() !== '') return value
+  return null
+}
+
+const extractWebhookRoomId = (payload: Record<string, unknown>) => {
+  const event = payload.webhook_event
+  if (event && typeof event === 'object') {
+    const eventRecord = event as Record<string, unknown>
+    const candidate =
+      eventRecord.room_id ??
+      eventRecord.roomId ??
+      (eventRecord.room && typeof eventRecord.room === 'object'
+        ? (eventRecord.room as Record<string, unknown>).room_id ??
+          (eventRecord.room as Record<string, unknown>).roomId
+        : null)
+    const roomId = toRoomId(candidate)
+    if (roomId) return roomId
+  }
+  return toRoomId(payload.room_id ?? payload.roomId)
+}
+
+const isValidWebhookSignature = (rawBody: string, token: string, signature: string) => {
+  const secret = Buffer.from(token, 'base64')
+  const expected = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('base64')
+  const expectedBuffer = Buffer.from(expected)
+  const providedBuffer = Buffer.from(signature)
+  if (expectedBuffer.length !== providedBuffer.length) return false
+  return crypto.timingSafeEqual(expectedBuffer, providedBuffer)
+}
+
+const shouldEnqueueWebhook = (roomId: string, now: number) => {
+  const cooldownMs = env.chatworkWebhookCooldownMs
+  if (cooldownMs <= 0) return true
+  const lastSeen = webhookRoomCooldowns.get(roomId)
+  if (lastSeen && now - lastSeen < cooldownMs) {
+    return false
+  }
+  webhookRoomCooldowns.set(roomId, now)
+  return true
 }
 
 export const listChatworkRoomsHandler = async () => {
@@ -57,6 +125,51 @@ export const syncChatworkMessagesHandler = async (
   const userId = (request.user as { userId?: string } | undefined)?.userId
   const job = await enqueueChatworkMessagesSync(request.query.roomId, userId)
   return { jobId: job.id, status: job.status }
+}
+
+export const chatworkWebhookHandler = async (
+  request: FastifyRequest<{ Body: ChatworkWebhookBody }>,
+  reply: FastifyReply
+) => {
+  const rawBody = request.body
+  const payload = rawBody ? parseWebhookPayload(rawBody) : null
+  if (!payload) {
+    return reply.code(200).send({ status: 'ignored', reason: 'invalid_body' })
+  }
+
+  const signature = getHeaderValue(request.headers['x-chatworkwebhooksignature'])?.trim()
+  if (env.chatworkWebhookToken) {
+    if (!signature || !isValidWebhookSignature(rawBody, env.chatworkWebhookToken, signature)) {
+      return reply.code(401).send(unauthorized('Invalid webhook signature'))
+    }
+  }
+
+  const eventType =
+    typeof payload.webhook_event_type === 'string' ? payload.webhook_event_type : null
+  if (!eventType || !webhookEventTypes.has(eventType)) {
+    return reply.code(200).send({ status: 'ignored', reason: 'unsupported_event' })
+  }
+
+  const roomId = extractWebhookRoomId(payload)
+  if (!roomId) {
+    return reply.code(200).send({ status: 'ignored', reason: 'missing_room_id' })
+  }
+
+  const room = await prisma.chatworkRoom.findUnique({ where: { roomId } })
+  if (!room) {
+    return reply.code(200).send({ status: 'ignored', reason: 'room_not_found' })
+  }
+  if (!room.isActive) {
+    return reply.code(200).send({ status: 'ignored', reason: 'room_inactive' })
+  }
+
+  const now = Date.now()
+  if (!shouldEnqueueWebhook(roomId, now)) {
+    return reply.code(200).send({ status: 'ok', enqueued: false, reason: 'cooldown' })
+  }
+
+  const job = await enqueueChatworkMessagesSync(roomId)
+  return reply.code(200).send({ status: 'ok', enqueued: true, jobId: job.id })
 }
 
 export const listCompanyChatworkRoomsHandler = async (

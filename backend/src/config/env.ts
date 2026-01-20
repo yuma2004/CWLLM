@@ -24,6 +24,8 @@ const envSchema = z.object({
   CHATWORK_AUTO_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().optional(),
   CHATWORK_AUTO_SYNC_ROOM_LIMIT: z.coerce.number().int().optional(),
   CHATWORK_NEW_ROOMS_ACTIVE: z.string().optional(),
+  CHATWORK_WEBHOOK_TOKEN: z.string().optional(),
+  CHATWORK_WEBHOOK_COOLDOWN_SECONDS: z.coerce.number().int().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
   REDIS_URL: z.string().optional(),
@@ -86,6 +88,9 @@ export const env = {
   chatworkAutoSyncIntervalMinutes: raw.CHATWORK_AUTO_SYNC_INTERVAL_MINUTES ?? 15,
   chatworkAutoSyncRoomLimit: parsePositiveInt(raw.CHATWORK_AUTO_SYNC_ROOM_LIMIT),
   chatworkNewRoomsActive: parseBoolean(raw.CHATWORK_NEW_ROOMS_ACTIVE, true),
+  chatworkWebhookToken: raw.CHATWORK_WEBHOOK_TOKEN,
+  chatworkWebhookCooldownMs:
+    (parsePositiveInt(raw.CHATWORK_WEBHOOK_COOLDOWN_SECONDS) ?? 60) * 1000,
   openaiApiKey: raw.OPENAI_API_KEY,
   openaiModel: raw.OPENAI_MODEL,
   redisUrl: raw.REDIS_URL,

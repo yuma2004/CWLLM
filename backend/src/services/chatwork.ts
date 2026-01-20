@@ -41,6 +41,43 @@ const DEFAULT_BASE_URL = 'https://api.chatwork.com/v2'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+const RATE_LIMIT_WINDOW_MS = 5 * 60_000
+const RATE_LIMIT_MAX = 300
+const DEFAULT_MIN_INTERVAL_MS = Math.ceil(RATE_LIMIT_WINDOW_MS / RATE_LIMIT_MAX)
+const MIN_REQUEST_INTERVAL_MS =
+  process.env.NODE_ENV === 'test' ? 0 : DEFAULT_MIN_INTERVAL_MS
+let nextAllowedAt = 0
+let scheduleChain = Promise.resolve()
+
+const scheduleRequest = async () => {
+  if (MIN_REQUEST_INTERVAL_MS <= 0) return
+  let release: () => void = () => {}
+  const previous = scheduleChain
+  scheduleChain = new Promise((resolve) => {
+    release = resolve
+  })
+  await previous
+  try {
+    while (true) {
+      const now = Date.now()
+      const waitMs = Math.max(nextAllowedAt - now, 0)
+      if (waitMs > 0) {
+        await sleep(waitMs)
+        continue
+      }
+      nextAllowedAt = now + MIN_REQUEST_INTERVAL_MS
+      break
+    }
+  } finally {
+    release()
+  }
+}
+
+const blockRequestsUntil = (timestampMs: number) => {
+  if (MIN_REQUEST_INTERVAL_MS <= 0) return
+  nextAllowedAt = Math.max(nextAllowedAt, timestampMs)
+}
+
 const getRetryDelay = (resetHeader: string | null) => {
   if (!resetHeader) return 1000
   const resetAt = Number(resetHeader)
@@ -56,6 +93,16 @@ const parseErrorBody = async (response: Response) => {
     return text || response.statusText
   } catch (err) {
     return response.statusText
+  }
+}
+
+const updateRateLimitFromHeaders = (headers: Headers) => {
+  if (MIN_REQUEST_INTERVAL_MS <= 0) return
+  const remaining = Number(headers.get('x-ratelimit-remaining'))
+  const resetAt = Number(headers.get('x-ratelimit-reset'))
+  if (!Number.isFinite(remaining) || !Number.isFinite(resetAt)) return
+  if (remaining <= 1) {
+    blockRequestsUntil(resetAt * 1000)
   }
 }
 
@@ -77,6 +124,7 @@ export const createChatworkClient = ({
     let response: Response
 
     try {
+      await scheduleRequest()
       response = await fetcher(`${baseUrl}${path}`, {
         method: 'GET',
         headers: {
@@ -97,6 +145,7 @@ export const createChatworkClient = ({
 
     if (response.status === 429 && retry < maxRetries) {
       const delay = getRetryDelay(response.headers.get('x-ratelimit-reset'))
+      blockRequestsUntil(Date.now() + delay)
       logger?.warn(`Chatwork rate limit hit. Retry in ${delay}ms`)
       await sleep(delay)
       return request<T>(path, retry + 1)
@@ -106,6 +155,8 @@ export const createChatworkClient = ({
       await sleep(1000)
       return request<T>(path, retry + 1)
     }
+
+    updateRateLimitFromHeaders(response.headers)
 
     if (!response.ok) {
       const body = await parseErrorBody(response)

@@ -14,8 +14,11 @@ import {
   chatworkRoomResponseSchema,
   chatworkRoomToggleBodySchema,
   chatworkRoomsResponseSchema,
+  chatworkWebhookBodySchema,
+  chatworkWebhookResponseSchema,
 } from './chatwork.schemas'
 import {
+  chatworkWebhookHandler,
   createCompanyChatworkRoomLinkHandler,
   deleteCompanyChatworkRoomLinkHandler,
   listChatworkRoomsHandler,
@@ -24,10 +27,40 @@ import {
   syncChatworkRoomsHandler,
   toggleChatworkRoomHandler,
 } from './chatwork.handlers'
-import type { MessageSyncQuery, RoomLinkBody, RoomToggleBody } from './chatwork.schemas'
+import type {
+  ChatworkWebhookBody,
+  MessageSyncQuery,
+  RoomLinkBody,
+  RoomToggleBody,
+} from './chatwork.schemas'
 
 export async function chatworkRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
+
+  app.register(async (webhookApp) => {
+    const webhook = webhookApp.withTypeProvider<ZodTypeProvider>()
+    webhook.addContentTypeParser(
+      'application/json',
+      { parseAs: 'string' },
+      (_request, body, done) => {
+        const rawBody = typeof body === 'string' ? body : body.toString('utf8')
+        done(null, rawBody)
+      }
+    )
+    webhook.post<{ Body: ChatworkWebhookBody }>(
+      '/chatwork/webhook',
+      {
+        schema: {
+          body: chatworkWebhookBodySchema,
+          response: {
+            200: chatworkWebhookResponseSchema,
+            401: apiErrorSchema,
+          },
+        },
+      },
+      chatworkWebhookHandler
+    )
+  })
 
   app.get(
     '/chatwork/rooms',

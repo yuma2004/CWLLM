@@ -280,4 +280,45 @@ describe('Chatwork sync', () => {
     expect(recovered?.lastErrorMessage).toBeNull()
     expect(recovered?.lastErrorAt).toBeNull()
   })
+
+  it('triggers message sync from webhook', async () => {
+    mockFetch.mockImplementation((input) => {
+      const url = input.toString()
+      if (url.includes('/rooms/500/messages')) {
+        return buildResponse([
+          {
+            message_id: '501',
+            body: 'webhook',
+            send_time: 1700000300,
+            account: { account_id: 5, name: 'user5' },
+          },
+        ])
+      }
+      return buildResponse([])
+    })
+
+    await prisma.chatworkRoom.create({
+      data: {
+        roomId: '500',
+        name: 'Room Webhook',
+        isActive: true,
+      },
+    })
+
+    const webhookResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/chatwork/webhook',
+      payload: {
+        webhook_event_type: 'message_created',
+        webhook_event: {
+          room_id: 500,
+          message_id: '501',
+        },
+      },
+    })
+    expect(webhookResponse.statusCode).toBe(200)
+
+    const messages = await prisma.message.findMany({ where: { roomId: '500' } })
+    expect(messages.length).toBe(1)
+  })
 })
