@@ -73,7 +73,7 @@ function Layout({ children }: LayoutProps) {
       >
         <div className="p-5">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-            <h1 className="text-balance text-base font-semibold text-slate-800">ナレッジベース</h1>
+            <h1 className="text-balance text-base font-semibold text-slate-800">CW管理システム</h1>
             <button
               onClick={() => setIsSidebarOpen(false)}
               className="p-1.5 rounded-lg hover:bg-slate-100"
