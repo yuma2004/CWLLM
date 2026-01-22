@@ -14,13 +14,12 @@ import { TaskFilters } from '../components/tasks/TaskFilters'
 import { TaskTable } from '../components/tasks/TaskTable'
 import { TaskKanban } from '../components/tasks/TaskKanban'
 import { TaskBulkActions } from '../components/tasks/TaskBulkActions'
-import { useFetch, useMutation } from '../hooks/useApi'
-import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { useListQuery } from '../hooks/useListQuery'
-import { useUrlSync } from '../hooks/useUrlSync'
+import { useMutation } from '../hooks/useApi'
+import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { useListPage } from '../hooks/useListPage'
 import { toErrorMessage } from '../utils/errorState'
 import { cn } from '../lib/cn'
-import type { ApiListResponse, Task, TasksFilters } from '../types'
+import type { Task, TasksFilters } from '../types'
 import { apiRoutes } from '../lib/apiRoutes'
 
 const defaultFilters: TasksFilters = {
@@ -41,16 +40,28 @@ function Tasks() {
     clearFilter,
     clearAllFilters,
     pagination,
-    setPagination,
     setPage,
     setPageSize,
     extraParams,
     setExtraParams,
-  } = useUrlSync({
-    pathname: '/tasks',
-    defaultFilters,
-    defaultParams: { view: 'list' },
-    resetPageOnFilterChange: false,
+    handleSearchSubmit,
+    data: tasksData,
+    setData: setTasksData,
+    error,
+    setError,
+    isLoading: isLoadingTasks,
+    refetch: refetchTasks,
+  } = useListPage<TasksFilters, { view: string }, Task>({
+    urlSync: {
+      pathname: '/tasks',
+      defaultFilters,
+      defaultParams: { view: 'list' },
+      resetPageOnFilterChange: false,
+    },
+    buildUrl: apiRoutes.tasks.myList,
+    fetchOptions: {
+      errorMessage: 'タスクの読み込みに失敗しました',
+    },
   })
   const viewMode = extraParams.view === 'kanban' ? 'kanban' : 'list'
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -66,24 +77,6 @@ function Tasks() {
   })
   const [createError, setCreateError] = useState('')
   const [createSuccess, setCreateSuccess] = useState('')
-
-  const queryString = useListQuery(filters, pagination)
-
-  const tasksUrl = useMemo(() => apiRoutes.tasks.myList(queryString), [queryString])
-
-  const {
-    data: tasksData,
-    setData: setTasksData,
-    error,
-    setError,
-    isLoading: isLoadingTasks,
-    refetch: refetchTasks,
-  } = useFetch<ApiListResponse<Task>>(tasksUrl, {
-    errorMessage: 'タスクの読み込みに失敗しました',
-    onSuccess: (data) => {
-      setPagination((prev) => ({ ...prev, ...data.pagination }))
-    },
-  })
 
   const { mutate: createTask, isLoading: isCreating } = useMutation<
     Task,
@@ -124,18 +117,7 @@ function Tasks() {
     setSelectedIds([])
   }, [tasksData?.items])
 
-  const shortcuts = useMemo(
-    () => [
-      {
-        key: '/',
-        handler: () => searchInputRef.current?.focus(),
-        preventDefault: true,
-        ctrlKey: false,
-        metaKey: false,
-      },
-    ],
-    []
-  )
+  const shortcuts = useMemo(() => [createSearchShortcut(searchInputRef)], [searchInputRef])
 
   useKeyboardShortcut(shortcuts)
 
@@ -157,11 +139,6 @@ function Tasks() {
     if (previousItems.length > 0) {
       setTasksData((prev) => (prev ? { ...prev, items: previousItems } : prev))
     }
-  }
-
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-    setPage(1)
   }
 
   const handleStatusChange = async (taskId: string, nextStatus: string) => {

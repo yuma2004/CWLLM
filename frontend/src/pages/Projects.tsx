@@ -14,12 +14,10 @@ import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import { usePermissions } from '../hooks/usePermissions'
 import { useFetch, useMutation } from '../hooks/useApi'
-import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { useListQuery } from '../hooks/useListQuery'
-import { useUrlSync } from '../hooks/useUrlSync'
+import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { useListPage } from '../hooks/useListPage'
 import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants/labels'
-import type { ApiListResponse, Project, ProjectsFilters, User } from '../types'
+import type { Project, ProjectsFilters, User } from '../types'
 import { formatCurrency } from '../utils/format'
 import { apiRoutes } from '../lib/apiRoutes'
 
@@ -427,10 +425,6 @@ function Projects() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
 
-  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters, pagination, setPagination, setPage, setPageSize } =
-    useUrlSync({ pathname: '/projects', defaultFilters })
-  const debouncedQuery = useDebouncedValue(filters.q, 300)
-
   const [form, setForm] = useState<ProjectFormState>({
     companyId: '',
     name: '',
@@ -442,26 +436,38 @@ function Projects() {
     ownerId: '',
   })
 
-  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.list(), {
-    cacheTimeMs: 30_000,
-  })
-  const userOptions = usersData?.users ?? []
-
-  const trimmedQuery = debouncedQuery.trim()
-  const queryString = useListQuery(filters, pagination, { q: trimmedQuery })
-
   const {
+    filters,
+    setFilters,
+    hasActiveFilters,
+    clearFilter,
+    clearAllFilters,
+    pagination,
+    setPage,
+    setPageSize,
+    handleSearchSubmit,
     data: projectsData,
     error,
     setError,
     isLoading: isLoadingProjects,
     refetch: refetchProjects,
-  } = useFetch<ApiListResponse<Project>>(apiRoutes.projects.list(queryString), {
-    errorMessage: '案件一覧の取得に失敗しました',
-    onSuccess: (data) => {
-      setPagination((prev) => ({ ...prev, ...data.pagination }))
+  } = useListPage<ProjectsFilters, Record<string, string>, Project>({
+    urlSync: { pathname: '/projects', defaultFilters },
+    buildUrl: apiRoutes.projects.list,
+    debounce: {
+      key: 'q',
+      delayMs: 300,
+      transform: (value) => (typeof value === 'string' ? value.trim() : value),
+    },
+    fetchOptions: {
+      errorMessage: '案件一覧の取得に失敗しました',
     },
   })
+
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.list(), {
+    cacheTimeMs: 30_000,
+  })
+  const userOptions = usersData?.users ?? []
 
   const projects = projectsData?.items ?? []
 
@@ -472,13 +478,7 @@ function Projects() {
 
   const shortcuts = useMemo(
     () => [
-      {
-        key: '/',
-        handler: () => searchInputRef.current?.focus(),
-        preventDefault: true,
-        ctrlKey: false,
-        metaKey: false,
-      },
+      createSearchShortcut(searchInputRef),
       {
         key: 'n',
         handler: () => setShowCreateForm(true),
@@ -488,15 +488,10 @@ function Projects() {
         enabled: canWrite,
       },
     ],
-    [canWrite]
+    [canWrite, searchInputRef]
   )
 
   useKeyboardShortcut(shortcuts)
-
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-    setPage(1)
-  }
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()

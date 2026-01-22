@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { PaginationState } from '../types'
 
-type UrlSyncConfig<F extends Record<string, string>, P extends Record<string, string> = Record<string, string>> = {
+export type UrlSyncConfig<
+  F extends Record<string, string>,
+  P extends Record<string, string> = Record<string, string>,
+> = {
   pathname: string
   defaultFilters: F
   defaultPageSize?: number

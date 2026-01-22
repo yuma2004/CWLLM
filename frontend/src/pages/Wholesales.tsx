@@ -15,11 +15,10 @@ import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
-import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { useListQuery } from '../hooks/useListQuery'
-import { useUrlSync } from '../hooks/useUrlSync'
+import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { useListPage } from '../hooks/useListPage'
 import { usePermissions } from '../hooks/usePermissions'
-import type { ApiListResponse, Wholesale, WholesalesFilters } from '../types'
+import type { Wholesale, WholesalesFilters } from '../types'
 import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants/labels'
 import { formatDateInput } from '../utils/date'
 import { formatCurrency } from '../utils/format'
@@ -256,8 +255,28 @@ function Wholesales() {
   const [error, setError] = useState('')
   const searchInputRef = useRef<HTMLSelectElement>(null)
 
-  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters, pagination, setPagination, setPage, setPageSize } =
-    useUrlSync({ pathname: '/wholesales', defaultFilters })
+  const {
+    filters,
+    setFilters,
+    hasActiveFilters,
+    clearFilter,
+    clearAllFilters,
+    pagination,
+    setPage,
+    setPageSize,
+    handleSearchSubmit,
+    data: wholesalesData,
+    isLoading: isLoadingWholesales,
+    refetch: refetchWholesales,
+  } = useListPage<WholesalesFilters, Record<string, string>, Wholesale>({
+    urlSync: { pathname: '/wholesales', defaultFilters },
+    buildUrl: apiRoutes.wholesales.list,
+    fetchOptions: {
+      errorMessage: '卸一覧の取得に失敗しました',
+      onStart: () => setError(''),
+      onError: setError,
+    },
+  })
 
   // 編集モーダル用state
   const [editingWholesale, setEditingWholesale] = useState<Wholesale | null>(null)
@@ -270,21 +289,6 @@ function Wholesales() {
 
   // 削除確認用state
   const [deleteTarget, setDeleteTarget] = useState<Wholesale | null>(null)
-
-  const queryString = useListQuery(filters, pagination)
-
-  const {
-    data: wholesalesData,
-    isLoading: isLoadingWholesales,
-    refetch: refetchWholesales,
-  } = useFetch<ApiListResponse<Wholesale>>(apiRoutes.wholesales.list(queryString), {
-    errorMessage: '卸一覧の取得に失敗しました',
-    onStart: () => setError(''),
-    onSuccess: (data) => {
-      setPagination((prev) => ({ ...prev, ...data.pagination }))
-    },
-    onError: setError,
-  })
 
   const wholesales = wholesalesData?.items ?? []
 
@@ -317,25 +321,9 @@ function Wholesales() {
   const selectedCompanyName = selectedCompanyData?.company?.name || filters.companyId
   const selectedProjectName = selectedProjectData?.project?.name || filters.projectId
 
-  const shortcuts = useMemo(
-    () => [
-      {
-        key: '/',
-        handler: () => searchInputRef.current?.focus(),
-        preventDefault: true,
-        ctrlKey: false,
-        metaKey: false,
-      },
-    ],
-    []
-  )
+  const shortcuts = useMemo(() => [createSearchShortcut(searchInputRef)], [searchInputRef])
 
   useKeyboardShortcut(shortcuts)
-
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-    setPage(1)
-  }
 
   const handleClearFilter = (key: keyof WholesalesFilters) => {
     clearFilter(key)

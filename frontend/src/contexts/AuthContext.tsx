@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { useFetch, useMutation } from '../hooks/useApi'
 import { ApiRequestError } from '../lib/apiClient'
 import { apiRoutes } from '../lib/apiRoutes'
+import { clearAuthToken, setAuthToken } from '../lib/authToken'
 
 interface User {
   id: string
@@ -67,8 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { errorMessage: 'ログインに失敗しました' }
     )
     if (data?.token) {
-      // トークンをlocalStorageに保存（クロスドメイン対応）
-      localStorage.setItem('auth_token', data.token)
+      setAuthToken(data.token)
     }
     if (data?.user) {
       // エラー状態をクリアしてからユーザーを設定
@@ -84,8 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // noop
     }
-    // トークンを削除
-    localStorage.removeItem('auth_token')
+    clearAuthToken()
     setUser(null)
   }
 

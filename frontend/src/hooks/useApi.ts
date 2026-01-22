@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiRequest } from '../lib/apiClient'
 import { getCache, setCache } from '../lib/apiCache'
-import { createAbortController, isAbortError, requestWithRetry } from '../lib/apiRequest'
+import { createAbortController, isAbortError } from '../lib/apiRequest'
 
 type HttpMethod = 'POST' | 'PATCH' | 'DELETE'
 
@@ -14,16 +14,12 @@ type FetchOptions<T> = {
   onError?: (message: string, error?: unknown) => void
   cacheKey?: string
   cacheTimeMs?: number
-  retry?: number
-  retryDelayMs?: number
 }
 
 type MutationOptions<T> = {
   init?: RequestInit
   errorMessage?: string
   url?: string
-  retry?: number
-  retryDelayMs?: number
   onSuccess?: (data: T) => void
   onError?: (message: string, error?: unknown) => void
 }
@@ -38,8 +34,6 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
     onError,
     cacheKey,
     cacheTimeMs = 0,
-    retry = 0,
-    retryDelayMs = 500,
   } = options
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
@@ -90,17 +84,12 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
       }
       callbacksRef.current.onStart?.()
       try {
-        const responseData = await requestWithRetry(
-          () =>
-            apiRequest<T>(url, {
-              method: (mergedInit.method as string | undefined) ?? 'GET',
-              body: mergedInit.body,
-              headers: mergedInit.headers,
-              signal: controller.signal,
-            }),
-          retry,
-          retryDelayMs
-        )
+        const responseData = await apiRequest<T>(url, {
+          method: (mergedInit.method as string | undefined) ?? 'GET',
+          body: mergedInit.body,
+          headers: mergedInit.headers,
+          signal: controller.signal,
+        })
         if (responseData !== null) {
           if (!controller.signal.aborted && requestId === requestIdRef.current) {
             setData(responseData)
@@ -128,7 +117,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
         }
       }
     },
-    [url, init, errorMessage, cacheKey, cacheTimeMs, retry, retryDelayMs]
+    [url, init, errorMessage, cacheKey, cacheTimeMs]
   )
 
   useEffect(() => {
@@ -168,19 +157,12 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
       }
 
       try {
-        const retryCount = options.retry ?? 0
-        const retryDelayMs = options.retryDelayMs ?? 500
-        const responseData = await requestWithRetry(
-          () =>
-            apiRequest<T>(targetUrl, {
-              method,
-              body: payload ?? options.init?.body,
-              headers: options.init?.headers,
-              signal: controller.signal,
-            }),
-          retryCount,
-          retryDelayMs
-        )
+        const responseData = await apiRequest<T>(targetUrl, {
+          method,
+          body: payload ?? options.init?.body,
+          headers: options.init?.headers,
+          signal: controller.signal,
+        })
         if (responseData !== null) {
           options.onSuccess?.(responseData)
         }

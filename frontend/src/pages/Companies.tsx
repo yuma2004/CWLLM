@@ -6,17 +6,14 @@ import CompanyFilters from '../components/companies/CompanyFilters'
 import CompanyTable from '../components/companies/CompanyTable'
 import CompanyCreateForm, { type CompanyFormState } from '../components/companies/CompanyCreateForm'
 import { useFetch, useMutation } from '../hooks/useApi'
-import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { useListQuery } from '../hooks/useListQuery'
-import { useUrlSync } from '../hooks/useUrlSync'
+import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
+import { useListPage } from '../hooks/useListPage'
 import { apiRoutes } from '../lib/apiRoutes'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
   COMPANY_STATUS_DEFAULT_OPTIONS,
 } from '../constants/labels'
 import type {
-  ApiListResponse,
   ChatworkRoom,
   CompaniesFilters,
   Company,
@@ -46,10 +43,6 @@ function Companies() {
   })
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  const { filters, setFilters, hasActiveFilters, clearFilter, clearAllFilters, pagination, setPagination, setPage, setPageSize } =
-    useUrlSync({ pathname: '/companies', defaultFilters })
-  const debouncedQuery = useDebouncedValue(filters.q, 300)
-
   const [form, setForm] = useState<CompanyFormState>({
     name: '',
     category: '',
@@ -57,19 +50,28 @@ function Companies() {
     tags: '',
     profile: '',
   })
-  const queryString = useListQuery(filters, pagination, { q: debouncedQuery })
-
   const {
+    filters,
+    setFilters,
+    hasActiveFilters,
+    clearFilter,
+    clearAllFilters,
+    pagination,
+    setPage,
+    setPageSize,
+    handleSearchSubmit,
     data: companiesData,
     isLoading: isLoadingCompanies,
     refetch: refetchCompanies,
-  } = useFetch<ApiListResponse<Company>>(apiRoutes.companies.list(queryString), {
-    errorMessage: '企業一覧の取得に失敗しました',
-    onStart: () => setError(''),
-    onSuccess: (data) => {
-      setPagination((prev) => ({ ...prev, ...data.pagination }))
+  } = useListPage<CompaniesFilters, Record<string, string>, Company>({
+    urlSync: { pathname: '/companies', defaultFilters },
+    buildUrl: apiRoutes.companies.list,
+    debounce: { key: 'q', delayMs: 300 },
+    fetchOptions: {
+      errorMessage: '企業一覧の取得に失敗しました',
+      onStart: () => setError(''),
+      onError: setError,
     },
-    onError: setError,
   })
 
   const { refetch: refetchOptions } = useFetch<CompanyOptions>(apiRoutes.companies.options(), {
@@ -126,13 +128,7 @@ function Companies() {
 
   const shortcuts = useMemo(
     () => [
-      {
-        key: '/',
-        handler: () => searchInputRef.current?.focus(),
-        preventDefault: true,
-        ctrlKey: false,
-        metaKey: false,
-      },
+      createSearchShortcut(searchInputRef),
       {
         key: 'n',
         handler: () => setShowCreateForm(true),
@@ -142,7 +138,7 @@ function Companies() {
         enabled: canWrite,
       },
     ],
-    [canWrite]
+    [canWrite, searchInputRef]
   )
 
   useKeyboardShortcut(shortcuts)
@@ -156,11 +152,6 @@ function Companies() {
       setRoomSearchQuery('')
     }
   }, [showCreateForm, isAdmin])
-
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-    setPage(1)
-  }
 
   const handleRoomSelect = (room: ChatworkRoom) => {
     setSelectedRoomId(room.roomId)
@@ -237,14 +228,6 @@ function Companies() {
     } catch (err) {
       setError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
-  }
-
-  const handlePageChange = (nextPage: number) => {
-    setPage(nextPage)
-  }
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize)
   }
 
   const handleClearFilter = (key: keyof CompaniesFilters) => {
@@ -346,8 +329,8 @@ function Companies() {
           page={pagination.page}
           pageSize={pagination.pageSize}
           total={pagination.total}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
         />
       )}
 

@@ -12,6 +12,7 @@ import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePagination } from '../hooks/usePagination'
+import { usePaginationSync } from '../hooks/usePaginationSync'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
@@ -25,6 +26,7 @@ function WholesaleDetail() {
   const navigate = useNavigate()
   const { canWrite } = usePermissions()
   const { pagination, setPagination, setPage, setPageSize, paginationQuery } = usePagination(10)
+  const syncPagination = usePaginationSync(setPagination)
   const [isEditing, setIsEditing] = useState(false)
   const [formError, setFormError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -70,9 +72,7 @@ function WholesaleDetail() {
     id ? apiRoutes.wholesales.tasks(id, paginationQuery) : null,
     {
       errorMessage: 'タスクの読み込みに失敗しました',
-      onSuccess: (data) => {
-        setPagination((prev) => ({ ...prev, ...data.pagination }))
-      },
+      onSuccess: syncPagination,
     }
   )
 

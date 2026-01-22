@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { type RefObject, useEffect, useRef } from 'react'
 
 type Shortcut = {
   key: string
@@ -62,3 +62,13 @@ export function useKeyboardShortcut(shortcuts: Shortcut[], options: ShortcutOpti
     return () => eventTarget.removeEventListener('keydown', handleKeyDown as EventListener)
   }, [enabled, ignoreInput, target])
 }
+
+export const createSearchShortcut = <T extends HTMLElement>(
+  ref: RefObject<T>
+): Shortcut => ({
+  key: '/',
+  handler: () => ref.current?.focus(),
+  preventDefault: true,
+  ctrlKey: false,
+  metaKey: false,
+})

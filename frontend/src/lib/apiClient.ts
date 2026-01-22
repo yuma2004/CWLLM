@@ -1,3 +1,4 @@
+import { getAuthToken } from './authToken'
 import { ApiError } from '../types'
 
 type ApiRequestOptions = {
@@ -5,6 +6,8 @@ type ApiRequestOptions = {
   body?: unknown
   headers?: HeadersInit
   signal?: AbortSignal
+  authMode?: 'bearer'
+  authToken?: string | null
 }
 
 export class ApiRequestError extends Error {
@@ -17,8 +20,16 @@ export class ApiRequestError extends Error {
 // API ベースURL（本番環境では環境変数から取得）
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
+const isAbsoluteUrl = (value: string) =>
+  value.startsWith('http://') || value.startsWith('https://')
+
+const isAllowedAbsoluteUrl = (url: string) => {
+  if (!API_BASE_URL) return false
+  return url.startsWith(API_BASE_URL)
+}
+
 const buildUrl = (path: string): string => {
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (isAbsoluteUrl(path)) {
     return path
   }
   if (API_BASE_URL) {
@@ -39,16 +50,25 @@ const readJson = async <T,>(response: Response): Promise<T | null> => {
 
 const prepareRequest = (
   url: string,
-  { method = 'GET', body, headers, signal }: ApiRequestOptions
+  { method = 'GET', body, headers, signal, authMode, authToken }: ApiRequestOptions
 ): { fullUrl: string; init: RequestInit } => {
+  const isAbsoluteInput = isAbsoluteUrl(url)
+  if (isAbsoluteInput && !isAllowedAbsoluteUrl(url)) {
+    throw new Error('Absolute URL requests are not allowed in apiClient.')
+  }
   const fullUrl = buildUrl(url)
   const requestHeaders = new Headers(headers)
   const hasBody = body !== undefined
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
 
-  const token = localStorage.getItem('auth_token')
-  if (token && !requestHeaders.has('Authorization')) {
-    requestHeaders.set('Authorization', `Bearer ${token}`)
+  if (isAbsoluteInput && requestHeaders.has('Authorization')) {
+    requestHeaders.delete('Authorization')
+  }
+  if (!isAbsoluteInput && authMode === 'bearer' && !requestHeaders.has('Authorization')) {
+    const token = authToken ?? getAuthToken()
+    if (token) {
+      requestHeaders.set('Authorization', `Bearer ${token}`)
+    }
   }
 
   let requestBody: BodyInit | undefined
@@ -63,7 +83,7 @@ const prepareRequest = (
     fullUrl,
     init: {
       method,
-      credentials: 'include',
+      credentials: isAbsoluteInput ? 'omit' : 'include',
       headers: requestHeaders,
       body: requestBody,
       signal,
