@@ -5,13 +5,13 @@ import { buildErrorPayload } from './errors'
 export type PrismaErrorMap = Partial<Record<string, { status: number; message: string }>>
 
 export const DEFAULT_PRISMA_ERROR_MAP: PrismaErrorMap = {
+  P2002: { status: 409, message: 'Conflict' },
   P2003: { status: 400, message: 'Invalid relation' },
   P2025: { status: 404, message: 'Not found' },
 }
 
 export const GLOBAL_PRISMA_ERROR_MAP: PrismaErrorMap = {
   ...DEFAULT_PRISMA_ERROR_MAP,
-  P2002: { status: 409, message: 'Conflict' },
 }
 
 export const prisma = new PrismaClient()
