@@ -34,6 +34,16 @@ async function main() {
       })
       console.log('Created admin user:', adminEmail)
     }
+  } else if (adminPassword && process.env.NODE_ENV === 'test') {
+    const hashedPassword = await bcrypt.hash(adminPassword, 10)
+    await prisma.user.update({
+      where: { email: adminEmail },
+      data: {
+        password: hashedPassword,
+        role: adminRole,
+      },
+    })
+    console.log('Updated admin user password for test:', adminEmail)
   }
 
   // テスト用ユーザー（開発環境のみ）

@@ -9,13 +9,18 @@ const backendPort = rootEnv.BACKEND_PORT || '3000'
 const databaseUrl = rootEnv.DATABASE_URL_TEST || rootEnv.DATABASE_URL || ''
 const adminEmail = rootEnv.ADMIN_EMAIL || 'admin@example.com'
 const adminPassword = rootEnv.ADMIN_PASSWORD || 'admin123'
-const chatworkBaseUrl = rootEnv.CHATWORK_API_BASE_URL || 'https://api.chatwork.com/v2'
+const mockChatworkPort = rootEnv.MOCK_CHATWORK_PORT || '9101'
+const chatworkBaseUrl =
+  rootEnv.CHATWORK_API_BASE_URL || `http://localhost:${mockChatworkPort}/v2`
+
+process.env.E2E_ADMIN_EMAIL ||= adminEmail
+process.env.E2E_ADMIN_PASSWORD ||= adminPassword
 
 const baseEnv = {
   ...process.env,
   DATABASE_URL: databaseUrl,
   NODE_ENV: 'test',
-  CHATWORK_API_TOKEN: rootEnv.CHATWORK_API_TOKEN || '',
+  CHATWORK_API_TOKEN: rootEnv.CHATWORK_API_TOKEN || 'mock-token',
   CHATWORK_API_BASE_URL: chatworkBaseUrl,
   BACKEND_PORT: backendPort,
   ADMIN_EMAIL: adminEmail,
@@ -36,6 +41,15 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: [
+    {
+      command: 'node e2e/mock-chatwork-server.js',
+      url: `http://localhost:${mockChatworkPort}/healthz`,
+      reuseExistingServer: false,
+      env: {
+        ...process.env,
+        MOCK_CHATWORK_PORT: mockChatworkPort,
+      },
+    },
     {
       command: 'npm run dev',
       url: 'http://localhost:5173',

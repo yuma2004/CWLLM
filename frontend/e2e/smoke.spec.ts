@@ -11,8 +11,8 @@ test('Login and basic navigation smoke test', async ({ page }) => {
   await page.waitForURL('**/')
 
   await page.getByRole('link', { name: '企業管理' }).click()
-  await expect(page).toHaveURL('**/companies')
+  await expect(page).toHaveURL(/\/companies(\?.*)?$/)
 
-  await page.getByRole('link', { name: 'タスク管理' }).click()
-  await expect(page).toHaveURL('**/tasks')
+  await page.getByRole('link', { name: /^タスク管理$/ }).click()
+  await expect(page).toHaveURL(/\/tasks(\?.*)?$/)
 })
