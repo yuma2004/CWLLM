@@ -140,6 +140,18 @@ flowchart LR
 | AuditLog | `entityType`, `entityId`, `action`, `changes` | 監査 |
 | AppSetting | `key`, `value` | 設定 |
 
+## 実装差分（主要追加項目）
+**説明（一般）**: ER図/辞書は主要項目の抜粋です。実装には以下の追加項目があります。  
+- Company: `category`, `profile`, `ownerId`
+- Contact: `phone`, `memo`, `sortOrder`
+- Project: `conditions`, `unitPrice`, `periodStart`, `periodEnd`, `ownerId`
+- Wholesale: `conditions`, `unitPrice`, `margin`, `agreedDate`, `ownerId`
+- ChatworkRoom: `description`, `lastMessageId`, `lastErrorAt`, `lastErrorMessage`, `lastErrorStatus`
+- Message: `labels`, `sender`, `sentAt`
+- Summary / SummaryDraft: `periodStart`, `periodEnd`, `sourceLinks`, `model`, `promptVersion`, `sourceMessageCount`, `tokenUsage`, `expiresAt`（Draftのみ）
+- Task: `title`, `description`, `dueDate`, `assigneeId`
+- Job: `error`, `startedAt`, `finishedAt`
+
 ## CRUD マトリクス（主要）
 | リソース | Create | Read | Update | Delete |
 | --- | --- | --- | --- | --- |

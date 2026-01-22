@@ -97,6 +97,36 @@ const listTasks = async (
   return buildPaginatedResponse(itemsWithTarget, page, pageSize, total)
 }
 
+const listTasksForTarget = async (
+  targetType: TargetType,
+  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
+  reply: FastifyReply
+) => {
+  const userId = (request.user as JWTUser | undefined)?.userId
+  if (!userId) {
+    return reply.code(401).send(unauthorized())
+  }
+  const { page, pageSize, skip } = parsePagination(
+    request.query.page,
+    request.query.pageSize
+  )
+  const status = normalizeStatus(request.query.status)
+  if (request.query.status !== undefined && status === null) {
+    return reply.code(400).send(badRequest('Invalid status'))
+  }
+
+  const where: Prisma.TaskWhereInput = {
+    targetType,
+    targetId: request.params.id,
+    assigneeId: userId,
+  }
+  if (status) {
+    where.status = status
+  }
+
+  return listTasks(where, page, pageSize, skip)
+}
+
 export const listTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
@@ -418,75 +448,21 @@ export const listCompanyTasksHandler = async (
   request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
-  if (!userId) {
-    return reply.code(401).send(unauthorized())
-  }
-  const { page, pageSize, skip } = parsePagination(
-    request.query.page,
-    request.query.pageSize
-  )
-  const status = normalizeStatus(request.query.status)
-  const where: Prisma.TaskWhereInput = {
-    targetType: 'company',
-    targetId: request.params.id,
-    assigneeId: userId,
-  }
-  if (status) {
-    where.status = status
-  }
-
-  return listTasks(where, page, pageSize, skip)
+  return listTasksForTarget('company', request, reply)
 }
 
 export const listProjectTasksHandler = async (
   request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
-  if (!userId) {
-    return reply.code(401).send(unauthorized())
-  }
-  const { page, pageSize, skip } = parsePagination(
-    request.query.page,
-    request.query.pageSize
-  )
-  const status = normalizeStatus(request.query.status)
-  const where: Prisma.TaskWhereInput = {
-    targetType: 'project',
-    targetId: request.params.id,
-    assigneeId: userId,
-  }
-  if (status) {
-    where.status = status
-  }
-
-  return listTasks(where, page, pageSize, skip)
+  return listTasksForTarget('project', request, reply)
 }
 
 export const listWholesaleTasksHandler = async (
   request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
-  if (!userId) {
-    return reply.code(401).send(unauthorized())
-  }
-  const { page, pageSize, skip } = parsePagination(
-    request.query.page,
-    request.query.pageSize
-  )
-  const status = normalizeStatus(request.query.status)
-  const where: Prisma.TaskWhereInput = {
-    targetType: 'wholesale',
-    targetId: request.params.id,
-    assigneeId: userId,
-  }
-  if (status) {
-    where.status = status
-  }
-
-  return listTasks(where, page, pageSize, skip)
+  return listTasksForTarget('wholesale', request, reply)
 }
 
 

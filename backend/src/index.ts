@@ -6,7 +6,6 @@ import rateLimit from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { randomUUID } from 'node:crypto'
-import { Prisma } from '@prisma/client'
 import {
   ZodTypeProvider,
   jsonSchemaTransform,
@@ -19,7 +18,7 @@ import { normalizeErrorPayload } from './utils/errors'
 import { JWTUser } from './types/auth'
 import { initJobQueue } from './services/jobQueue'
 import { startChatworkAutoSync } from './services/chatworkScheduler'
-import { prisma } from './utils/prisma'
+import { GLOBAL_PRISMA_ERROR_MAP, mapPrismaError, prisma } from './utils/prisma'
 
 const fastify = Fastify({
   logger: {
@@ -142,17 +141,10 @@ fastify.setErrorHandler((error, request, reply) => {
   const user = request.user as JWTUser | undefined
   let statusCode = error.statusCode ?? 500
   let message = error.message || 'Request failed'
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    const codeMap: Record<string, { status: number; message: string }> = {
-      P2025: { status: 404, message: 'Not found' },
-      P2002: { status: 409, message: 'Conflict' },
-      P2003: { status: 400, message: 'Invalid relation' },
-    }
-    const mapped = codeMap[error.code]
-    if (mapped) {
-      statusCode = mapped.status
-      message = mapped.message
-    }
+  const prismaMapped = mapPrismaError(error, {}, GLOBAL_PRISMA_ERROR_MAP)
+  if (prismaMapped) {
+    statusCode = prismaMapped.statusCode
+    message = prismaMapped.message
   }
   request.log.error(
     {

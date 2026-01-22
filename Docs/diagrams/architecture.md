@@ -242,12 +242,19 @@ flowchart TB
   Frontend --> Hooks["hooks/"]
   Frontend --> Contexts["contexts/"]
   Frontend --> Lib["lib/"]
+  Frontend --> Constants["constants/"]
+  Frontend --> Types["types/"]
+  Frontend --> UtilsFe["utils/"]
 
   Backend --> Routes4["routes/"]
   Backend --> Services4["services/"]
   Backend --> Middleware4["middleware/"]
   Backend --> Utils4["utils/"]
   Backend --> Prisma4["prisma/"]
+  Backend --> Config["config/"]
+  Backend --> TypesBe["types/"]
+  Backend --> Test["test/"]
+  Backend --> Worker["worker.ts"]
 ```
 
 ## レイヤー図（Presentation / Domain / Infra）

@@ -248,12 +248,19 @@ flowchart TB
   Frontend --> Hooks["hooks/"]
   Frontend --> Contexts["contexts/"]
   Frontend --> Lib["lib/"]
+  Frontend --> Constants["constants/"]
+  Frontend --> Types["types/"]
+  Frontend --> UtilsFe["utils/"]
 
   Backend --> Routes4["routes/"]
   Backend --> Services4["services/"]
   Backend --> Middleware4["middleware/"]
   Backend --> Utils4["utils/"]
   Backend --> Prisma4["prisma/"]
+  Backend --> Config["config/"]
+  Backend --> TypesBe["types/"]
+  Backend --> Test["test/"]
+  Backend --> Worker["worker.ts"]
 ```
 
 ## レイヤー図（Presentation / Domain / Infra）
@@ -666,6 +673,18 @@ flowchart LR
 | Job | `type`, `status`, `payload`, `result` | 非同期処理 |
 | AuditLog | `entityType`, `entityId`, `action`, `changes` | 監査 |
 | AppSetting | `key`, `value` | 設定 |
+
+## 実装差分（主要追加項目）
+**説明（一般）**: ER図/辞書は主要項目の抜粋です。実装には以下の追加項目があります。  
+- Company: `category`, `profile`, `ownerId`
+- Contact: `phone`, `memo`, `sortOrder`
+- Project: `conditions`, `unitPrice`, `periodStart`, `periodEnd`, `ownerId`
+- Wholesale: `conditions`, `unitPrice`, `margin`, `agreedDate`, `ownerId`
+- ChatworkRoom: `description`, `lastMessageId`, `lastErrorAt`, `lastErrorMessage`, `lastErrorStatus`
+- Message: `labels`, `sender`, `sentAt`
+- Summary / SummaryDraft: `periodStart`, `periodEnd`, `sourceLinks`, `model`, `promptVersion`, `sourceMessageCount`, `tokenUsage`, `expiresAt`（Draftのみ）
+- Task: `title`, `description`, `dueDate`, `assigneeId`
+- Job: `error`, `startedAt`, `finishedAt`
 
 ## CRUD マトリクス（主要）
 | リソース | Create | Read | Update | Delete |
@@ -1113,12 +1132,16 @@ classDiagram
 
 ## 設定項目（環境変数）
 `NODE_ENV`, `PORT`, `BACKEND_PORT`, `JWT_SECRET`, `CORS_ORIGINS`,  
+`DATABASE_URL`, `DATABASE_URL_TEST`,  
 `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`, `TRUST_PROXY`,  
 `CHATWORK_API_TOKEN`, `CHATWORK_API_BASE_URL`, `CHATWORK_AUTO_SYNC_ENABLED`,  
 `CHATWORK_AUTO_SYNC_INTERVAL_MINUTES`, `CHATWORK_AUTO_SYNC_ROOM_LIMIT`,  
 `CHATWORK_NEW_ROOMS_ACTIVE`, `CHATWORK_WEBHOOK_TOKEN`,  
 `CHATWORK_WEBHOOK_COOLDOWN_SECONDS`,  
 `OPENAI_API_KEY`, `OPENAI_MODEL`, `REDIS_URL`, `JOB_WORKER_ENABLED`
+
+### Seed / テスト用（任意）
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_ROLE`
 
 ## Feature Flags（実質）
 | 変数 | 目的 |

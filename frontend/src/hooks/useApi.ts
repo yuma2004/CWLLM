@@ -59,25 +59,29 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
     ) => {
       if (!url) {
         abortControllerRef.current?.abort()
+        requestIdRef.current += 1
+        setIsLoading(false)
         return null
       }
       abortControllerRef.current?.abort()
       const mergedInit = { ...init, ...overrideInit }
       const { controller, cleanup } = createAbortController(mergedInit.signal)
       abortControllerRef.current = controller
+      requestIdRef.current += 1
+      const requestId = requestIdRef.current
       const resolvedCacheKey = cacheKey ?? url
       if (!options?.ignoreCache && cacheTimeMs > 0 && resolvedCacheKey) {
         const cached = getCache<T>(resolvedCacheKey)
         if (cached) {
-          if (!controller.signal.aborted) {
+          if (!controller.signal.aborted && requestId === requestIdRef.current) {
             setData(cached)
+            setError('')
+            setIsLoading(false)
           }
           callbacksRef.current.onSuccess?.(cached)
           return cached
         }
       }
-      requestIdRef.current += 1
-      const requestId = requestIdRef.current
       if (!controller.signal.aborted) {
         setIsLoading(true)
         setError('')
@@ -102,6 +106,9 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
         return responseData
       } catch (err) {
         if (isAbortError(err)) {
+          if (requestId === requestIdRef.current) {
+            setIsLoading(false)
+          }
           return null
         }
         const message = err instanceof Error ? err.message : errorMessage || 'ネットワークエラー'
@@ -169,6 +176,9 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
         return responseData
       } catch (err) {
         if (isAbortError(err)) {
+          if (requestId === requestIdRef.current) {
+            setIsLoading(false)
+          }
           return null
         }
         const message =

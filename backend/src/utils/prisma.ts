@@ -2,28 +2,42 @@ import { Prisma, PrismaClient } from '@prisma/client'
 import { FastifyReply } from 'fastify'
 import { buildErrorPayload } from './errors'
 
-export type PrismaErrorMap = Partial<
-  Record<string, { status: number; message: string }>
->
+export type PrismaErrorMap = Partial<Record<string, { status: number; message: string }>>
 
-const DEFAULT_PRISMA_ERROR_MAP: PrismaErrorMap = {
+export const DEFAULT_PRISMA_ERROR_MAP: PrismaErrorMap = {
   P2003: { status: 400, message: 'Invalid relation' },
   P2025: { status: 404, message: 'Not found' },
 }
 
+export const GLOBAL_PRISMA_ERROR_MAP: PrismaErrorMap = {
+  ...DEFAULT_PRISMA_ERROR_MAP,
+  P2002: { status: 409, message: 'Conflict' },
+}
+
 export const prisma = new PrismaClient()
+
+export const mapPrismaError = (
+  error: unknown,
+  overrides: PrismaErrorMap = {},
+  baseMap: PrismaErrorMap = DEFAULT_PRISMA_ERROR_MAP
+) => {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return null
+  const errorMap = { ...baseMap, ...overrides }
+  const mapped = errorMap[error.code]
+  if (!mapped) return null
+  return { statusCode: mapped.status, message: mapped.message }
+}
 
 export const handlePrismaError = (
   reply: FastifyReply,
   error: unknown,
   overrides: PrismaErrorMap = {}
 ) => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    const errorMap = { ...DEFAULT_PRISMA_ERROR_MAP, ...overrides }
-    const mapped = errorMap[error.code]
-    if (mapped) {
-      return reply.code(mapped.status).send(buildErrorPayload(mapped.status, mapped.message))
-    }
+  const mapped = mapPrismaError(error, overrides)
+  if (mapped) {
+    return reply
+      .code(mapped.statusCode)
+      .send(buildErrorPayload(mapped.statusCode, mapped.message))
   }
   return reply.code(500).send(buildErrorPayload(500, 'Internal server error'))
 }
