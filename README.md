@@ -20,12 +20,18 @@ Chatworkの会話を企業単位で統合し、企業/案件/卸/タスク/要�
 - Docker & Docker Compose
 - PostgreSQL（Docker経由で起動）
 
-### 起動手順
+### 起動手順（ローカル）
 
 1. **環境変数の設定**
 
 ```bash
-cp env.example .env
+# フロントエンド
+cp .env.example .env
+
+# バックエンド
+cp backend/.env.example backend/.env
+```
+
 2. **データベースの起動**
 
 ```bash
@@ -33,9 +39,15 @@ cd infra
 docker compose up -d
 ```
 
-Dockerで起動する場合は `RUN_MIGRATIONS=true` を指定すると起動時にマイグレーションが実行されます。
+3. **バックエンドの起動**
 
-4. **フロントエンドのセットアップと起動**
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+4. **フロントエンドの起動**
 
 ```bash
 cd frontend
@@ -43,17 +55,23 @@ npm install
 npm run dev
 ```
 
-フロントエンドは `http://localhost:5173` で起動します。
+フロントエンドは `http://localhost:5173`、バックエンドは `http://localhost:3000` で起動します。
+
+※ `infra/docker-compose.yml` のPostgreSQLはホスト `55432` を使用します。
 
 ## 開発
 
+### テスト
 
+```bash
+# バックエンド
+cd backend
+npm test
 
 # フロントエンド
 cd frontend
-npm test
+npm test -- --run
 ```
-
 
 ### シード実行
 
@@ -88,33 +106,11 @@ npm run format
 
 バックエンド起動後に `http://localhost:3000/api/docs` でOpenAPIを確認できます。
 
-```
-- OAPIˑ̂߁A[gʐMG[Ŏs邱Ƃ
-npm test
-```
-
-### 繝ｪ繝ｳ繝医�繝輔か繝ｼ繝槭ャ繝
-
-```bash
-# 繝舌ャ繧ｯ繧ｨ繝ｳ繝
-cd backend
-npm run lint
-npm run format
-
-# 繝輔Ο繝ｳ繝医お繝ｳ繝
-cd frontend
-npm run lint
-npm run format
-```
-
-## 繝峨く繝･繝｡繝ｳ繝
-
-隧ｳ邏ｰ縺ｪ螳溯｣��繝ｩ繝ｳ縺ｯ `Docs/螳溯｣��繝ｩ繝ｳ.md` 繧貞盾辣ｧ縺励※縺上□縺輔＞縲
-
 ## Production (Docker)
 
-1. Copy `.env` from `env.example` and set secrets (DATABASE_URL, JWT_SECRET, CHATWORK_API_TOKEN, OPENAI_API_KEY).
-2. Build and start containers:
+1. Copy `.env` from `.env.example` and `backend/.env` from `backend/.env.example`.
+2. Set secrets (DATABASE_URL, JWT_SECRET, CHATWORK_API_TOKEN, OPENAI_API_KEY, ADMIN_PASSWORD).
+3. Build and start containers:
 
 ```bash
 docker compose -f docker-compose.prod.yml up --build -d

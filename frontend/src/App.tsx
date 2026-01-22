@@ -7,6 +7,7 @@ import LoadingState from './components/ui/LoadingState'
 import { protectedRoutes, type RouteConfig } from './constants/routes'
 
 const Login = lazy(() => import('./pages/Login'))
+const NotFound = lazy(() => import('./pages/NotFound'))
 
 const renderProtectedRoute = (route: RouteConfig) => (
   <ProtectedRoute allowedRoles={route.allowedRoles}>
@@ -23,6 +24,16 @@ function App() {
           {protectedRoutes.map((route) => (
             <Route key={route.path} path={route.path} element={renderProtectedRoute(route)} />
           ))}
+          <Route
+            path="*"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NotFound />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Suspense>
     </AuthProvider>

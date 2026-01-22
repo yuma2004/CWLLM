@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { type Location, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 function Login() {
@@ -9,6 +9,8 @@ function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: Location } | null)?.from
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,7 +19,10 @@ function Login() {
 
     try {
       await login(email, password)
-      navigate('/')
+      const nextPath = from?.pathname
+        ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+        : '/'
+      navigate(nextPath)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed.')
     } finally {

@@ -10,6 +10,10 @@ const toIntervalMs = (minutes: number) => Math.max(1, minutes) * 60_000
 
 export const startChatworkAutoSync = (logger?: Logger) => {
   if (!env.chatworkAutoSyncEnabled) return null
+  if (!env.jobWorkerEnabled) {
+    logger?.warn?.({ reason: 'JOB_WORKER_ENABLED is false' }, 'Chatwork auto-sync disabled')
+    return null
+  }
   if (!env.redisUrl) {
     logger?.warn?.({ reason: 'REDIS_URL is not set' }, 'Chatwork auto-sync disabled')
     return null

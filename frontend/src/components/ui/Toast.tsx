@@ -32,7 +32,7 @@ const Toast = ({ message, variant = 'info', onClose, className }: ToastProps) =>
         type="button"
         onClick={onClose}
         className="text-white/80"
-        aria-label="閉じめE"
+        aria-label="閉じる"
       >
         <CloseIcon className="size-4" />
       </button>

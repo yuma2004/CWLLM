@@ -45,6 +45,9 @@ export default async function globalSetup() {
 
   process.env.DATABASE_URL = process.env.DATABASE_URL_TEST
   process.env.NODE_ENV = 'test'
+  if (!process.env.CHATWORK_API_TOKEN) {
+    process.env.CHATWORK_API_TOKEN = 'test-token'
+  }
 
   await ensureTestDatabase(process.env.DATABASE_URL_TEST)
 

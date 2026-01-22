@@ -53,10 +53,12 @@ services:
         value: "false"
       - key: OPENAI_API_KEY
         sync: false  # Dashboard で設定
+      - key: JOB_WORKER_ENABLED
+        value: "true"
       - key: ADMIN_EMAIL
         value: admin@example.com
       - key: ADMIN_PASSWORD
-        value: admin123
+        sync: false  # Dashboard で設定
       - key: ADMIN_ROLE
         value: admin
 

@@ -94,5 +94,5 @@ export const env = {
   openaiApiKey: raw.OPENAI_API_KEY,
   openaiModel: raw.OPENAI_MODEL,
   redisUrl: raw.REDIS_URL,
-  jobWorkerEnabled: parseBoolean(raw.JOB_WORKER_ENABLED, true),
+  jobWorkerEnabled: parseBoolean(raw.JOB_WORKER_ENABLED, raw.NODE_ENV !== 'production'),
 }

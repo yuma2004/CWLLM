@@ -58,7 +58,8 @@ const scheduleRequest = async () => {
   })
   await previous
   try {
-    while (true) {
+    let waiting = true
+    while (waiting) {
       const now = Date.now()
       const waitMs = Math.max(nextAllowedAt - now, 0)
       if (waitMs > 0) {
@@ -66,7 +67,7 @@ const scheduleRequest = async () => {
         continue
       }
       nextAllowedAt = now + MIN_REQUEST_INTERVAL_MS
-      break
+      waiting = false
     }
   } finally {
     release()
