@@ -12,6 +12,17 @@ export const parsePagination = (
   return { page, pageSize, skip: (page - 1) * pageSize }
 }
 
+export const parseLimit = (
+  value?: string,
+  defaultLimit = 20,
+  maxLimit = 50
+) => {
+  const rawLimit = Number(value)
+  const safeLimit = Number.isFinite(rawLimit) ? rawLimit : NaN
+  const limit = safeLimit || defaultLimit
+  return Math.min(Math.max(Math.floor(limit), 1), maxLimit)
+}
+
 export const buildPagination = (page: number, pageSize: number, total: number) => ({
   page,
   pageSize,

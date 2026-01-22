@@ -10,6 +10,7 @@ import {
   handlePrismaError,
   notFound,
   parseDate,
+  parseLimit,
   parsePagination,
   prisma,
   setCache,
@@ -452,10 +453,7 @@ export const bulkRemoveLabelsHandler = async (
 export const listMessageLabelsHandler = async (
   request: FastifyRequest<{ Querystring: LabelListQuery }>
 ) => {
-  const limitValue = Number(request.query.limit)
-  const limit = Number.isFinite(limitValue)
-    ? Math.min(Math.max(Math.floor(limitValue), 1), 50)
-    : 20
+  const limit = parseLimit(request.query.limit)
 
   const cacheKey = CACHE_KEYS.messageLabels(limit)
   const cached = getCache<{ items: Array<{ label: string; count: number }> }>(cacheKey)

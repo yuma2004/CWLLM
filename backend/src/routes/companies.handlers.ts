@@ -13,6 +13,7 @@ import {
   isNullableString,
   normalizeCompanyName,
   notFound,
+  parseLimit,
   parsePagination,
   parseStringArray,
   prisma,
@@ -86,10 +87,7 @@ export const searchCompaniesHandler = async (
     return reply.code(400).send(badRequest('q is required'))
   }
 
-  const limitValue = Number(request.query.limit)
-  const limit = Number.isFinite(limitValue)
-    ? Math.min(Math.max(Math.floor(limitValue), 1), 50)
-    : 20
+  const limit = parseLimit(request.query.limit)
 
   const normalized = normalizeCompanyName(rawQuery)
   const items = await prisma.company.findMany({
