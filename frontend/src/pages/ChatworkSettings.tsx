@@ -488,6 +488,7 @@ function ChatworkSettings() {
             <LoadingState data-testid="chatwork-room-loading" />
           ) : totalRooms === 0 ? (
             <EmptyState
+              data-testid="chatwork-room-empty"
               message="ルームがありません"
               description="同期を実行して最新のルーム一覧を取得してください。"
               action={
