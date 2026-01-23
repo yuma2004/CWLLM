@@ -221,6 +221,7 @@ model Message {
   @@unique([roomId, messageId])
   @@index([companyId])
   @@index([companyId, sentAt])
+  @@index([labels], type: Gin, map: "messages_labels_idx")
   @@map("messages")
 }
 
