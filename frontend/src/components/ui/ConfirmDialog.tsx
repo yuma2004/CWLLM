@@ -13,10 +13,10 @@ type ConfirmDialogProps = {
 
 const ConfirmDialog = ({
   isOpen,
-  title = '確認',
+  title = 'Confirm Action',
   description,
-  confirmLabel = '実行',
-  cancelLabel = 'キャンセル',
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
   isLoading = false,
   onConfirm,
   onCancel,
@@ -30,7 +30,7 @@ const ConfirmDialog = ({
         <>
           <button
             type="button"
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
             onClick={onCancel}
             disabled={isLoading}
           >
@@ -38,7 +38,7 @@ const ConfirmDialog = ({
           </button>
           <button
             type="button"
-            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:bg-rose-300"
+            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:bg-rose-300"
             onClick={onConfirm}
             disabled={isLoading}
           >

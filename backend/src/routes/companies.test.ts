@@ -47,7 +47,6 @@ describe('Company endpoints', () => {
 
   afterEach(async () => {
     await prisma.contact.deleteMany()
-    await prisma.auditLog.deleteMany()
     await prisma.company.deleteMany()
     await prisma.user.deleteMany({
       where: {

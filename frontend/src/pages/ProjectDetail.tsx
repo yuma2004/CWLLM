@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -6,12 +6,17 @@ import Modal from '../components/ui/Modal'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingState from '../components/ui/LoadingState'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
+import DateInput from '../components/ui/DateInput'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
+import { useToast } from '../hooks/useToast'
+import Toast from '../components/ui/Toast'
 import { apiRoutes } from '../lib/apiRoutes'
 import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants/labels'
 import { formatDate, formatDateInput } from '../utils/date'
@@ -67,6 +72,7 @@ function ProjectDetail() {
   const [editError, setEditError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Wholesale | null>(null)
   const [deleteError, setDeleteError] = useState('')
+  const { toast, showToast, clearToast } = useToast()
 
   const {
     data: projectData,
@@ -199,6 +205,7 @@ function ProjectDetail() {
       })
       setIsEditingProject(false)
       refreshData()
+      showToast('案件情報を更新しました', 'success')
     } catch (err) {
       setProjectFormError(err instanceof Error ? err.message : '案件の更新に失敗しました')
     }
@@ -227,6 +234,7 @@ function ProjectDetail() {
       setForm({ companyId: '', status: 'active', unitPrice: '', taxType: 'excluded', conditions: '', agreedDate: '' })
       setShowCreateForm(false)
       refreshData()
+      showToast('卸先を追加しました', 'success')
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
@@ -263,6 +271,7 @@ function ProjectDetail() {
       )
       setEditingWholesale(null)
       refreshData()
+      showToast('卸情報を更新しました', 'success')
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
@@ -283,6 +292,7 @@ function ProjectDetail() {
       })
       setDeleteTarget(null)
       refreshData()
+      showToast('卸情報を削除しました', 'success')
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'ネットワークエラー')
     }
@@ -321,17 +331,19 @@ function ProjectDetail() {
 
       {deleteError && <ErrorAlert message={deleteError} />}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+      <Card className="space-y-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">案件情報</h3>
           {canWrite && !isEditingProject && (
-            <button
+            <Button
               type="button"
               onClick={() => setIsEditingProject(true)}
-              className="text-xs font-medium text-sky-600 hover:text-sky-700"
+              variant="ghost"
+              size="sm"
+              className="text-sky-600 hover:text-sky-700"
             >
               編集
-            </button>
+            </Button>
           )}
         </div>
 
@@ -386,16 +398,14 @@ function ProjectDetail() {
               </div>
               <div>
                 <div className="mb-1 block text-xs font-medium text-slate-600">期間開始</div>
-                <FormInput
-                  type="date"
+                <DateInput
                   value={projectForm.periodStart}
                   onChange={(e) => setProjectForm({ ...projectForm, periodStart: e.target.value })}
                 />
               </div>
               <div>
                 <div className="mb-1 block text-xs font-medium text-slate-600">期間終了</div>
-                <FormInput
-                  type="date"
+                <DateInput
                   value={projectForm.periodEnd}
                   onChange={(e) => setProjectForm({ ...projectForm, periodEnd: e.target.value })}
                 />
@@ -416,20 +426,22 @@ function ProjectDetail() {
               </div>
             )}
             <div className="flex justify-end gap-3">
-              <button
+              <Button
                 type="button"
                 onClick={handleCancelProjectEdit}
-                className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 "
+                variant="secondary"
+                size="sm"
               >
                 キャンセル
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700  disabled:bg-sky-300"
-                disabled={isUpdatingProject}
+                size="sm"
+                isLoading={isUpdatingProject}
+                loadingLabel="保存中..."
               >
-                {isUpdatingProject ? '保存中...' : '保存'}
-              </button>
+                保存
+              </Button>
             </div>
           </form>
         ) : (
@@ -470,28 +482,31 @@ function ProjectDetail() {
             </div>
           </dl>
         )}
-      </div>
+      </Card>
 
       {/* 卸先一覧 */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <Card className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">卸先一覧</h3>
             <p className="text-xs text-slate-400 mt-1">{wholesales.length}件</p>
           </div>
           {canWrite && (
-            <button
+            <Button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 "
+              size="sm"
             >
-              {showCreateForm ? 'キャンセル' : '+ 卸先を追加'}
-            </button>
+              {showCreateForm ? 'キャンセル' : '卸先を追加'}
+            </Button>
           )}
         </div>
 
         {/* 追加フォーム */}
         {showCreateForm && canWrite && (
-          <form onSubmit={handleCreateWholesale} className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+          <form
+            onSubmit={handleCreateWholesale}
+            className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
+          >
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">卸先企業 *</div>
@@ -537,8 +552,7 @@ function ProjectDetail() {
               </div>
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
-                <FormInput
-                  type="date"
+                <DateInput
                   value={form.agreedDate}
                   onChange={(e) => setForm({ ...form, agreedDate: e.target.value })}
                   className="rounded-lg"
@@ -561,13 +575,14 @@ function ProjectDetail() {
               </div>
             )}
             <div className="mt-4 flex justify-end">
-              <button
+              <Button
                 type="submit"
-                className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700 "
-                disabled={isCreatingWholesale}
+                size="sm"
+                isLoading={isCreatingWholesale}
+                loadingLabel="追加中..."
               >
-                {isCreatingWholesale ? '追加中...' : '追加'}
-              </button>
+                追加
+              </Button>
             </div>
           </form>
         )}
@@ -578,7 +593,7 @@ function ProjectDetail() {
             <EmptyState className="py-8" message="卸先がありません" />
           ) : (
             <table className="min-w-full divide-y divide-slate-100 text-sm">
-              <thead className="bg-slate-50/80 text-left text-xs uppercase r text-slate-500">
+              <thead className="bg-slate-50/80 text-left text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">卸先企業</th>
                   <th className="px-4 py-3 font-medium">ステータス</th>
@@ -609,18 +624,22 @@ function ProjectDetail() {
                     </td>
                     {canWrite && (
                       <td className="px-4 py-3 text-right">
-                        <button
+                        <Button
                           onClick={() => openEditModal(wholesale)}
-                          className="text-xs font-medium text-sky-600 hover:text-sky-700 mr-3"
+                          variant="ghost"
+                          size="sm"
+                          className="text-sky-600 hover:text-sky-700 mr-2"
                         >
                           編集
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => handleDeleteWholesale(wholesale)}
-                          className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                          variant="ghost"
+                          size="sm"
+                          className="text-rose-600 hover:text-rose-700"
                         >
                           削除
-                        </button>
+                        </Button>
                       </td>
                     )}
                   </tr>
@@ -629,7 +648,7 @@ function ProjectDetail() {
             </table>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* 編集モーダル */}
       <Modal
@@ -682,8 +701,7 @@ function ProjectDetail() {
               </div>
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
-                <FormInput
-                  type="date"
+                <DateInput
                   value={editForm.agreedDate}
                   onChange={(e) => setEditForm({ ...editForm, agreedDate: e.target.value })}
                   className="rounded-lg"
@@ -705,19 +723,20 @@ function ProjectDetail() {
               </div>
             )}
             <div className="mt-6 flex justify-end gap-3">
-              <button
+              <Button
                 type="button"
                 onClick={() => setEditingWholesale(null)}
-                className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 "
+                variant="secondary"
+                size="sm"
               >
                 キャンセル
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-700 "
+                size="sm"
               >
                 保存
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -739,8 +758,17 @@ function ProjectDetail() {
         onConfirm={confirmDeleteWholesale}
         onCancel={() => setDeleteTarget(null)}
       />
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
+          onClose={clearToast}
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+        />
+      )}
     </div>
   )
 }
 
 export default ProjectDetail
+

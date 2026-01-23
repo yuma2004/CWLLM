@@ -6,12 +6,21 @@ type ModalProps = {
   isOpen: boolean
   onClose: () => void
   title?: string
+  ariaLabel?: string
   children: React.ReactNode
   footer?: React.ReactNode
   className?: string
 }
 
-const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalProps) => {
+const Modal = ({
+  isOpen,
+  onClose,
+  title,
+  ariaLabel,
+  children,
+  footer,
+  className,
+}: ModalProps) => {
   const dialogId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -93,8 +102,8 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 overscroll-contain safe-area-top safe-area-bottom">
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 border-0 p-0"
-        aria-label="閉じる"
+        className="absolute inset-0 border-0 bg-black/50 p-0 hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        aria-label="Close dialog"
         onClick={onClose}
       />
       <div
@@ -105,6 +114,7 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? dialogId : undefined}
+        aria-label={title ? undefined : ariaLabel ?? 'Dialog'}
         ref={containerRef}
         tabIndex={-1}
       >
@@ -116,8 +126,8 @@ const Modal = ({ isOpen, onClose, title, children, footer, className }: ModalPro
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600"
-              aria-label="閉じる"
+              className="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+              aria-label="Close dialog"
             >
               <CloseIcon className="size-4" />
             </button>

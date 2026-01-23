@@ -1,6 +1,6 @@
 ﻿import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma, TaskStatus, TargetType } from '@prisma/client'
-import { attachTargetInfo, logAuditEntry } from '../services'
+import { attachTargetInfo } from '../services'
 import {
   badRequest,
   buildPaginatedResponse,
@@ -234,14 +234,6 @@ export const createTaskHandler = async (
       },
     })
 
-    await logAuditEntry({
-      entityType: 'Task',
-      entityId: task.id,
-      action: 'create',
-      userId,
-      after: task,
-    })
-
     return reply.code(201).send({ task })
   } catch (error) {
     return handlePrismaError(reply, error)
@@ -302,15 +294,6 @@ export const updateTaskHandler = async (
     const task = await prisma.task.update({
       where: { id: request.params.id },
       data,
-    })
-
-    await logAuditEntry({
-      entityType: 'Task',
-      entityId: task.id,
-      action: 'update',
-      userId,
-      before: existing,
-      after: task,
     })
 
     return { task }
@@ -391,14 +374,6 @@ export const deleteTaskHandler = async (
 
   try {
     await prisma.task.delete({ where: { id: request.params.id } })
-
-    await logAuditEntry({
-      entityType: 'Task',
-      entityId: existing.id,
-      action: 'delete',
-      userId,
-      before: existing,
-    })
 
     return reply.code(204).send()
   } catch (error) {

@@ -17,7 +17,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-// API ベースURL（本番環境では環境変数から取得）
+// API base URL. Empty means same-origin requests.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 const isAbsoluteUrl = (value: string) =>
@@ -91,13 +91,6 @@ const prepareRequest = (
   }
 }
 
-const parseErrorMessage = async (response: Response): Promise<string> => {
-  const apiError = await readJson<ApiError>(response)
-  return typeof apiError?.error === 'string'
-    ? apiError.error
-    : apiError?.error?.message ?? 'ネットワークエラー'
-}
-
 export const apiRequest = async <T,>(
   url: string,
   options: ApiRequestOptions = {}
@@ -111,26 +104,11 @@ export const apiRequest = async <T,>(
     const message =
       typeof apiError?.error === 'string'
         ? apiError.error
-        : apiError?.error?.message ?? 'ネットワークエラー'
+        : apiError?.error?.message ?? '繝阪ャ繝医Ρ繝ｼ繧�E�繧�E�繝ｩ繝ｼ'
     throw new ApiRequestError(message, response.status)
   }
 
   return responseData as T
-}
-
-export const apiDownload = async (
-  url: string,
-  options: ApiRequestOptions = {}
-): Promise<Blob> => {
-  const { fullUrl, init } = prepareRequest(url, options)
-  const response = await fetch(fullUrl, init)
-
-  if (!response.ok) {
-    const message = await parseErrorMessage(response)
-    throw new ApiRequestError(message, response.status)
-  }
-
-  return response.blob()
 }
 
 export const apiGet = async <T,>(url: string, options?: Omit<ApiRequestOptions, 'method'>) =>
@@ -142,3 +120,5 @@ export const apiSend = async <T, B = unknown>(
   body?: B,
   options?: Omit<ApiRequestOptions, 'method' | 'body'>
 ) => apiRequest<T>(url, { ...options, method, body })
+
+

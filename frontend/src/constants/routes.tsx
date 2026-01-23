@@ -22,7 +22,6 @@ const Wholesales = lazy(() => import('../pages/Wholesales'))
 const WholesaleDetail = lazy(() => import('../pages/WholesaleDetail'))
 const Settings = lazy(() => import('../pages/Settings'))
 const AccountCreate = lazy(() => import('../pages/AccountCreate'))
-const Exports = lazy(() => import('../pages/Exports'))
 
 export const protectedRoutes: RouteConfig[] = [
   {
@@ -158,23 +157,6 @@ export const protectedRoutes: RouteConfig[] = [
           strokeLinejoin="round"
           strokeWidth={1.5}
           d="M20 8v4m2-2h-4"
-        />
-      </svg>
-    ),
-  },
-  {
-    path: '/exports',
-    element: <Exports />,
-    label: 'エクスポート',
-    section: 'settings',
-    allowedRoles: ['admin'],
-    icon: (
-      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
         />
       </svg>
     ),

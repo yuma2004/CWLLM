@@ -1,6 +1,8 @@
 ﻿import { useState } from 'react'
 import { type Location, useLocation, useNavigate } from 'react-router-dom'
+import Button from '../components/ui/Button'
 import { useAuth } from '../contexts/AuthContext'
+import { toErrorMessage } from '../utils/errorState'
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -11,6 +13,21 @@ function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: Location } | null)?.from
+
+  const formatLoginError = (err: unknown) => {
+    const message = toErrorMessage(err, 'ログインに失敗しました')
+    const normalized = message.toLowerCase()
+    if (
+      normalized.includes('invalid') ||
+      normalized.includes('unauthorized') ||
+      normalized.includes('認証') ||
+      normalized.includes('資格') ||
+      normalized.includes('password')
+    ) {
+      return 'メールアドレスまたはパスワードが正しくありません。'
+    }
+    return message
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,21 +41,25 @@ function Login() {
         : '/'
       navigate(nextPath)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed.')
+      setError(formatLoginError(err))
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-slate-900">
-      <div className="mx-4 w-full max-w-sm">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-slate-950">
+      <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full border border-slate-700/40" aria-hidden="true" />
+      <div className="pointer-events-none absolute -bottom-28 -left-20 size-80 rounded-full border border-slate-700/30" aria-hidden="true" />
+      <div className="pointer-events-none absolute left-1/2 top-24 h-40 w-72 -translate-x-1/2 rounded-full border border-slate-800/40" aria-hidden="true" />
+      <div className="relative mx-4 w-full max-w-sm">
         <div className="mb-10 text-center">
-          <h1 className="text-2xl font-semibold text-white">ログイン</h1>
+          <p className="text-xs font-semibold text-slate-400">CW管理システム</p>
+          <h1 className="mt-2 text-2xl font-semibold text-white">ログイン</h1>
           <p className="mt-2 text-sm text-slate-400">アカウント情報を入力してください。</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-8 backdrop-blur">
+        <div className="rounded-2xl border border-slate-700/50 bg-slate-900/50 p-8 backdrop-blur">
           <form className="space-y-5" onSubmit={handleSubmit}>
             {error && (
               <div
@@ -64,7 +85,7 @@ function Login() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="w-full rounded-lg border border-slate-600 bg-slate-700/50 px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-white placeholder-slate-500 focus-visible:border-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -81,7 +102,7 @@ function Login() {
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="w-full rounded-lg border border-slate-600 bg-slate-700/50 px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-white placeholder-slate-500 focus-visible:border-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -89,23 +110,14 @@ function Login() {
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
-              disabled={isLoading}
-              className="w-full rounded-lg bg-sky-500 px-4 py-3 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+              isLoading={isLoading}
+              loadingLabel="ログイン中…"
+              className="w-full focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
             >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="size-4" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  ログイン中...
-                </span>
-              ) : (
-                'ログイン'
-              )}
-            </button>
+              ログイン
+            </Button>
           </form>
         </div>
       </div>

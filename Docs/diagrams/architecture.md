@@ -1,13 +1,11 @@
-# アーキテクチャ / 構造
+# 繧｢繝ｼ繧ｭ繝・け繝√Ε / 讒矩
 
-## システムコンテキスト（C4 Context）
-**説明（一般）**: 利用者・外部システム・自システムの関係と境界をざっくり掴む図です。  
-**このプロジェクトでは**: ブラウザ利用者がフロント経由でAPIを使い、Chatwork/OpenAIと連携します。
-```mermaid
+## 繧ｷ繧ｹ繝・Β繧ｳ繝ｳ繝・く繧ｹ繝茨ｼ・4 Context・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 蛻ｩ逕ｨ閠・・螟夜Κ繧ｷ繧ｹ繝・Β繝ｻ閾ｪ繧ｷ繧ｹ繝・Β縺ｮ髢｢菫ゅ→蠅・阜繧偵＊縺｣縺上ｊ謗ｴ繧蝗ｳ縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝悶Λ繧ｦ繧ｶ蛻ｩ逕ｨ閠・′繝輔Ο繝ｳ繝育ｵ檎罰縺ｧAPI繧剃ｽｿ縺・，hatwork/OpenAI縺ｨ騾｣謳ｺ縺励∪縺吶・```mermaid
 flowchart TB
-  subgraph Users[利用者]
-    Admin[管理者]
-    Staff["一般ユーザー sales/ops/readonly"]
+  subgraph Users[蛻ｩ逕ｨ閠・
+    Admin[邂｡逅・・
+    Staff["荳闊ｬ繝ｦ繝ｼ繧ｶ繝ｼ sales/ops/readonly"]
   end
 
   subgraph System[CWLLM]
@@ -31,9 +29,8 @@ flowchart TB
 ```
 
 ## C4 Container
-**説明（一般）**: 主要な実行単位（UI/API/ワーカー/DB/キャッシュ）をまとめて示します。  
-**このプロジェクトでは**: APIとBullMQワーカーがPostgreSQLとRedisを共有し、外部APIへアクセスします。
-```mermaid
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 荳ｻ隕√↑螳溯｡悟腰菴搾ｼ・I/API/繝ｯ繝ｼ繧ｫ繝ｼ/DB/繧ｭ繝｣繝・す繝･・峨ｒ縺ｾ縺ｨ繧√※遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: API縺ｨBullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺訓ostgreSQL縺ｨRedis繧貞・譛峨＠縲∝､夜ΚAPI縺ｸ繧｢繧ｯ繧ｻ繧ｹ縺励∪縺吶・```mermaid
 flowchart LR
   User[Browser]
   FE["Frontend SPA React + Vite"]
@@ -56,10 +53,8 @@ flowchart LR
   Worker -->|HTTPS| OpenAI
 ```
 
-## バックエンド・コンポーネント図（UML Component 相当）
-**説明（一般）**: バックエンド内部の構成要素と依存関係を示します。  
-**このプロジェクトでは**: Routes→Handlers→Services→Prismaの流れで、同期/要約などの機能が実装されています。
-```mermaid
+## 繝舌ャ繧ｯ繧ｨ繝ｳ繝峨・繧ｳ繝ｳ繝昴・繝阪Φ繝亥峙・・ML Component 逶ｸ蠖難ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝舌ャ繧ｯ繧ｨ繝ｳ繝牙・驛ｨ縺ｮ讒区・隕∫ｴ縺ｨ萓晏ｭ倬未菫ゅｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes竊辿andlers竊担ervices竊単risma縺ｮ豬√ｌ縺ｧ縲∝酔譛・隕∫ｴ・↑縺ｩ縺ｮ讖溯・縺悟ｮ溯｣・＆繧後※縺・∪縺吶・```mermaid
 flowchart TB
   subgraph FastifyApp[Fastify App]
     Routes[Routes]
@@ -91,10 +86,8 @@ flowchart TB
   LLMClient --> OpenAI[OpenAI API]
 ```
 
-## 論理アーキテクチャ（層・責務）
-**説明（一般）**: 層ごとの責務と依存方向を整理する図です。  
-**このプロジェクトでは**: UI→API→Service→Infraの一方向で、DB/Redis/外部APIはInfra側に集約しています。
-```mermaid
+## 隲也炊繧｢繝ｼ繧ｭ繝・け繝√Ε・亥ｱ､繝ｻ雋ｬ蜍呻ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 螻､縺斐→縺ｮ雋ｬ蜍吶→萓晏ｭ俶婿蜷代ｒ謨ｴ逅・☆繧句峙縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: UI竊但PI竊担ervice竊棚nfra縺ｮ荳譁ｹ蜷代〒縲．B/Redis/螟夜ΚAPI縺ｯInfra蛛ｴ縺ｫ髮・ｴ・＠縺ｦ縺・∪縺吶・```mermaid
 flowchart TB
   subgraph Presentation[Presentation]
     UI[React UI]
@@ -118,10 +111,8 @@ flowchart TB
   Domain --> External
 ```
 
-## 物理アーキテクチャ（Dev / Prod）
-**説明（一般）**: 実行環境での配置（プロセス/コンテナ/サービス）を示します。  
-**このプロジェクトでは**: 開発はVite+FastifyとDockerのDB/Redis、運用はRenderまたはDocker構成です。
-```mermaid
+## 迚ｩ逅・い繝ｼ繧ｭ繝・け繝√Ε・・ev / Prod・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 螳溯｡檎腸蠅・〒縺ｮ驟咲ｽｮ・医・繝ｭ繧ｻ繧ｹ/繧ｳ繝ｳ繝・リ/繧ｵ繝ｼ繝薙せ・峨ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 髢狗匱縺ｯVite+Fastify縺ｨDocker縺ｮDB/Redis縲・°逕ｨ縺ｯRender縺ｾ縺溘・Docker讒区・縺ｧ縺吶・```mermaid
 flowchart TB
   subgraph Dev[Local Dev]
     BrowserDev[Browser]
@@ -146,10 +137,9 @@ flowchart TB
   end
 ```
 
-## ネットワーク構成 / トラフィックフロー
-**説明（一般）**: リクエストの入口から内部・外部連携までの通信経路を示します。  
-**このプロジェクトでは**: ブラウザ→フロント→API→DB/Redis→外部APIの流れになります。
-```mermaid
+## 繝阪ャ繝医Ρ繝ｼ繧ｯ讒区・ / 繝医Λ繝輔ぅ繝・け繝輔Ο繝ｼ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｪ繧ｯ繧ｨ繧ｹ繝医・蜈･蜿｣縺九ｉ蜀・Κ繝ｻ螟夜Κ騾｣謳ｺ縺ｾ縺ｧ縺ｮ騾壻ｿ｡邨瑚ｷｯ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝悶Λ繧ｦ繧ｶ竊偵ヵ繝ｭ繝ｳ繝遺・API竊奪B/Redis竊貞､夜ΚAPI縺ｮ豬√ｌ縺ｫ縺ｪ繧翫∪縺吶・```mermaid
 flowchart LR
   User[Browser]
   FE["Frontend static"]
@@ -168,10 +158,8 @@ flowchart LR
   Chatwork -->|Webhook| API
 ```
 
-## 認証・認可境界（Trust Boundary）
-**説明（一般）**: どこで認証・認可が行われるか、信頼境界を示す図です。  
-**このプロジェクトでは**: JWT検証とRBACはバックエンド内で実施し、クライアントは未信頼前提です。
-```mermaid
+## 隱崎ｨｼ繝ｻ隱榊庄蠅・阜・・rust Boundary・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 縺ｩ縺薙〒隱崎ｨｼ繝ｻ隱榊庄縺瑚｡後ｏ繧後ｋ縺九∽ｿ｡鬆ｼ蠅・阜繧堤､ｺ縺吝峙縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: JWT讀懆ｨｼ縺ｨRBAC縺ｯ繝舌ャ繧ｯ繧ｨ繝ｳ繝牙・縺ｧ螳滓命縺励√け繝ｩ繧､繧｢繝ｳ繝医・譛ｪ菫｡鬆ｼ蜑肴署縺ｧ縺吶・```mermaid
 flowchart TB
   subgraph Client[Untrusted Client]
     Browser
@@ -185,10 +173,9 @@ flowchart TB
   API2 --> DB2[(PostgreSQL)]
 ```
 
-## ストレージ / キャッシュ配置
-**説明（一般）**: データの保存先・キャッシュの配置を示します。  
-**このプロジェクトでは**: フロントはuseFetchのメモリキャッシュ、バックはPostgreSQL/Redisを利用します。
-```mermaid
+## 繧ｹ繝医Ξ繝ｼ繧ｸ / 繧ｭ繝｣繝・す繝･驟咲ｽｮ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝・・繧ｿ縺ｮ菫晏ｭ伜・繝ｻ繧ｭ繝｣繝・す繝･縺ｮ驟咲ｽｮ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝輔Ο繝ｳ繝医・useFetch縺ｮ繝｡繝｢繝ｪ繧ｭ繝｣繝・す繝･縲√ヰ繝・け縺ｯPostgreSQL/Redis繧貞茜逕ｨ縺励∪縺吶・```mermaid
 flowchart LR
   FECache["Frontend In-Memory Cache useFetch cacheKey"]
   API3[Backend API]
@@ -200,10 +187,8 @@ flowchart LR
   API3 --> Redis3
 ```
 
-## ジョブ基盤 / イベント駆動の全体
-**説明（一般）**: 非同期処理の流れとキュー/ワーカーの関係を示します。  
-**このプロジェクトでは**: Chatwork同期や要約生成はジョブ化され、BullMQワーカーが処理します。
-```mermaid
+## 繧ｸ繝ｧ繝門渕逶､ / 繧､繝吶Φ繝磯ｧ・虚縺ｮ蜈ｨ菴・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 髱槫酔譛溷・逅・・豬√ｌ縺ｨ繧ｭ繝･繝ｼ/繝ｯ繝ｼ繧ｫ繝ｼ縺ｮ髢｢菫ゅｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Chatwork蜷梧悄繧・ｦ∫ｴ・函謌舌・繧ｸ繝ｧ繝門喧縺輔ｌ縲。ullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺悟・逅・＠縺ｾ縺吶・```mermaid
 flowchart TB
   UI[Frontend] -->|POST chatwork sync| API4[Backend API]
   API4 -->|create Job| DB4[(PostgreSQL)]
@@ -214,10 +199,8 @@ flowchart TB
   Worker -->|update status result| DB4
 ```
 
-## 依存関係グラフ（モジュール依存）
-**説明（一般）**: モジュール間の依存方向を俯瞰する図です。  
-**このプロジェクトでは**: Routes/Handlers/Servicesが中心で、Prisma/Redis/外部APIへ依存します。
-```mermaid
+## 萓晏ｭ倬未菫ゅげ繝ｩ繝包ｼ医Δ繧ｸ繝･繝ｼ繝ｫ萓晏ｭ假ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝｢繧ｸ繝･繝ｼ繝ｫ髢薙・萓晏ｭ俶婿蜷代ｒ菫ｯ迸ｰ縺吶ｋ蝗ｳ縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes/Handlers/Services縺御ｸｭ蠢・〒縲￣risma/Redis/螟夜ΚAPI縺ｸ萓晏ｭ倥＠縺ｾ縺吶・```mermaid
 flowchart TB
   Routes3[Routes] --> Handlers3[Handlers] --> Services3[Services] --> Utils[Utils]
   Services3 --> Prisma3["Prisma Client"] --> DB5[(PostgreSQL)]
@@ -226,10 +209,8 @@ flowchart TB
   Middleware2[Middleware] --> Services3
 ```
 
-## モジュール構成（リポジトリ）
-**説明（一般）**: リポジトリの主要ディレクトリ構成を示します。  
-**このプロジェクトでは**: frontend/backend/infra/Docsに分割して責務を明確化しています。
-```mermaid
+## 繝｢繧ｸ繝･繝ｼ繝ｫ讒区・・医Μ繝昴ず繝医Μ・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｪ繝昴ず繝医Μ縺ｮ荳ｻ隕√ョ繧｣繝ｬ繧ｯ繝医Μ讒区・繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: frontend/backend/infra/Docs縺ｫ蛻・牡縺励※雋ｬ蜍吶ｒ譏守｢ｺ蛹悶＠縺ｦ縺・∪縺吶・```mermaid
 flowchart TB
   Repo["CWLLM Repo"]
   Repo --> Frontend["frontend/"]
@@ -257,10 +238,8 @@ flowchart TB
   Backend --> Worker["worker.ts"]
 ```
 
-## レイヤー図（Presentation / Domain / Infra）
-**説明（一般）**: プレゼンテーション/ドメイン/インフラの抽象層を示します。  
-**このプロジェクトでは**: Routes/Servicesがドメイン相当、Prisma/Redis/外部APIがインフラ相当です。
-```mermaid
+## 繝ｬ繧､繝､繝ｼ蝗ｳ・・resentation / Domain / Infra・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝励Ξ繧ｼ繝ｳ繝・・繧ｷ繝ｧ繝ｳ/繝峨Γ繧､繝ｳ/繧､繝ｳ繝輔Λ縺ｮ謚ｽ雎｡螻､繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes/Services縺後ラ繝｡繧､繝ｳ逶ｸ蠖薙￣risma/Redis/螟夜ΚAPI縺後う繝ｳ繝輔Λ逶ｸ蠖薙〒縺吶・```mermaid
 flowchart TB
   PresentationLayer[Presentation]
   DomainLayer[Domain / Use-Case]
@@ -269,10 +248,8 @@ flowchart TB
   PresentationLayer --> DomainLayer --> InfraLayer
 ```
 
-## Hexagonal（Ports & Adapters）
-**説明（一般）**: コアと外部アダプタの境界を示す設計図です。  
-**このプロジェクトでは**: InboundはHTTP/Scheduler、OutboundはDB/Redis/Chatwork/OpenAIです。
-```mermaid
+## Hexagonal・・orts & Adapters・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繧ｳ繧｢縺ｨ螟夜Κ繧｢繝繝励ち縺ｮ蠅・阜繧堤､ｺ縺呵ｨｭ險亥峙縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Inbound縺ｯHTTP/Scheduler縲＾utbound縺ｯDB/Redis/Chatwork/OpenAI縺ｧ縺吶・```mermaid
 flowchart LR
   subgraph Core[Core / Use-Case]
     UseCases[Services]
@@ -295,10 +272,8 @@ flowchart LR
   UseCases --> LLMAdapter
 ```
 
-## DDD Context Map（境界づけ）
-**説明（一般）**: 業務領域（コンテキスト）間の関係を示します。  
-**このプロジェクトでは**: Companiesを中心にProjects/Wholesales/Tasksが連携します。
-```mermaid
+## DDD Context Map・亥｢・阜縺･縺托ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 讌ｭ蜍咎伜沺・医さ繝ｳ繝・く繧ｹ繝茨ｼ蛾俣縺ｮ髢｢菫ゅｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Companies繧剃ｸｭ蠢・↓Projects/Wholesales/Tasks縺碁｣謳ｺ縺励∪縺吶・```mermaid
 flowchart LR
   Accounts["Accounts Users"]
   CRM["CRM Companies Contacts"]
@@ -307,7 +282,6 @@ flowchart LR
   Messaging["Messaging Chatwork Rooms Messages"]
   Tasks["Tasks"]
   Summaries["Summaries"]
-  Reporting["Exports Dashboard"]
 
   CRM --> Projects
   CRM --> Wholesales
@@ -316,25 +290,21 @@ flowchart LR
   Projects --> Tasks
   Wholesales --> Tasks
   Summaries --> Tasks
-  Reporting --> CRM
-  Reporting --> Tasks
 ```
 
-## 4+1 ビュー（対応表）
-| View | 対応図 |
+## 4+1 繝薙Η繝ｼ・亥ｯｾ蠢懆｡ｨ・・| View | 蟇ｾ蠢懷峙 |
 | --- | --- |
-| Logical | 論理アーキテクチャ / レイヤー図 |
-| Process | ジョブ基盤 / イベント駆動 / シーケンス |
-| Development | モジュール構成 / 依存関係 |
-| Physical | 物理アーキテクチャ / ネットワーク |
-| Scenarios | シーケンス図（ログイン・同期・要約） |
+| Logical | 隲也炊繧｢繝ｼ繧ｭ繝・け繝√Ε / 繝ｬ繧､繝､繝ｼ蝗ｳ |
+| Process | 繧ｸ繝ｧ繝門渕逶､ / 繧､繝吶Φ繝磯ｧ・虚 / 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ |
+| Development | 繝｢繧ｸ繝･繝ｼ繝ｫ讒区・ / 萓晏ｭ倬未菫・|
+| Physical | 迚ｩ逅・い繝ｼ繧ｭ繝・け繝√Ε / 繝阪ャ繝医Ρ繝ｼ繧ｯ |
+| Scenarios | 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ蝗ｳ・医Ο繧ｰ繧､繝ｳ繝ｻ蜷梧悄繝ｻ隕∫ｴ・ｼ・|
 
-## 責務分割（サマリ）
-| 領域 | 主担当 | 役割 |
+## 雋ｬ蜍吝・蜑ｲ・医し繝槭Μ・・| 鬆伜沺 | 荳ｻ諡・ｽ・| 蠖ｹ蜑ｲ |
 | --- | --- | --- |
-| 画面/UI | Frontend | 画面表示、入力、API呼び出し |
-| 認証/認可 | Backend | JWT発行、RBAC、アクセス制御 |
-| 業務ロジック | Backend Services | 同期/要約/タスク化等 |
-| 永続化 | PostgreSQL + Prisma | 主要データの永続化 |
-| 非同期処理 | Redis + BullMQ | Chatwork同期・要約生成の実行 |
-| 外部連携 | Chatwork/OpenAI | メッセージ取得・要約生成 |
+| 逕ｻ髱｢/UI | Frontend | 逕ｻ髱｢陦ｨ遉ｺ縲∝・蜉帙、PI蜻ｼ縺ｳ蜃ｺ縺・|
+| 隱崎ｨｼ/隱榊庄 | Backend | JWT逋ｺ陦後ヽBAC縲√い繧ｯ繧ｻ繧ｹ蛻ｶ蠕｡ |
+| 讌ｭ蜍吶Ο繧ｸ繝・け | Backend Services | 蜷梧悄/隕∫ｴ・繧ｿ繧ｹ繧ｯ蛹也ｭ・|
+| 豌ｸ邯壼喧 | PostgreSQL + Prisma | 荳ｻ隕√ョ繝ｼ繧ｿ縺ｮ豌ｸ邯壼喧 |
+| 髱槫酔譛溷・逅・| Redis + BullMQ | Chatwork蜷梧悄繝ｻ隕∫ｴ・函謌舌・螳溯｡・|
+| 螟夜Κ騾｣謳ｺ | Chatwork/OpenAI | 繝｡繝・そ繝ｼ繧ｸ蜿門ｾ励・隕∫ｴ・函謌・|

@@ -27,21 +27,3 @@ export type ProjectsFilters = {
   companyId: string
   ownerId: string
 }
-
-export type ExportCompanyFilters = {
-  from: string
-  to: string
-  status: string
-  category: string
-  tag: string
-  ownerId: string
-}
-
-export type ExportTaskFilters = {
-  dueFrom: string
-  dueTo: string
-  status: string
-  targetType: string
-  assigneeId: string
-}
-

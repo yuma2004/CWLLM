@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { useFetch, useMutation } from '../hooks/useApi'
 import { ApiRequestError } from '../lib/apiClient'
 import { apiRoutes } from '../lib/apiRoutes'
-import { clearAuthToken, setAuthToken } from '../lib/authToken'
+import { clearAuthToken, getAuthToken, setAuthToken } from '../lib/authToken'
 
 interface User {
   id: string
@@ -31,9 +31,10 @@ const MOCK_USER: User = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(MOCK_AUTH ? MOCK_USER : null)
+  const [hasToken, setHasToken] = useState(() => !!getAuthToken())
   const { data: authData, error: authError, setError: setAuthError, isLoading: isAuthLoading } =
     useFetch<{ user: User }>(apiRoutes.auth.me(), {
-      enabled: !MOCK_AUTH,
+      enabled: !MOCK_AUTH && hasToken,
       errorMessage: '認証に失敗しました',
       cacheTimeMs: 0,
       onError: (_message, error) => {
@@ -62,6 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [authData, authError])
 
+  useEffect(() => {
+    if (MOCK_AUTH) return
+    if (typeof window === 'undefined') return
+    const updateToken = () => setHasToken(!!getAuthToken())
+    updateToken()
+    window.addEventListener('storage', updateToken)
+    return () => window.removeEventListener('storage', updateToken)
+  }, [])
+
   const login = async (email: string, password: string) => {
     const data = await loginRequest(
       { email, password },
@@ -69,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
     if (data?.token) {
       setAuthToken(data.token)
+      setHasToken(true)
     }
     if (data?.user) {
       // エラー状態をクリアしてからユーザーを設定
@@ -85,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // noop
     }
     clearAuthToken()
+    setHasToken(false)
     setUser(null)
   }
 

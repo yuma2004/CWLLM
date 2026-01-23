@@ -68,13 +68,16 @@ const Alert = ({ variant, message, onClose, className, children }: AlertProps) =
       role="alert"
       aria-live="polite"
     >
-      <div>{content}</div>
+      <div className="min-w-0 flex-1 break-words">{content}</div>
       {onClose && (
         <button
           type="button"
           onClick={handleClose}
-          className={styles.button}
-          aria-label="閉じめE"
+          className={cn(
+            styles.button,
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/40'
+          )}
+          aria-label="Dismiss alert"
         >
           <CloseIcon className="size-4" />
         </button>

@@ -1,3 +1,4 @@
+import Button from '../ui/Button'
 import Card from '../ui/Card'
 import ActiveFilters from '../ui/ActiveFilters'
 import FilterBadge from '../ui/FilterBadge'
@@ -32,8 +33,8 @@ function CompanyFilters({
 }: CompanyFiltersProps) {
   return (
     <Card className="p-5">
-      <form onSubmit={onSubmit}>
-      <div className="grid gap-3 md:grid-cols-7">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-7">
         <div className="relative md:col-span-3">
           <svg
             className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
@@ -99,16 +100,13 @@ function CompanyFilters({
             ))}
           </datalist>
         </div>
-        <button
-          type="submit"
-          className="h-11 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white  hover:bg-slate-800"
-        >
+        <Button type="submit" className="h-11 w-full md:w-auto">
           検索
-        </button>
-      </div>
+        </Button>
+        </div>
 
-      {/* Active Filters */}
-      <ActiveFilters isActive={hasActiveFilters}>
+        {/* Active Filters */}
+        <ActiveFilters isActive={hasActiveFilters} className="border-t border-slate-100 pt-3">
           <span className="text-xs text-slate-500">絞り込み:</span>
           {filters.q && (
             <FilterBadge label={`企業名: ${filters.q}`} onRemove={() => onClearFilter('q')} />
@@ -141,7 +139,7 @@ function CompanyFilters({
           >
             すべて解除
           </button>
-      </ActiveFilters>
+        </ActiveFilters>
       </form>
     </Card>
   )

@@ -23,16 +23,16 @@ const Toast = ({ message, variant = 'info', onClose, className }: ToastProps) =>
       VARIANT_CLASSES[variant],
       className
     )}
-    role={variant === 'error' ? 'alert' : 'status'}
-    aria-live={variant === 'error' ? 'assertive' : 'polite'}
+    role="status"
+    aria-live="polite"
   >
-    <span>{message}</span>
+    <span className="min-w-0 flex-1 break-words">{message}</span>
     {onClose && (
       <button
         type="button"
         onClick={onClose}
-        className="text-white/80"
-        aria-label="閉じる"
+        className="text-white/80 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        aria-label="Dismiss notification"
       >
         <CloseIcon className="size-4" />
       </button>

@@ -113,7 +113,7 @@ const JobProgressCard = ({
       )}
 
       {isPolling && (
-        <div className="mt-2 text-xs text-slate-400">更新中...</div>
+        <div className="mt-2 text-xs text-slate-400">更新中…</div>
       )}
     </div>
   )

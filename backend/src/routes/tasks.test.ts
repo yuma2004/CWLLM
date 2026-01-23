@@ -46,7 +46,6 @@ describe('Task endpoints', () => {
   })
 
   afterEach(async () => {
-    await prisma.auditLog.deleteMany()
     await prisma.task.deleteMany()
     await prisma.company.deleteMany()
     await prisma.user.deleteMany({

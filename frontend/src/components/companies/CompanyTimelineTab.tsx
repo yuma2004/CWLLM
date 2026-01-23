@@ -7,16 +7,17 @@ import {
 import CloseIcon from '../ui/CloseIcon'
 import ErrorAlert from '../ui/ErrorAlert'
 import FormInput from '../ui/FormInput'
+import DateInput from '../ui/DateInput'
 import Pagination from '../ui/Pagination'
 import { Skeleton, SkeletonAvatar } from '../ui/Skeleton'
+import EmptyState from '../ui/EmptyState'
 import type { MessageItem, PaginationState } from '../../types'
 import { formatDateGroup } from '../../utils/date'
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-const highlightText = (text: string, keyword: string) => {
-  if (!keyword.trim()) return text
-  const pattern = new RegExp(`(${escapeRegExp(keyword.trim())})`, 'gi')
+const highlightText = (text: string, keyword: string, pattern: RegExp | null) => {
+  if (!keyword.trim() || !pattern) return text
   return text.split(pattern).map((part, index) =>
     part.toLowerCase() === keyword.toLowerCase() ? (
       <mark key={`${part}-${index}`} className="rounded bg-amber-100 px-1 text-slate-900">
@@ -26,6 +27,42 @@ const highlightText = (text: string, keyword: string) => {
       part
     )
   )
+}
+
+type ChatworkBlock = {
+  type: 'text' | 'info' | 'code' | 'quote'
+  content: string
+  title?: string
+}
+
+const parseChatworkBlocks = (body: string): ChatworkBlock[] => {
+  const blocks: ChatworkBlock[] = []
+  const blockPattern = /\[(info|code|quote)\]([\s\S]*?)\[\/\1\]/gi
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = blockPattern.exec(body)) !== null) {
+    if (match.index > lastIndex) {
+      blocks.push({ type: 'text', content: body.slice(lastIndex, match.index) })
+    }
+    const type = match[1].toLowerCase() as ChatworkBlock['type']
+    const rawContent = match[2].trim()
+    if (type === 'info') {
+      const titleMatch = rawContent.match(/\[title\]([\s\S]*?)\[\/title\]/i)
+      const title = titleMatch ? titleMatch[1].trim() : undefined
+      const content = titleMatch ? rawContent.replace(titleMatch[0], '').trim() : rawContent
+      blocks.push({ type: 'info', content, title })
+    } else {
+      blocks.push({ type, content: rawContent })
+    }
+    lastIndex = blockPattern.lastIndex
+  }
+
+  if (lastIndex < body.length) {
+    blocks.push({ type: 'text', content: body.slice(lastIndex) })
+  }
+
+  return blocks.filter((block) => block.content.length > 0)
 }
 
 const groupMessagesByDate = (messages: MessageItem[]): Map<string, MessageItem[]> => {
@@ -83,26 +120,102 @@ function CompanyTimelineTab({
   onPageChange,
   onPageSizeChange,
 }: CompanyTimelineTabProps) {
-  const groupedMessages = useMemo(() => groupMessagesByDate(messages), [messages])
+  const keyword = messageQuery.trim()
+  const highlightPattern = useMemo(
+    () => (keyword ? new RegExp(`(${escapeRegExp(keyword)})`, 'gi') : null),
+    [keyword]
+  )
+  const sortedMessages = useMemo(() => {
+    return [...messages].sort(
+      (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+    )
+  }, [messages])
+  const groupedMessages = useMemo(() => groupMessagesByDate(sortedMessages), [sortedMessages])
+  const timeFormatter = useMemo(
+    () => new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+    []
+  )
+
+  const renderMessageBody = (body: string) => {
+    const blocks = parseChatworkBlocks(body)
+    return blocks.map((block, index) => {
+      if (block.type === 'code') {
+        return (
+          <pre
+            key={`code-${index}`}
+            className="rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-100 overflow-x-auto"
+          >
+            <code className="font-mono">{block.content}</code>
+          </pre>
+        )
+      }
+      if (block.type === 'info') {
+        return (
+          <div
+            key={`info-${index}`}
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+          >
+            {block.title && (
+              <div className="mb-1 text-[11px] font-semibold text-slate-700">{block.title}</div>
+            )}
+            <div className="whitespace-pre-wrap break-words">
+              {highlightText(block.content, keyword, highlightPattern)}
+            </div>
+          </div>
+        )
+      }
+      if (block.type === 'quote') {
+        return (
+          <blockquote
+            key={`quote-${index}`}
+            className="border-l-2 border-slate-200 pl-3 text-xs text-slate-600 whitespace-pre-wrap break-words"
+          >
+            {highlightText(block.content, keyword, highlightPattern)}
+          </blockquote>
+        )
+      }
+      return (
+        <p key={`text-${index}`} className="whitespace-pre-wrap break-words text-sm text-slate-700">
+          {highlightText(block.content, keyword, highlightPattern)}
+        </p>
+      )
+    })
+  }
+
+  const handleClearFilters = () => {
+    setMessageFrom('')
+    setMessageTo('')
+    setMessageQuery('')
+    setMessageLabel('')
+  }
+
+  const hasActiveFilter =
+    Boolean(messageFrom) || Boolean(messageTo) || Boolean(messageLabel.trim()) || Boolean(keyword)
 
   return (
     <div className="space-y-4">
       {/* Message Filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <FormInput
-          type="date"
+        <DateInput
           value={messageFrom}
           onChange={(e) => setMessageFrom(e.target.value)}
           containerClassName="w-auto"
           className="w-auto rounded-lg py-1.5 text-sm"
+          placeholder="開始日"
+          aria-label="開始日"
+          name="messageFrom"
+          autoComplete="off"
         />
         <span className="text-slate-400">〜</span>
-        <FormInput
-          type="date"
+        <DateInput
           value={messageTo}
           onChange={(e) => setMessageTo(e.target.value)}
           containerClassName="w-auto"
           className="w-auto rounded-lg py-1.5 text-sm"
+          placeholder="終了日"
+          aria-label="終了日"
+          name="messageTo"
+          autoComplete="off"
         />
         <FormInput
           placeholder="本文検索"
@@ -110,6 +223,8 @@ function CompanyTimelineTab({
           onChange={(e) => setMessageQuery(e.target.value)}
           containerClassName="min-w-[150px] flex-1"
           className="rounded-lg py-1.5 text-sm"
+          name="messageQuery"
+          autoComplete="off"
         />
         <FormInput
           placeholder="ラベル"
@@ -118,6 +233,8 @@ function CompanyTimelineTab({
           list="company-message-label-options"
           containerClassName="w-auto"
           className="w-auto rounded-lg py-1.5 text-sm"
+          name="messageLabel"
+          autoComplete="off"
         />
       </div>
       <datalist id="company-message-label-options">
@@ -142,7 +259,27 @@ function CompanyTimelineTab({
           ))}
         </div>
       ) : messages.length === 0 ? (
-        <div className="py-12 text-center text-sm text-slate-500">メッセージがありません</div>
+        <div className="py-12">
+          <EmptyState
+            message="メッセージがありません"
+            description={
+              hasActiveFilter
+                ? '検索条件や期間を見直してください。'
+                : 'まだメッセージが同期されていません。'
+            }
+            action={
+              hasActiveFilter ? (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="text-xs font-semibold text-sky-600 hover:text-sky-700"
+                >
+                  フィルターをクリア
+                </button>
+              ) : null
+            }
+          />
+        </div>
       ) : (
         <div className="space-y-4">
           {Array.from(groupedMessages.entries()).map(([dateLabel, msgs]) => (
@@ -158,19 +295,19 @@ function CompanyTimelineTab({
                 {msgs.map((message) => (
                   <div key={message.id} className="relative">
                     <div className="absolute -left-4 top-3 h-2 w-2 rounded-full bg-slate-400" />
-                    <div className="rounded-lg border border-slate-100 bg-white p-3">
-                      <div className="flex items-center justify-between text-xs">
+                    <div className="rounded-lg border border-slate-100 bg-white p-3 shadow-sm">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
                         <span className="font-medium text-slate-900">{message.sender}</span>
-                        <span className="text-slate-400">
-                          {new Date(message.sentAt).toLocaleTimeString('ja-JP', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
+                        <time
+                          dateTime={message.sentAt}
+                          title={new Date(message.sentAt).toLocaleString()}
+                        >
+                          {timeFormatter.format(new Date(message.sentAt))}
+                        </time>
                       </div>
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                        {highlightText(message.body, messageQuery)}
-                      </p>
+                      <div className="mt-2 space-y-2 text-sm text-slate-700">
+                        {renderMessageBody(message.body)}
+                      </div>
                       {message.labels && message.labels.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           {message.labels.map((label) =>
@@ -179,7 +316,7 @@ function CompanyTimelineTab({
                                 key={label}
                                 type="button"
                                 onClick={() => onRemoveLabel(message.id, label)}
-                                className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-600 hover:bg-indigo-100"
+                                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-200"
                               >
                                 <span>#{label}</span>
                                 <CloseIcon className="h-3 w-3" />
@@ -215,7 +352,7 @@ function CompanyTimelineTab({
                           <button
                             type="button"
                             onClick={() => onAddLabel(message.id)}
-                            className="rounded bg-slate-900 px-2 py-1 text-xs text-white"
+                            className="rounded bg-slate-900 px-2 py-1 text-xs text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-300"
                           >
                             追加
                           </button>

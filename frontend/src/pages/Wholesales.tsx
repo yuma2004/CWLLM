@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+﻿import { useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { CompanySearchSelect, ProjectSearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -9,15 +9,19 @@ import FilterBadge from '../components/ui/FilterBadge'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
+import DateInput from '../components/ui/DateInput'
+import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
+import Toast from '../components/ui/Toast'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useListPage } from '../hooks/useListPage'
 import { usePermissions } from '../hooks/usePermissions'
+import { useToast } from '../hooks/useToast'
 import type { Wholesale, WholesalesFilters } from '../types'
 import { WHOLESALE_STATUS_OPTIONS, statusLabel } from '../constants/labels'
 import { formatDateInput } from '../utils/date'
@@ -57,61 +61,60 @@ function WholesalesFilters({
 }: WholesalesFiltersProps) {
   return (
     <Card className="p-5">
-      <form onSubmit={onSubmit}>
-      <div className="grid gap-3 md:grid-cols-6">
-        <FormSelect
-          ref={searchInputRef}
-          value={filters.status}
-          onChange={(e) => {
-            onFiltersChange({ ...filters, status: e.target.value })
-          }}
-        >
-          <option value="">ステータス</option>
-          {WHOLESALE_STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status}>
-              {statusLabel('wholesale', status)}
-            </option>
-          ))}
-        </FormSelect>
-        <ProjectSearchSelect
-          value={filters.projectId}
-          onChange={(projectId) => {
-            onFiltersChange({ ...filters, projectId })
-          }}
-          placeholder="案件名"
-        />
-        <CompanySearchSelect
-          value={filters.companyId}
-          onChange={(companyId) => {
-            onFiltersChange({ ...filters, companyId })
-          }}
-          placeholder="企業名"
-        />
-        <FormInput
-          type="number"
-          value={filters.unitPriceMin}
-          onChange={(e) => {
-            onFiltersChange({ ...filters, unitPriceMin: e.target.value })
-          }}
-          placeholder="単価下限"
-        />
-        <FormInput
-          type="number"
-          value={filters.unitPriceMax}
-          onChange={(e) => {
-            onFiltersChange({ ...filters, unitPriceMax: e.target.value })
-          }}
-          placeholder="単価上限"
-        />
-        <button
-          type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
-        >
-          検索
-        </button>
-      </div>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-6">
+          <FormSelect
+            ref={searchInputRef}
+            value={filters.status}
+            onChange={(e) => {
+              onFiltersChange({ ...filters, status: e.target.value })
+            }}
+          >
+            <option value="">ステータス</option>
+            {WHOLESALE_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {statusLabel('wholesale', status)}
+              </option>
+            ))}
+          </FormSelect>
+          <ProjectSearchSelect
+            value={filters.projectId}
+            onChange={(projectId) => {
+              onFiltersChange({ ...filters, projectId })
+            }}
+            placeholder="案件名"
+          />
+          <CompanySearchSelect
+            value={filters.companyId}
+            onChange={(companyId) => {
+              onFiltersChange({ ...filters, companyId })
+            }}
+            placeholder="企業名"
+          />
+          <FormInput
+            type="number"
+            className="tabular-nums"
+            value={filters.unitPriceMin}
+            onChange={(e) => {
+              onFiltersChange({ ...filters, unitPriceMin: e.target.value })
+            }}
+            placeholder="単価下限"
+          />
+          <FormInput
+            type="number"
+            className="tabular-nums"
+            value={filters.unitPriceMax}
+            onChange={(e) => {
+              onFiltersChange({ ...filters, unitPriceMax: e.target.value })
+            }}
+            placeholder="単価上限"
+          />
+          <Button type="submit" className="h-11 w-full md:w-auto">
+            検索
+          </Button>
+        </div>
 
-      <ActiveFilters isActive={hasActiveFilters}>
+        <ActiveFilters isActive={hasActiveFilters} className="border-t border-slate-100 pt-3">
           <span className="text-xs text-slate-500">絞り込み:</span>
           {filters.status && (
             <FilterBadge
@@ -135,22 +138,24 @@ function WholesalesFilters({
             <FilterBadge
               label={`単価下限: ¥${Number(filters.unitPriceMin).toLocaleString()}`}
               onRemove={() => onClearFilter('unitPriceMin')}
+              className="tabular-nums"
             />
           )}
           {filters.unitPriceMax && (
             <FilterBadge
               label={`単価上限: ¥${Number(filters.unitPriceMax).toLocaleString()}`}
               onRemove={() => onClearFilter('unitPriceMax')}
+              className="tabular-nums"
             />
           )}
           <button
             type="button"
             onClick={onClearAll}
-            className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+            className="text-xs text-rose-600 hover:text-rose-700"
           >
             すべて解除
           </button>
-      </ActiveFilters>
+        </ActiveFilters>
       </form>
     </Card>
   )
@@ -162,90 +167,130 @@ type WholesalesTableProps = {
   canWrite: boolean
   onEdit: (wholesale: Wholesale) => void
   onDelete: (wholesale: Wholesale) => void
+  emptyStateDescription?: string
+  emptyStateAction?: React.ReactNode
 }
 
-function WholesalesTable({ wholesales, isLoading, canWrite, onEdit, onDelete }: WholesalesTableProps) {
+function WholesalesTable({
+  wholesales,
+  isLoading,
+  canWrite,
+  onEdit,
+  onDelete,
+  emptyStateDescription,
+  emptyStateAction,
+}: WholesalesTableProps) {
+  if (isLoading) {
+    return <SkeletonTable rows={5} columns={6} />
+  }
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      {isLoading ? (
-        <SkeletonTable rows={5} columns={7} />
-      ) : wholesales.length === 0 ? (
-        <EmptyState className="px-6 py-10" message="卸先が見つかりません" />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-slate-50">
-              <tr className="text-left text-xs text-slate-500">
-                <th className="px-4 py-3">企業</th>
-                <th className="px-4 py-3">案件</th>
-                <th className="px-4 py-3">ステータス</th>
-                <th className="px-4 py-3 text-right">単価</th>
-                <th className="px-4 py-3 text-right">マージン</th>
-                <th className="px-4 py-3 text-right">操作</th>
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <table className="min-w-full divide-y divide-slate-100 text-sm text-slate-600">
+        <thead className="bg-slate-50 text-left text-xs font-semibold uppercase whitespace-nowrap text-slate-500">
+          <tr>
+            <th className="px-5 py-3">企業</th>
+            <th className="px-5 py-3">案件</th>
+            <th className="px-5 py-3">ステータス</th>
+            <th className="px-5 py-3 text-right">単価</th>
+            <th className="px-5 py-3 text-right">マージン</th>
+            <th className="px-5 py-3 text-right">操作</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 bg-white">
+          {wholesales.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="px-5 py-12 text-center">
+                <EmptyState
+                  className="text-pretty"
+                  message="卸先が見つかりません"
+                  description={emptyStateDescription}
+                  icon={
+                    <svg
+                      className="size-12 text-slate-300"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1}
+                        d="M9 17a2 2 0 11-4 0 2 2 0 014 0zm10 0a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1}
+                        d="M3 7h11v10H3V7zm11 0h4l3 5v5h-7V7z"
+                      />
+                    </svg>
+                  }
+                  action={emptyStateAction}
+                />
+              </td>
+            </tr>
+          ) : (
+            wholesales.map((wholesale) => (
+              <tr key={wholesale.id} className="group hover:bg-slate-50/80">
+                <td className="px-5 py-4 min-w-0">
+                  <Link
+                    to={`/companies/${wholesale.companyId}`}
+                    className="block truncate font-semibold text-slate-900 hover:text-sky-600"
+                  >
+                    {wholesale.company?.name || wholesale.companyId}
+                  </Link>
+                </td>
+                <td className="px-5 py-4 min-w-0">
+                  <Link
+                    to={`/projects/${wholesale.projectId}`}
+                    className="block truncate text-slate-600 hover:text-sky-600"
+                  >
+                    {wholesale.project?.name || wholesale.projectId}
+                  </Link>
+                </td>
+                <td className="px-5 py-4">
+                  <StatusBadge status={wholesale.status} kind="wholesale" size="sm" />
+                </td>
+                <td className="px-5 py-4 text-right tabular-nums text-slate-600">
+                  {formatCurrency(wholesale.unitPrice)}
+                </td>
+                <td className="px-5 py-4 text-right tabular-nums text-slate-600">
+                  {wholesale.margin != null ? `${wholesale.margin}%` : '-'}
+                </td>
+                <td className="px-5 py-4 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <Link
+                      to={`/wholesales/${wholesale.id}`}
+                      className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                    >
+                      詳細
+                    </Link>
+                    {canWrite && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onEdit(wholesale)}
+                          className="text-xs font-semibold text-sky-600 hover:text-sky-700"
+                        >
+                          編集
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDelete(wholesale)}
+                          className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                        >
+                          削除
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {wholesales.map((wholesale) => (
-                <tr key={wholesale.id} className="border-t border-slate-100 text-sm">
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/companies/${wholesale.companyId}`}
-                      className="font-semibold text-slate-700 hover:text-slate-900"
-                    >
-                      {wholesale.company?.name || wholesale.companyId}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/projects/${wholesale.projectId}`}
-                      className="text-slate-600 hover:text-slate-900"
-                    >
-                      {wholesale.project?.name || wholesale.projectId}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={wholesale.status} kind="wholesale" size="sm" />
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono">
-                    {formatCurrency(wholesale.unitPrice)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {wholesale.margin != null ? `${wholesale.margin}%` : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Link
-                        to={`/wholesales/${wholesale.id}`}
-                        className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                      >
-                        詳細
-                      </Link>
-                      {canWrite && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => onEdit(wholesale)}
-                            className="text-xs font-semibold text-sky-600 hover:text-sky-700"
-                          >
-                            編集
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDelete(wholesale)}
-                            className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                          >
-                            削除
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -254,6 +299,8 @@ function Wholesales() {
   const { canWrite } = usePermissions()
   const [error, setError] = useState('')
   const searchInputRef = useRef<HTMLSelectElement>(null)
+  const { toast, showToast, clearToast } = useToast()
+  const navigate = useNavigate()
 
   const {
     filters,
@@ -333,6 +380,10 @@ function Wholesales() {
     clearAllFilters()
   }
 
+  const handleNavigateProjects = () => {
+    navigate('/projects')
+  }
+
   const handleEditOpen = (wholesale: Wholesale) => {
     setEditingWholesale(wholesale)
     setEditForm({
@@ -363,6 +414,7 @@ function Wholesales() {
       )
       setEditingWholesale(null)
       void refetchWholesales(undefined, { ignoreCache: true })
+      showToast('卸を更新しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '卸の更新に失敗しました')
     }
@@ -378,21 +430,37 @@ function Wholesales() {
       })
       setDeleteTarget(null)
       void refetchWholesales(undefined, { ignoreCache: true })
+      showToast('卸を削除しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '卸の削除に失敗しました')
     }
   }
 
+  const emptyStateDescription = hasActiveFilters
+    ? '絞り込み条件をリセットして一覧を確認してください。'
+    : canWrite
+    ? '案件詳細から卸先を登録できます。'
+    : '案件一覧から卸先の登録状況を確認できます。'
+
+  const emptyStateAction = hasActiveFilters ? (
+    <Button type="button" variant="secondary" size="sm" onClick={handleClearAllFilters}>
+      絞り込みを解除
+    </Button>
+  ) : (
+    <Button type="button" size="sm" onClick={handleNavigateProjects}>
+      案件管理へ
+    </Button>
+  )
 
   return (
-    <div className="space-y-4 ">
+    <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm uppercase  text-slate-400">Wholesales</p>
-          <h2 className="text-3xl font-bold text-slate-900">卸管理</h2>
+        <div className="text-pretty">
+          <p className="text-sm uppercase text-slate-400">卸</p>
+          <h2 className="text-balance text-3xl font-bold text-slate-900">卸管理</h2>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-slate-500 tabular-nums">
             登録数: <span className="font-semibold text-slate-700">{pagination.total}</span>
           </span>
         </div>
@@ -412,7 +480,7 @@ function Wholesales() {
 
       {/* Readonly Notice */}
       {!canWrite && (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-pretty text-slate-500">
           閲覧専用ロールのため、卸の編集・削除はできません。
         </div>
       )}
@@ -424,26 +492,26 @@ function Wholesales() {
         title="卸を編集"
         footer={
           <>
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => setEditingWholesale(null)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               disabled={isUpdating}
             >
               キャンセル
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={handleEditSave}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:bg-sky-300"
-              disabled={isUpdating}
+              isLoading={isUpdating}
+              loadingLabel="保存中..."
             >
-              {isUpdating ? '保存中...' : '保存'}
-            </button>
+              保存
+            </Button>
           </>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-4 text-pretty">
           <div>
             <div className="mb-1 block text-sm font-medium text-slate-700">卸先企業</div>
             <p className="text-sm text-slate-600">
@@ -473,6 +541,7 @@ function Wholesales() {
             <div className="mb-1 block text-sm font-medium text-slate-700">単価</div>
             <FormInput
               type="number"
+              className="tabular-nums"
               value={editForm.unitPrice}
               onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
               placeholder="例: 10000"
@@ -480,8 +549,8 @@ function Wholesales() {
           </div>
           <div>
             <div className="mb-1 block text-sm font-medium text-slate-700">合意日</div>
-            <FormInput
-              type="date"
+            <DateInput
+              className="tabular-nums"
               value={editForm.agreedDate}
               onChange={(e) => setEditForm({ ...editForm, agreedDate: e.target.value })}
             />
@@ -518,6 +587,8 @@ function Wholesales() {
         canWrite={canWrite}
         onEdit={handleEditOpen}
         onDelete={setDeleteTarget}
+        emptyStateDescription={emptyStateDescription}
+        emptyStateAction={emptyStateAction}
       />
 
       <Pagination
@@ -527,6 +598,14 @@ function Wholesales() {
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
       />
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
+          onClose={clearToast}
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+        />
+      )}
     </div>
   )
 }

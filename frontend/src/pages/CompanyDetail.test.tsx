@@ -98,12 +98,6 @@ describe('CompanyDetail page', () => {
       if (url === `/api/companies/${companyId}/wholesales`) {
         return buildResponse({ wholesales: [] })
       }
-      if (url.startsWith('/api/audit-logs')) {
-        return buildResponse({
-          items: [],
-          pagination: { page: 1, pageSize: 10, total: 0 },
-        })
-      }
       if (url === '/api/messages/m1/labels' && init?.method === 'POST') {
         return buildResponse({ message: { id: 'm1', labels: ['VIP'] } })
       }
@@ -135,13 +129,12 @@ describe('CompanyDetail page', () => {
     const toggleButton = within(contactHeader).getByRole('button')
     fireEvent.click(toggleButton)
 
-    const nameInput = await screen.findByPlaceholderText('担当者名（必須）')
+    const nameInput = await screen.findByLabelText('担当者名（必須）')
     const form = nameInput.closest('form')
     if (!form) {
       throw new Error('Contact form not found')
     }
-    const submitButton = within(form).getByRole('button', { name: '追加' })
-    fireEvent.click(submitButton)
+    fireEvent.submit(form)
 
     expect(await screen.findByText('担当者名は必須です')).toBeInTheDocument()
   })

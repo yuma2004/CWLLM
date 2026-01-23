@@ -1,19 +1,19 @@
-# 図表（全体まとめ）
+# 蝗ｳ陦ｨ・亥・菴薙∪縺ｨ繧・ｼ・
 
-> 生成元: Docs/diagrams/*.md
+> 逕滓・蜈・ Docs/diagrams/*.md
 
 ---
 
-# アーキテクチャ / 構造
+# 繧｢繝ｼ繧ｭ繝・け繝√Ε / 讒矩
 
-## システムコンテキスト（C4 Context）
-**説明（一般）**: 利用者・外部システム・自システムの関係と境界をざっくり掴む図です。  
-**このプロジェクトでは**: ブラウザ利用者がフロント経由でAPIを使い、Chatwork/OpenAIと連携します。
+## 繧ｷ繧ｹ繝・Β繧ｳ繝ｳ繝・く繧ｹ繝茨ｼ・4 Context・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 蛻ｩ逕ｨ閠・・螟夜Κ繧ｷ繧ｹ繝・Β繝ｻ閾ｪ繧ｷ繧ｹ繝・Β縺ｮ髢｢菫ゅ→蠅・阜繧偵＊縺｣縺上ｊ謗ｴ繧蝗ｳ縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝悶Λ繧ｦ繧ｶ蛻ｩ逕ｨ閠・′繝輔Ο繝ｳ繝育ｵ檎罰縺ｧAPI繧剃ｽｿ縺・，hatwork/OpenAI縺ｨ騾｣謳ｺ縺励∪縺吶・
 ```mermaid
 flowchart TB
-  subgraph Users[利用者]
-    Admin[管理者]
-    Staff["一般ユーザー sales/ops/readonly"]
+  subgraph Users[蛻ｩ逕ｨ閠・
+    Admin[邂｡逅・・
+    Staff["荳闊ｬ繝ｦ繝ｼ繧ｶ繝ｼ sales/ops/readonly"]
   end
 
   subgraph System[CWLLM]
@@ -37,8 +37,8 @@ flowchart TB
 ```
 
 ## C4 Container
-**説明（一般）**: 主要な実行単位（UI/API/ワーカー/DB/キャッシュ）をまとめて示します。  
-**このプロジェクトでは**: APIとBullMQワーカーがPostgreSQLとRedisを共有し、外部APIへアクセスします。
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 荳ｻ隕√↑螳溯｡悟腰菴搾ｼ・I/API/繝ｯ繝ｼ繧ｫ繝ｼ/DB/繧ｭ繝｣繝・す繝･・峨ｒ縺ｾ縺ｨ繧√※遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: API縺ｨBullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺訓ostgreSQL縺ｨRedis繧貞・譛峨＠縲∝､夜ΚAPI縺ｸ繧｢繧ｯ繧ｻ繧ｹ縺励∪縺吶・
 ```mermaid
 flowchart LR
   User[Browser]
@@ -62,9 +62,9 @@ flowchart LR
   Worker -->|HTTPS| OpenAI
 ```
 
-## バックエンド・コンポーネント図（UML Component 相当）
-**説明（一般）**: バックエンド内部の構成要素と依存関係を示します。  
-**このプロジェクトでは**: Routes→Handlers→Services→Prismaの流れで、同期/要約などの機能が実装されています。
+## 繝舌ャ繧ｯ繧ｨ繝ｳ繝峨・繧ｳ繝ｳ繝昴・繝阪Φ繝亥峙・・ML Component 逶ｸ蠖難ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝舌ャ繧ｯ繧ｨ繝ｳ繝牙・驛ｨ縺ｮ讒区・隕∫ｴ縺ｨ萓晏ｭ倬未菫ゅｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes竊辿andlers竊担ervices竊単risma縺ｮ豬√ｌ縺ｧ縲∝酔譛・隕∫ｴ・↑縺ｩ縺ｮ讖溯・縺悟ｮ溯｣・＆繧後※縺・∪縺吶・
 ```mermaid
 flowchart TB
   subgraph FastifyApp[Fastify App]
@@ -97,9 +97,9 @@ flowchart TB
   LLMClient --> OpenAI[OpenAI API]
 ```
 
-## 論理アーキテクチャ（層・責務）
-**説明（一般）**: 層ごとの責務と依存方向を整理する図です。  
-**このプロジェクトでは**: UI→API→Service→Infraの一方向で、DB/Redis/外部APIはInfra側に集約しています。
+## 隲也炊繧｢繝ｼ繧ｭ繝・け繝√Ε・亥ｱ､繝ｻ雋ｬ蜍呻ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 螻､縺斐→縺ｮ雋ｬ蜍吶→萓晏ｭ俶婿蜷代ｒ謨ｴ逅・☆繧句峙縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: UI竊但PI竊担ervice竊棚nfra縺ｮ荳譁ｹ蜷代〒縲．B/Redis/螟夜ΚAPI縺ｯInfra蛛ｴ縺ｫ髮・ｴ・＠縺ｦ縺・∪縺吶・
 ```mermaid
 flowchart TB
   subgraph Presentation[Presentation]
@@ -124,9 +124,9 @@ flowchart TB
   Domain --> External
 ```
 
-## 物理アーキテクチャ（Dev / Prod）
-**説明（一般）**: 実行環境での配置（プロセス/コンテナ/サービス）を示します。  
-**このプロジェクトでは**: 開発はVite+FastifyとDockerのDB/Redis、運用はRenderまたはDocker構成です。
+## 迚ｩ逅・い繝ｼ繧ｭ繝・け繝√Ε・・ev / Prod・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 螳溯｡檎腸蠅・〒縺ｮ驟咲ｽｮ・医・繝ｭ繧ｻ繧ｹ/繧ｳ繝ｳ繝・リ/繧ｵ繝ｼ繝薙せ・峨ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 髢狗匱縺ｯVite+Fastify縺ｨDocker縺ｮDB/Redis縲・°逕ｨ縺ｯRender縺ｾ縺溘・Docker讒区・縺ｧ縺吶・
 ```mermaid
 flowchart TB
   subgraph Dev[Local Dev]
@@ -152,9 +152,9 @@ flowchart TB
   end
 ```
 
-## ネットワーク構成 / トラフィックフロー
-**説明（一般）**: リクエストの入口から内部・外部連携までの通信経路を示します。  
-**このプロジェクトでは**: ブラウザ→フロント→API→DB/Redis→外部APIの流れになります。
+## 繝阪ャ繝医Ρ繝ｼ繧ｯ讒区・ / 繝医Λ繝輔ぅ繝・け繝輔Ο繝ｼ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｪ繧ｯ繧ｨ繧ｹ繝医・蜈･蜿｣縺九ｉ蜀・Κ繝ｻ螟夜Κ騾｣謳ｺ縺ｾ縺ｧ縺ｮ騾壻ｿ｡邨瑚ｷｯ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝悶Λ繧ｦ繧ｶ竊偵ヵ繝ｭ繝ｳ繝遺・API竊奪B/Redis竊貞､夜ΚAPI縺ｮ豬√ｌ縺ｫ縺ｪ繧翫∪縺吶・
 ```mermaid
 flowchart LR
   User[Browser]
@@ -174,9 +174,9 @@ flowchart LR
   Chatwork -->|Webhook| API
 ```
 
-## 認証・認可境界（Trust Boundary）
-**説明（一般）**: どこで認証・認可が行われるか、信頼境界を示す図です。  
-**このプロジェクトでは**: JWT検証とRBACはバックエンド内で実施し、クライアントは未信頼前提です。
+## 隱崎ｨｼ繝ｻ隱榊庄蠅・阜・・rust Boundary・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 縺ｩ縺薙〒隱崎ｨｼ繝ｻ隱榊庄縺瑚｡後ｏ繧後ｋ縺九∽ｿ｡鬆ｼ蠅・阜繧堤､ｺ縺吝峙縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: JWT讀懆ｨｼ縺ｨRBAC縺ｯ繝舌ャ繧ｯ繧ｨ繝ｳ繝牙・縺ｧ螳滓命縺励√け繝ｩ繧､繧｢繝ｳ繝医・譛ｪ菫｡鬆ｼ蜑肴署縺ｧ縺吶・
 ```mermaid
 flowchart TB
   subgraph Client[Untrusted Client]
@@ -191,9 +191,9 @@ flowchart TB
   API2 --> DB2[(PostgreSQL)]
 ```
 
-## ストレージ / キャッシュ配置
-**説明（一般）**: データの保存先・キャッシュの配置を示します。  
-**このプロジェクトでは**: フロントはuseFetchのメモリキャッシュ、バックはPostgreSQL/Redisを利用します。
+## 繧ｹ繝医Ξ繝ｼ繧ｸ / 繧ｭ繝｣繝・す繝･驟咲ｽｮ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝・・繧ｿ縺ｮ菫晏ｭ伜・繝ｻ繧ｭ繝｣繝・す繝･縺ｮ驟咲ｽｮ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝輔Ο繝ｳ繝医・useFetch縺ｮ繝｡繝｢繝ｪ繧ｭ繝｣繝・す繝･縲√ヰ繝・け縺ｯPostgreSQL/Redis繧貞茜逕ｨ縺励∪縺吶・
 ```mermaid
 flowchart LR
   FECache["Frontend In-Memory Cache useFetch cacheKey"]
@@ -206,9 +206,9 @@ flowchart LR
   API3 --> Redis3
 ```
 
-## ジョブ基盤 / イベント駆動の全体
-**説明（一般）**: 非同期処理の流れとキュー/ワーカーの関係を示します。  
-**このプロジェクトでは**: Chatwork同期や要約生成はジョブ化され、BullMQワーカーが処理します。
+## 繧ｸ繝ｧ繝門渕逶､ / 繧､繝吶Φ繝磯ｧ・虚縺ｮ蜈ｨ菴・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 髱槫酔譛溷・逅・・豬√ｌ縺ｨ繧ｭ繝･繝ｼ/繝ｯ繝ｼ繧ｫ繝ｼ縺ｮ髢｢菫ゅｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Chatwork蜷梧悄繧・ｦ∫ｴ・函謌舌・繧ｸ繝ｧ繝門喧縺輔ｌ縲。ullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺悟・逅・＠縺ｾ縺吶・
 ```mermaid
 flowchart TB
   UI[Frontend] -->|POST chatwork sync| API4[Backend API]
@@ -220,9 +220,9 @@ flowchart TB
   Worker -->|update status result| DB4
 ```
 
-## 依存関係グラフ（モジュール依存）
-**説明（一般）**: モジュール間の依存方向を俯瞰する図です。  
-**このプロジェクトでは**: Routes/Handlers/Servicesが中心で、Prisma/Redis/外部APIへ依存します。
+## 萓晏ｭ倬未菫ゅげ繝ｩ繝包ｼ医Δ繧ｸ繝･繝ｼ繝ｫ萓晏ｭ假ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝｢繧ｸ繝･繝ｼ繝ｫ髢薙・萓晏ｭ俶婿蜷代ｒ菫ｯ迸ｰ縺吶ｋ蝗ｳ縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes/Handlers/Services縺御ｸｭ蠢・〒縲￣risma/Redis/螟夜ΚAPI縺ｸ萓晏ｭ倥＠縺ｾ縺吶・
 ```mermaid
 flowchart TB
   Routes3[Routes] --> Handlers3[Handlers] --> Services3[Services] --> Utils[Utils]
@@ -232,9 +232,9 @@ flowchart TB
   Middleware2[Middleware] --> Services3
 ```
 
-## モジュール構成（リポジトリ）
-**説明（一般）**: リポジトリの主要ディレクトリ構成を示します。  
-**このプロジェクトでは**: frontend/backend/infra/Docsに分割して責務を明確化しています。
+## 繝｢繧ｸ繝･繝ｼ繝ｫ讒区・・医Μ繝昴ず繝医Μ・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｪ繝昴ず繝医Μ縺ｮ荳ｻ隕√ョ繧｣繝ｬ繧ｯ繝医Μ讒区・繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: frontend/backend/infra/Docs縺ｫ蛻・牡縺励※雋ｬ蜍吶ｒ譏守｢ｺ蛹悶＠縺ｦ縺・∪縺吶・
 ```mermaid
 flowchart TB
   Repo["CWLLM Repo"]
@@ -263,9 +263,9 @@ flowchart TB
   Backend --> Worker["worker.ts"]
 ```
 
-## レイヤー図（Presentation / Domain / Infra）
-**説明（一般）**: プレゼンテーション/ドメイン/インフラの抽象層を示します。  
-**このプロジェクトでは**: Routes/Servicesがドメイン相当、Prisma/Redis/外部APIがインフラ相当です。
+## 繝ｬ繧､繝､繝ｼ蝗ｳ・・resentation / Domain / Infra・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝励Ξ繧ｼ繝ｳ繝・・繧ｷ繝ｧ繝ｳ/繝峨Γ繧､繝ｳ/繧､繝ｳ繝輔Λ縺ｮ謚ｽ雎｡螻､繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes/Services縺後ラ繝｡繧､繝ｳ逶ｸ蠖薙￣risma/Redis/螟夜ΚAPI縺後う繝ｳ繝輔Λ逶ｸ蠖薙〒縺吶・
 ```mermaid
 flowchart TB
   PresentationLayer[Presentation]
@@ -275,9 +275,9 @@ flowchart TB
   PresentationLayer --> DomainLayer --> InfraLayer
 ```
 
-## Hexagonal（Ports & Adapters）
-**説明（一般）**: コアと外部アダプタの境界を示す設計図です。  
-**このプロジェクトでは**: InboundはHTTP/Scheduler、OutboundはDB/Redis/Chatwork/OpenAIです。
+## Hexagonal・・orts & Adapters・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繧ｳ繧｢縺ｨ螟夜Κ繧｢繝繝励ち縺ｮ蠅・阜繧堤､ｺ縺呵ｨｭ險亥峙縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Inbound縺ｯHTTP/Scheduler縲＾utbound縺ｯDB/Redis/Chatwork/OpenAI縺ｧ縺吶・
 ```mermaid
 flowchart LR
   subgraph Core[Core / Use-Case]
@@ -301,9 +301,9 @@ flowchart LR
   UseCases --> LLMAdapter
 ```
 
-## DDD Context Map（境界づけ）
-**説明（一般）**: 業務領域（コンテキスト）間の関係を示します。  
-**このプロジェクトでは**: Companiesを中心にProjects/Wholesales/Tasksが連携します。
+## DDD Context Map・亥｢・阜縺･縺托ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 讌ｭ蜍咎伜沺・医さ繝ｳ繝・く繧ｹ繝茨ｼ蛾俣縺ｮ髢｢菫ゅｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Companies繧剃ｸｭ蠢・↓Projects/Wholesales/Tasks縺碁｣謳ｺ縺励∪縺吶・
 ```mermaid
 flowchart LR
   Accounts["Accounts Users"]
@@ -313,7 +313,6 @@ flowchart LR
   Messaging["Messaging Chatwork Rooms Messages"]
   Tasks["Tasks"]
   Summaries["Summaries"]
-  Reporting["Exports Dashboard"]
 
   CRM --> Projects
   CRM --> Wholesales
@@ -322,36 +321,34 @@ flowchart LR
   Projects --> Tasks
   Wholesales --> Tasks
   Summaries --> Tasks
-  Reporting --> CRM
-  Reporting --> Tasks
 ```
 
-## 4+1 ビュー（対応表）
-| View | 対応図 |
+## 4+1 繝薙Η繝ｼ・亥ｯｾ蠢懆｡ｨ・・
+| View | 蟇ｾ蠢懷峙 |
 | --- | --- |
-| Logical | 論理アーキテクチャ / レイヤー図 |
-| Process | ジョブ基盤 / イベント駆動 / シーケンス |
-| Development | モジュール構成 / 依存関係 |
-| Physical | 物理アーキテクチャ / ネットワーク |
-| Scenarios | シーケンス図（ログイン・同期・要約） |
+| Logical | 隲也炊繧｢繝ｼ繧ｭ繝・け繝√Ε / 繝ｬ繧､繝､繝ｼ蝗ｳ |
+| Process | 繧ｸ繝ｧ繝門渕逶､ / 繧､繝吶Φ繝磯ｧ・虚 / 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ |
+| Development | 繝｢繧ｸ繝･繝ｼ繝ｫ讒区・ / 萓晏ｭ倬未菫・|
+| Physical | 迚ｩ逅・い繝ｼ繧ｭ繝・け繝√Ε / 繝阪ャ繝医Ρ繝ｼ繧ｯ |
+| Scenarios | 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ蝗ｳ・医Ο繧ｰ繧､繝ｳ繝ｻ蜷梧悄繝ｻ隕∫ｴ・ｼ・|
 
-## 責務分割（サマリ）
-| 領域 | 主担当 | 役割 |
+## 雋ｬ蜍吝・蜑ｲ・医し繝槭Μ・・
+| 鬆伜沺 | 荳ｻ諡・ｽ・| 蠖ｹ蜑ｲ |
 | --- | --- | --- |
-| 画面/UI | Frontend | 画面表示、入力、API呼び出し |
-| 認証/認可 | Backend | JWT発行、RBAC、アクセス制御 |
-| 業務ロジック | Backend Services | 同期/要約/タスク化等 |
-| 永続化 | PostgreSQL + Prisma | 主要データの永続化 |
-| 非同期処理 | Redis + BullMQ | Chatwork同期・要約生成の実行 |
-| 外部連携 | Chatwork/OpenAI | メッセージ取得・要約生成 |
+| 逕ｻ髱｢/UI | Frontend | 逕ｻ髱｢陦ｨ遉ｺ縲∝・蜉帙、PI蜻ｼ縺ｳ蜃ｺ縺・|
+| 隱崎ｨｼ/隱榊庄 | Backend | JWT逋ｺ陦後ヽBAC縲√い繧ｯ繧ｻ繧ｹ蛻ｶ蠕｡ |
+| 讌ｭ蜍吶Ο繧ｸ繝・け | Backend Services | 蜷梧悄/隕∫ｴ・繧ｿ繧ｹ繧ｯ蛹也ｭ・|
+| 豌ｸ邯壼喧 | PostgreSQL + Prisma | 荳ｻ隕√ョ繝ｼ繧ｿ縺ｮ豌ｸ邯壼喧 |
+| 髱槫酔譛溷・逅・| Redis + BullMQ | Chatwork蜷梧悄繝ｻ隕∫ｴ・函謌舌・螳溯｡・|
+| 螟夜Κ騾｣謳ｺ | Chatwork/OpenAI | 繝｡繝・そ繝ｼ繧ｸ蜿門ｾ励・隕∫ｴ・函謌・|
 
 ---
 
-# ふるまい / 処理フロー
+# 縺ｵ繧九∪縺・/ 蜃ｦ逅・ヵ繝ｭ繝ｼ
 
-## シーケンス：ログイン
-**説明（一般）**: 画面操作からAPI応答までの手順と役割分担を示します。  
-**このプロジェクトでは**: 認証成功時にJWTを発行し、Cookieに保存して以降のAPI認証に使います。
+## 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ・壹Ο繧ｰ繧､繝ｳ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 逕ｻ髱｢謫堺ｽ懊°繧陰PI蠢懃ｭ斐∪縺ｧ縺ｮ謇矩・→蠖ｹ蜑ｲ蛻・球繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 隱崎ｨｼ謌仙粥譎ゅ↓JWT繧堤匱陦後＠縲，ookie縺ｫ菫晏ｭ倥＠縺ｦ莉･髯阪・API隱崎ｨｼ縺ｫ菴ｿ縺・∪縺吶・
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -359,17 +356,17 @@ sequenceDiagram
   participant API as Backend API
   participant DB as PostgreSQL
 
-  U->>FE: ログイン入力
+  U->>FE: 繝ｭ繧ｰ繧､繝ｳ蜈･蜉・
   FE->>API: POST /api/auth/login
   API->>DB: user lookup
   API->>API: bcrypt compare
   API-->>FE: token + Set-Cookie
-  FE-->>U: ログイン完了
+  FE-->>U: 繝ｭ繧ｰ繧､繝ｳ螳御ｺ・
 ```
 
-## シーケンス：Chatwork同期（管理者）
-**説明（一般）**: 非同期ジョブの起動と処理の流れを示します。  
-**このプロジェクトでは**: 管理者操作でジョブを作成し、BullMQワーカーが同期を実行します。
+## 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ・咾hatwork蜷梧悄・育ｮ｡逅・・ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 髱槫酔譛溘ず繝ｧ繝悶・襍ｷ蜍輔→蜃ｦ逅・・豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 邂｡逅・・桃菴懊〒繧ｸ繝ｧ繝悶ｒ菴懈・縺励。ullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺悟酔譛溘ｒ螳溯｡後＠縺ｾ縺吶・
 ```mermaid
 sequenceDiagram
   participant Admin as Admin
@@ -380,7 +377,7 @@ sequenceDiagram
   participant W as Worker
   participant CW as Chatwork API
 
-  Admin->>FE: 同期開始
+  Admin->>FE: 蜷梧悄髢句ｧ・
   FE->>API: POST /api/chatwork/rooms/sync
   API->>DB: create Job queued
   API->>Q: enqueue job
@@ -391,9 +388,9 @@ sequenceDiagram
   W->>DB: update Job status completed failed
 ```
 
-## シーケンス：要約ドラフト生成
-**説明（一般）**: キャッシュ確認と非同期処理の分岐を示します。  
-**このプロジェクトでは**: 期限内ドラフトがあれば即返し、なければジョブ経由で生成します。
+## 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ・夊ｦ∫ｴ・ラ繝ｩ繝輔ヨ逕滓・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繧ｭ繝｣繝・す繝･遒ｺ隱阪→髱槫酔譛溷・逅・・蛻・ｲ舌ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 譛滄剞蜀・ラ繝ｩ繝輔ヨ縺後≠繧後・蜊ｳ霑斐＠縲√↑縺代ｌ縺ｰ繧ｸ繝ｧ繝也ｵ檎罰縺ｧ逕滓・縺励∪縺吶・
 ```mermaid
 sequenceDiagram
   participant FE as Frontend
@@ -404,10 +401,10 @@ sequenceDiagram
   participant LLM as OpenAI/Mock
 
   FE->>API: POST /api/companies/:id/summaries/draft
-  API->>DB: 既存ドラフト確認
-  alt キャッシュあり
+  API->>DB: 譌｢蟄倥ラ繝ｩ繝輔ヨ遒ｺ隱・
+  alt 繧ｭ繝｣繝・す繝･縺ゅｊ
     API-->>FE: cached draft
-  else キャッシュなし
+  else 繧ｭ繝｣繝・す繝･縺ｪ縺・
     API->>DB: create Job queued
     API->>Q: enqueue job
     API-->>FE: 202 + jobId
@@ -419,25 +416,25 @@ sequenceDiagram
   end
 ```
 
-## アクティビティ：Chatworkメッセージ同期
-**説明（一般）**: ループ処理や分岐を含む処理の流れを示します。  
-**このプロジェクトでは**: ルームごとに取得・保存し、失敗時はエラー情報を記録します。
+## 繧｢繧ｯ繝・ぅ繝薙ユ繧｣・咾hatwork繝｡繝・そ繝ｼ繧ｸ蜷梧悄
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｫ繝ｼ繝怜・逅・ｄ蛻・ｲ舌ｒ蜷ｫ繧蜃ｦ逅・・豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝ｫ繝ｼ繝縺斐→縺ｫ蜿門ｾ励・菫晏ｭ倥＠縲∝､ｱ謨玲凾縺ｯ繧ｨ繝ｩ繝ｼ諠・ｱ繧定ｨ倬鹸縺励∪縺吶・
 ```mermaid
 flowchart TD
-  Start([Start]) --> LoadRooms[対象ルーム取得]
-  LoadRooms --> Loop{各ルーム}
+  Start([Start]) --> LoadRooms[蟇ｾ雎｡繝ｫ繝ｼ繝蜿門ｾ余
+  LoadRooms --> Loop{蜷・Ν繝ｼ繝}
   Loop --> Fetch["Chatwork API listMessages"]
   Fetch -->|OK| Save["createMany + updateMany"]
-  Save --> UpdateRoom["room.lastSyncAt / lastMessageId 更新"]
+  Save --> UpdateRoom["room.lastSyncAt / lastMessageId 譖ｴ譁ｰ"]
   UpdateRoom --> Loop
-  Fetch -->|Error| MarkErr["room.lastError* 更新"]
+  Fetch -->|Error| MarkErr["room.lastError* 譖ｴ譁ｰ"]
   MarkErr --> Loop
   Loop --> End([End])
 ```
 
-## ステートマシン：JobStatus
-**説明（一般）**: ジョブの状態遷移を示します。  
-**このプロジェクトでは**: DBの`jobs.status`がqueued→processing→completed/failed/canceledで更新されます。
+## 繧ｹ繝・・繝医・繧ｷ繝ｳ・哽obStatus
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繧ｸ繝ｧ繝悶・迥ｶ諷矩・遘ｻ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: DB縺ｮ`jobs.status`縺繋ueued竊恥rocessing竊団ompleted/failed/canceled縺ｧ譖ｴ譁ｰ縺輔ｌ縺ｾ縺吶・
 ```mermaid
 stateDiagram-v2
   [*] --> queued
@@ -448,9 +445,9 @@ stateDiagram-v2
   processing --> canceled
 ```
 
-## ステートマシン：TaskStatus
-**説明（一般）**: タスクの状態遷移を示します。  
-**このプロジェクトでは**: todo/in_progress/done/cancelledを画面とAPIで管理します。
+## 繧ｹ繝・・繝医・繧ｷ繝ｳ・啜askStatus
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繧ｿ繧ｹ繧ｯ縺ｮ迥ｶ諷矩・遘ｻ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: todo/in_progress/done/cancelled繧堤判髱｢縺ｨAPI縺ｧ邂｡逅・＠縺ｾ縺吶・
 ```mermaid
 stateDiagram-v2
   [*] --> todo
@@ -461,9 +458,9 @@ stateDiagram-v2
   done --> cancelled
 ```
 
-## タイミング：自動同期スケジュール
-**説明（一般）**: 定期処理のタイミングを示します。  
-**このプロジェクトでは**: 環境変数で設定した間隔でChatwork同期ジョブを投入します。
+## 繧ｿ繧､繝溘Φ繧ｰ・夊・蜍募酔譛溘せ繧ｱ繧ｸ繝･繝ｼ繝ｫ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 螳壽悄蜃ｦ逅・・繧ｿ繧､繝溘Φ繧ｰ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 迺ｰ蠅・､画焚縺ｧ險ｭ螳壹＠縺滄俣髫斐〒Chatwork蜷梧悄繧ｸ繝ｧ繝悶ｒ謚募・縺励∪縺吶・
 ```mermaid
 sequenceDiagram
   participant Scheduler as ChatworkScheduler
@@ -478,21 +475,21 @@ sequenceDiagram
   end
 ```
 
-## 相互作用概要（代表シナリオ）
-**説明（一般）**: 代表的なユーザーフローを短くまとめた図です。  
-**このプロジェクトでは**: ダッシュボードから会社詳細へ進み、同期や要約を実行します。
+## 逶ｸ莠剃ｽ懃畑讎りｦ・ｼ井ｻ｣陦ｨ繧ｷ繝翫Μ繧ｪ・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 莉｣陦ｨ逧・↑繝ｦ繝ｼ繧ｶ繝ｼ繝輔Ο繝ｼ繧堤洒縺上∪縺ｨ繧√◆蝗ｳ縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝繝・す繝･繝懊・繝峨°繧我ｼ夂､ｾ隧ｳ邏ｰ縺ｸ騾ｲ縺ｿ縲∝酔譛溘ｄ隕∫ｴ・ｒ螳溯｡後＠縺ｾ縺吶・
 ```mermaid
 flowchart LR
-  Login["ログイン"] --> Dashboard["ダッシュボード表示"]
-  Dashboard --> Company["会社詳細"]
-  Company --> Sync["Chatwork同期"]
-  Company --> Draft["要約ドラフト生成"]
-  Draft --> Tasks["タスク候補抽出"]
+  Login["繝ｭ繧ｰ繧､繝ｳ"] --> Dashboard["繝繝・す繝･繝懊・繝芽｡ｨ遉ｺ"]
+  Dashboard --> Company["莨夂､ｾ隧ｳ邏ｰ"]
+  Company --> Sync["Chatwork蜷梧悄"]
+  Company --> Draft["隕∫ｴ・ラ繝ｩ繝輔ヨ逕滓・"]
+  Draft --> Tasks["繧ｿ繧ｹ繧ｯ蛟呵｣懈歓蜃ｺ"]
 ```
 
-## 例外伝播（APIエラーハンドリング）
-**説明（一般）**: 例外がどのように捕捉・整形されて返るかを示します。  
-**このプロジェクトでは**: `setErrorHandler` と `normalizeErrorPayload` で共通形式に揃えます。
+## 萓句､紋ｼ晄眺・・PI繧ｨ繝ｩ繝ｼ繝上Φ繝峨Μ繝ｳ繧ｰ・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 萓句､悶′縺ｩ縺ｮ繧医≧縺ｫ謐墓拷繝ｻ謨ｴ蠖｢縺輔ｌ縺ｦ霑斐ｋ縺九ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `setErrorHandler` 縺ｨ `normalizeErrorPayload` 縺ｧ蜈ｱ騾壼ｽ｢蠑上↓謠・∴縺ｾ縺吶・
 ```mermaid
 flowchart TD
   Request --> Handler
@@ -501,9 +498,9 @@ flowchart TD
   Normalize --> Response["JSON Error Response"]
 ```
 
-## リトライ / タイムアウト / サーキットブレーカ
-**説明（一般）**: 外部API失敗時の再試行やタイムアウトの扱いを示します。  
-**このプロジェクトでは**: Chatworkは簡易リトライ、OpenAIは失敗時にジョブ失敗として扱います。
+## 繝ｪ繝医Λ繧､ / 繧ｿ繧､繝繧｢繧ｦ繝・/ 繧ｵ繝ｼ繧ｭ繝・ヨ繝悶Ξ繝ｼ繧ｫ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 螟夜ΚAPI螟ｱ謨玲凾縺ｮ蜀崎ｩｦ陦後ｄ繧ｿ繧､繝繧｢繧ｦ繝医・謇ｱ縺・ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Chatwork縺ｯ邁｡譏薙Μ繝医Λ繧､縲＾penAI縺ｯ螟ｱ謨玲凾縺ｫ繧ｸ繝ｧ繝門､ｱ謨励→縺励※謇ｱ縺・∪縺吶・
 ```mermaid
 flowchart TB
   ChatworkReq["Chatwork API Request"] -->|timeout 10s| Retry{"retry limit check"}
@@ -514,9 +511,9 @@ flowchart TB
   JobQueue["Job Queue"] -->|attempts=1| NoRetry["No job retry"]
 ```
 
-## 冪等性の設計（現状）
-**説明（一般）**: 同じ操作を繰り返しても結果が崩れない工夫を示します。  
-**このプロジェクトでは**: ユニーク制約と`upsert`で重複登録を避けます。
+## 蜀ｪ遲画ｧ縺ｮ險ｭ險茨ｼ育樟迥ｶ・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 蜷後§謫堺ｽ懊ｒ郢ｰ繧願ｿ斐＠縺ｦ繧らｵ先棡縺悟ｴｩ繧後↑縺・ｷ･螟ｫ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝ｦ繝九・繧ｯ蛻ｶ邏・→`upsert`縺ｧ驥崎､・匳骭ｲ繧帝∩縺代∪縺吶・
 ```mermaid
 flowchart TB
   MsgSync["Message Sync"] --> Unique1["unique roomId messageId"]
@@ -525,18 +522,18 @@ flowchart TB
   CompanyLink["CompanyRoomLink"] --> Unique2["unique companyId chatworkRoomId"]
 ```
 
-## 備考（未実装/非該当）
-- 分散トランザクション / サガ：未実装
-- 明示的ロック設計：未実装（DB制約に依存）
-- サーキットブレーカ：未実装（簡易リトライのみ）
+## 蛯呵・ｼ域悴螳溯｣・髱櫁ｩｲ蠖難ｼ・
+- 蛻・淵繝医Λ繝ｳ繧ｶ繧ｯ繧ｷ繝ｧ繝ｳ / 繧ｵ繧ｬ・壽悴螳溯｣・
+- 譏守､ｺ逧・Ο繝・け險ｭ險茨ｼ壽悴螳溯｣・ｼ・B蛻ｶ邏・↓萓晏ｭ假ｼ・
+- 繧ｵ繝ｼ繧ｭ繝・ヨ繝悶Ξ繝ｼ繧ｫ・壽悴螳溯｣・ｼ育ｰ｡譏薙Μ繝医Λ繧､縺ｮ縺ｿ・・
 
 ---
 
-# データまわり
+# 繝・・繧ｿ縺ｾ繧上ｊ
 
-## ER 図（論理）
-**説明（一般）**: データのエンティティと関係を俯瞰する図です。  
-**このプロジェクトでは**: Companiesを中心にProjects/Wholesales/Tasks/Chatwork連携が繋がります。
+## ER 蝗ｳ・郁ｫ也炊・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝・・繧ｿ縺ｮ繧ｨ繝ｳ繝・ぅ繝・ぅ縺ｨ髢｢菫ゅｒ菫ｯ迸ｰ縺吶ｋ蝗ｳ縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Companies繧剃ｸｭ蠢・↓Projects/Wholesales/Tasks/Chatwork騾｣謳ｺ縺檎ｹ九′繧翫∪縺吶・
 ```mermaid
 erDiagram
   USER {
@@ -636,9 +633,9 @@ erDiagram
   USER ||--o{ JOB : created
 ```
 
-## データフロー（DFD レベル0）
-**説明（一般）**: データがどこからどこへ流れるかを示します。  
-**このプロジェクトでは**: フロント→API→DB/Redis→外部API（Chatwork/OpenAI）の流れです。
+## 繝・・繧ｿ繝輔Ο繝ｼ・・FD 繝ｬ繝吶Ν0・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝・・繧ｿ縺後←縺薙°繧峨←縺薙∈豬√ｌ繧九°繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝輔Ο繝ｳ繝遺・API竊奪B/Redis竊貞､夜ΚAPI・・hatwork/OpenAI・峨・豬√ｌ縺ｧ縺吶・
 ```mermaid
 flowchart LR
   User[User] --> FE[Frontend]
@@ -650,60 +647,55 @@ flowchart LR
   Chatwork --> API
 ```
 
-## イベント / ジョブスキーマ（現状）
-| JobType | payload | 説明 |
+## 繧､繝吶Φ繝・/ 繧ｸ繝ｧ繝悶せ繧ｭ繝ｼ繝橸ｼ育樟迥ｶ・・
+| JobType | payload | 隱ｬ譏・|
 | --- | --- | --- |
-| `chatwork_rooms_sync` | `{}` | ルーム一覧同期 |
-| `chatwork_messages_sync` | `{ roomId?: string, roomLimit?: number }` | メッセージ同期 |
-| `summary_draft` | `{ companyId, periodStart, periodEnd }` | 要約ドラフト生成 |
+| `chatwork_rooms_sync` | `{}` | 繝ｫ繝ｼ繝荳隕ｧ蜷梧悄 |
+| `chatwork_messages_sync` | `{ roomId?: string, roomLimit?: number }` | 繝｡繝・そ繝ｼ繧ｸ蜷梧悄 |
+| `summary_draft` | `{ companyId, periodStart, periodEnd }` | 隕∫ｴ・ラ繝ｩ繝輔ヨ逕滓・ |
 
-## データ辞書（主要エンティティ）
-| エンティティ | 主な項目 | 備考 |
+## 繝・・繧ｿ霎樊嶌・井ｸｻ隕√お繝ｳ繝・ぅ繝・ぅ・・
+| 繧ｨ繝ｳ繝・ぅ繝・ぅ | 荳ｻ縺ｪ鬆・岼 | 蛯呵・|
 | --- | --- | --- |
-| User | `email`, `role`, `password` | 認証・権限 |
-| Company | `name`, `normalizedName`, `status`, `tags` | CRM中心 |
-| Contact | `companyId`, `name`, `role`, `email` | 会社連絡先 |
-| Project | `companyId`, `name`, `status`, `periodStart/End` | 案件 |
-| Wholesale | `projectId`, `companyId`, `status`, `margin` | 卸 |
-| ChatworkRoom | `roomId`, `name`, `lastSyncAt`, `isActive` | 連携ルーム |
-| Message | `roomId`, `messageId`, `sender`, `body`, `sentAt` | 連携メッセージ |
-| Summary | `companyId`, `content`, `type` | 確定要約 |
-| SummaryDraft | `companyId`, `content`, `expiresAt` | 自動生成 |
-| Task | `targetType`, `targetId`, `assigneeId`, `status` | タスク |
-| Job | `type`, `status`, `payload`, `result` | 非同期処理 |
-| AuditLog | `entityType`, `entityId`, `action`, `changes` | 監査 |
-| AppSetting | `key`, `value` | 設定 |
+| User | `email`, `role`, `password` | 隱崎ｨｼ繝ｻ讓ｩ髯・|
+| Company | `name`, `normalizedName`, `status`, `tags` | CRM荳ｭ蠢・|
+| Contact | `companyId`, `name`, `role`, `email` | 莨夂､ｾ騾｣邨｡蜈・|
+| Project | `companyId`, `name`, `status`, `periodStart/End` | 譯井ｻｶ |
+| Wholesale | `projectId`, `companyId`, `status`, `margin` | 蜊ｸ |
+| ChatworkRoom | `roomId`, `name`, `lastSyncAt`, `isActive` | 騾｣謳ｺ繝ｫ繝ｼ繝 |
+| Message | `roomId`, `messageId`, `sender`, `body`, `sentAt` | 騾｣謳ｺ繝｡繝・そ繝ｼ繧ｸ |
+| Summary | `companyId`, `content`, `type` | 遒ｺ螳夊ｦ∫ｴ・|
+| SummaryDraft | `companyId`, `content`, `expiresAt` | 閾ｪ蜍慕函謌・|
+| Task | `targetType`, `targetId`, `assigneeId`, `status` | 繧ｿ繧ｹ繧ｯ |
+| Job | `type`, `status`, `payload`, `result` | 髱槫酔譛溷・逅・|
+| AppSetting | `key`, `value` | 險ｭ螳・|
 
-## 実装差分（主要追加項目）
-**説明（一般）**: ER図/辞書は主要項目の抜粋です。実装には以下の追加項目があります。  
+## 螳溯｣・ｷｮ蛻・ｼ井ｸｻ隕∬ｿｽ蜉鬆・岼・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: ER蝗ｳ/霎樊嶌縺ｯ荳ｻ隕・・岼縺ｮ謚懃ｲ九〒縺吶ょｮ溯｣・↓縺ｯ莉･荳九・霑ｽ蜉鬆・岼縺後≠繧翫∪縺吶・ 
 - Company: `category`, `profile`, `ownerId`
 - Contact: `phone`, `memo`, `sortOrder`
 - Project: `conditions`, `unitPrice`, `periodStart`, `periodEnd`, `ownerId`
 - Wholesale: `conditions`, `unitPrice`, `margin`, `agreedDate`, `ownerId`
 - ChatworkRoom: `description`, `lastMessageId`, `lastErrorAt`, `lastErrorMessage`, `lastErrorStatus`
 - Message: `labels`, `sender`, `sentAt`
-- Summary / SummaryDraft: `periodStart`, `periodEnd`, `sourceLinks`, `model`, `promptVersion`, `sourceMessageCount`, `tokenUsage`, `expiresAt`（Draftのみ）
-- Task: `title`, `description`, `dueDate`, `assigneeId`
+- Summary / SummaryDraft: `periodStart`, `periodEnd`, `sourceLinks`, `model`, `promptVersion`, `sourceMessageCount`, `tokenUsage`, `expiresAt`・・raft縺ｮ縺ｿ・・- Task: `title`, `description`, `dueDate`, `assigneeId`
 - Job: `error`, `startedAt`, `finishedAt`
 
-## CRUD マトリクス（主要）
-| リソース | Create | Read | Update | Delete |
+## CRUD 繝槭ヨ繝ｪ繧ｯ繧ｹ・井ｸｻ隕・ｼ・| 繝ｪ繧ｽ繝ｼ繧ｹ | Create | Read | Update | Delete |
 | --- | --- | --- | --- | --- |
-| Users | ✅ | ✅ | ✅(role) | - |
-| Companies | ✅ | ✅ | ✅ | ✅ |
-| Contacts | ✅ | ✅ | ✅ | ✅ |
-| Projects | ✅ | ✅ | ✅ | ✅ |
-| Wholesales | ✅ | ✅ | ✅ | ✅ |
-| Messages | - | ✅ | ✅(assign/labels) | - |
-| Summaries | ✅ | ✅ | - | - |
-| SummaryDraft | ✅(job) | ✅ | - | - |
-| Tasks | ✅ | ✅ | ✅ | ✅ |
-| Jobs | ✅(enqueue) | ✅ | ✅(cancel) | - |
-| AuditLogs | - | ✅ | - | - |
-| Settings | - | ✅ | ✅ | - |
+| Users | 笨・| 笨・| 笨・role) | - |
+| Companies | 笨・| 笨・| 笨・| 笨・|
+| Contacts | 笨・| 笨・| 笨・| 笨・|
+| Projects | 笨・| 笨・| 笨・| 笨・|
+| Wholesales | 笨・| 笨・| 笨・| 笨・|
+| Messages | - | 笨・| 笨・assign/labels) | - |
+| Summaries | 笨・| 笨・| - | - |
+| SummaryDraft | 笨・job) | 笨・| - | - |
+| Tasks | 笨・| 笨・| 笨・| 笨・|
+| Jobs | 笨・enqueue) | 笨・| 笨・cancel) | - |
+| Settings | - | 笨・| 笨・| - |
 
-## インデックス / 制約（抜粋）
-| テーブル | インデックス / ユニーク |
+## 繧､繝ｳ繝・ャ繧ｯ繧ｹ / 蛻ｶ邏・ｼ域栢邊具ｼ・
+| 繝・・繝悶Ν | 繧､繝ｳ繝・ャ繧ｯ繧ｹ / 繝ｦ繝九・繧ｯ |
 | --- | --- |
 | companies | `normalizedName` unique |
 | contacts | `(companyId, sortOrder)` |
@@ -717,146 +709,143 @@ flowchart LR
 | jobs | `(type, status)`, `(createdAt)` |
 | app_settings | `key` unique |
 
-## キャッシュキー設計（フロント）
-| キー | TTL | 説明 |
+## 繧ｭ繝｣繝・す繝･繧ｭ繝ｼ險ｭ險茨ｼ医ヵ繝ｭ繝ｳ繝茨ｼ・
+| 繧ｭ繝ｼ | TTL | 隱ｬ譏・|
 | --- | --- | --- |
-| `cacheKey`（未指定時はURL） | `cacheTimeMs` | `useFetch` がメモリに保持 |
+| `cacheKey`・域悴謖・ｮ壽凾縺ｯURL・・| `cacheTimeMs` | `useFetch` 縺後Γ繝｢繝ｪ縺ｫ菫晄戟 |
 
-## 整合性モデル
-- 主データ（PostgreSQL）：強整合
-- 非同期処理（Job/Queue）：結果整合（ジョブ完了を待つ）
-- 要約ドラフト：期限付きキャッシュ（`summary_drafts.expiresAt`）
+## 謨ｴ蜷域ｧ繝｢繝・Ν
+- 荳ｻ繝・・繧ｿ・・ostgreSQL・会ｼ壼ｼｷ謨ｴ蜷・
+- 髱槫酔譛溷・逅・ｼ・ob/Queue・会ｼ夂ｵ先棡謨ｴ蜷茨ｼ医ず繝ｧ繝門ｮ御ｺ・ｒ蠕・▽・・
+- 隕∫ｴ・ラ繝ｩ繝輔ヨ・壽悄髯蝉ｻ倥″繧ｭ繝｣繝・す繝･・・summary_drafts.expiresAt`・・
 
-## マイグレーション運用（現状）
-| 環境 | コマンド | 備考 |
+## 繝槭う繧ｰ繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ驕狗畑・育樟迥ｶ・・
+| 迺ｰ蠅・| 繧ｳ繝槭Φ繝・| 蛯呵・|
 | --- | --- | --- |
-| 開発 | `npm run migrate:dev` | Prisma migrate dev |
-| 本番 | `npm run migrate:deploy` | Prisma migrate deploy |
+| 髢狗匱 | `npm run migrate:dev` | Prisma migrate dev |
+| 譛ｬ逡ｪ | `npm run migrate:deploy` | Prisma migrate deploy |
 
 ---
 
-# API / インターフェース
+# API / 繧､繝ｳ繧ｿ繝ｼ繝輔ぉ繝ｼ繧ｹ
 
-## API 一覧（主要）
+## API 荳隕ｧ・井ｸｻ隕・ｼ・
 ### Auth
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
 | `/api/auth/login` | POST | - | - |
 | `/api/auth/logout` | POST | - | - |
-| `/api/auth/me` | GET | ✅ | any |
+| `/api/auth/me` | GET | 笨・| any |
 
 ### Users
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/users` | GET | ✅ | admin |
-| `/api/users` | POST | ✅ | admin |
-| `/api/users/options` | GET | ✅ | any |
-| `/api/users/:id/role` | PATCH | ✅ | admin |
+| `/api/users` | GET | 笨・| admin |
+| `/api/users` | POST | 笨・| admin |
+| `/api/users/options` | GET | 笨・| any |
+| `/api/users/:id/role` | PATCH | 笨・| admin |
 
 ### Companies / Contacts / Related
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/companies` | GET | ✅ | any |
-| `/api/companies` | POST | ✅ | admin/sales/ops |
-| `/api/companies/:id` | GET | ✅ | any |
-| `/api/companies/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/companies/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/companies/search` | GET | ✅ | any |
-| `/api/companies/options` | GET | ✅ | any |
-| `/api/companies/:id/contacts` | GET | ✅ | any |
-| `/api/companies/:id/contacts` | POST | ✅ | admin/sales/ops |
-| `/api/companies/:id/contacts/reorder` | PATCH | ✅ | admin/sales/ops |
-| `/api/contacts/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/contacts/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/companies/:id/projects` | GET | ✅ | any |
-| `/api/companies/:id/wholesales` | GET | ✅ | any |
-| `/api/companies/:id/tasks` | GET | ✅ | any |
-| `/api/companies/:id/messages` | GET | ✅ | any |
-| `/api/companies/:id/summaries` | GET | ✅ | any |
-| `/api/companies/:id/summaries` | POST | ✅ | admin/sales/ops |
-| `/api/companies/:id/summaries/draft` | POST | ✅ | admin/sales/ops |
+| `/api/companies` | GET | 笨・| any |
+| `/api/companies` | POST | 笨・| admin/sales/ops |
+| `/api/companies/:id` | GET | 笨・| any |
+| `/api/companies/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/companies/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/companies/search` | GET | 笨・| any |
+| `/api/companies/options` | GET | 笨・| any |
+| `/api/companies/:id/contacts` | GET | 笨・| any |
+| `/api/companies/:id/contacts` | POST | 笨・| admin/sales/ops |
+| `/api/companies/:id/contacts/reorder` | PATCH | 笨・| admin/sales/ops |
+| `/api/contacts/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/contacts/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/companies/:id/projects` | GET | 笨・| any |
+| `/api/companies/:id/wholesales` | GET | 笨・| any |
+| `/api/companies/:id/tasks` | GET | 笨・| any |
+| `/api/companies/:id/messages` | GET | 笨・| any |
+| `/api/companies/:id/summaries` | GET | 笨・| any |
+| `/api/companies/:id/summaries` | POST | 笨・| admin/sales/ops |
+| `/api/companies/:id/summaries/draft` | POST | 笨・| admin/sales/ops |
 
 ### Projects / Wholesales
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/projects` | GET | ✅ | any |
-| `/api/projects` | POST | ✅ | admin/sales/ops |
-| `/api/projects/:id` | GET | ✅ | any |
-| `/api/projects/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/projects/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/projects/search` | GET | ✅ | any |
-| `/api/projects/:id/wholesales` | GET | ✅ | any |
-| `/api/projects/:id/tasks` | GET | ✅ | any |
-| `/api/wholesales` | GET | ✅ | any |
-| `/api/wholesales` | POST | ✅ | admin/sales/ops |
-| `/api/wholesales/:id` | GET | ✅ | any |
-| `/api/wholesales/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/wholesales/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/wholesales/:id/tasks` | GET | ✅ | any |
+| `/api/projects` | GET | 笨・| any |
+| `/api/projects` | POST | 笨・| admin/sales/ops |
+| `/api/projects/:id` | GET | 笨・| any |
+| `/api/projects/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/projects/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/projects/search` | GET | 笨・| any |
+| `/api/projects/:id/wholesales` | GET | 笨・| any |
+| `/api/projects/:id/tasks` | GET | 笨・| any |
+| `/api/wholesales` | GET | 笨・| any |
+| `/api/wholesales` | POST | 笨・| admin/sales/ops |
+| `/api/wholesales/:id` | GET | 笨・| any |
+| `/api/wholesales/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/wholesales/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/wholesales/:id/tasks` | GET | 笨・| any |
 
 ### Messages
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/messages/search` | GET | ✅ | any |
-| `/api/messages/unassigned` | GET | ✅ | any |
-| `/api/messages/:id/assign-company` | PATCH | ✅ | admin/sales/ops |
-| `/api/messages/assign-company` | PATCH | ✅ | admin/sales/ops |
-| `/api/messages/:id/labels` | POST | ✅ | admin/sales/ops |
-| `/api/messages/:id/labels/:label` | DELETE | ✅ | admin/sales/ops |
-| `/api/messages/labels` | GET | ✅ | any |
-| `/api/messages/labels/bulk` | POST | ✅ | admin/sales/ops |
-| `/api/messages/labels/bulk/remove` | POST | ✅ | admin/sales/ops |
+| `/api/messages/search` | GET | 笨・| any |
+| `/api/messages/unassigned` | GET | 笨・| any |
+| `/api/messages/:id/assign-company` | PATCH | 笨・| admin/sales/ops |
+| `/api/messages/assign-company` | PATCH | 笨・| admin/sales/ops |
+| `/api/messages/:id/labels` | POST | 笨・| admin/sales/ops |
+| `/api/messages/:id/labels/:label` | DELETE | 笨・| admin/sales/ops |
+| `/api/messages/labels` | GET | 笨・| any |
+| `/api/messages/labels/bulk` | POST | 笨・| admin/sales/ops |
+| `/api/messages/labels/bulk/remove` | POST | 笨・| admin/sales/ops |
 
 ### Tasks
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/tasks` | GET | ✅ | any |
-| `/api/tasks` | POST | ✅ | admin/sales/ops |
-| `/api/tasks/:id` | GET | ✅ | any |
-| `/api/tasks/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/tasks/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/tasks/bulk` | PATCH | ✅ | admin/sales/ops |
-| `/api/me/tasks` | GET | ✅ | any |
+| `/api/tasks` | GET | 笨・| any |
+| `/api/tasks` | POST | 笨・| admin/sales/ops |
+| `/api/tasks/:id` | GET | 笨・| any |
+| `/api/tasks/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/tasks/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/tasks/bulk` | PATCH | 笨・| admin/sales/ops |
+| `/api/me/tasks` | GET | 笨・| any |
 
 ### Jobs / Summaries
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/jobs` | GET | ✅ | any |
-| `/api/jobs/:id` | GET | ✅ | any |
-| `/api/jobs/:id/cancel` | POST | ✅ | any |
-| `/api/summaries/:id/tasks/candidates` | POST | ✅ | any |
+| `/api/jobs` | GET | 笨・| any |
+| `/api/jobs/:id` | GET | 笨・| any |
+| `/api/jobs/:id/cancel` | POST | 笨・| any |
+| `/api/summaries/:id/tasks/candidates` | POST | 笨・| any |
 
 ### Chatwork
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/chatwork/rooms` | GET | ✅ | admin |
-| `/api/chatwork/rooms/sync` | POST | ✅ | admin |
-| `/api/chatwork/rooms/:id` | PATCH | ✅ | admin |
-| `/api/chatwork/messages/sync` | POST | ✅ | admin |
+| `/api/chatwork/rooms` | GET | 笨・| admin |
+| `/api/chatwork/rooms/sync` | POST | 笨・| admin |
+| `/api/chatwork/rooms/:id` | PATCH | 笨・| admin |
+| `/api/chatwork/messages/sync` | POST | 笨・| admin |
 | `/api/chatwork/webhook` | POST | - | - |
-| `/api/companies/:id/chatwork-rooms` | GET | ✅ | any |
-| `/api/companies/:id/chatwork-rooms` | POST | ✅ | admin/sales/ops |
-| `/api/companies/:id/chatwork-rooms/:roomId` | DELETE | ✅ | admin/sales/ops |
+| `/api/companies/:id/chatwork-rooms` | GET | 笨・| any |
+| `/api/companies/:id/chatwork-rooms` | POST | 笨・| admin/sales/ops |
+| `/api/companies/:id/chatwork-rooms/:roomId` | DELETE | 笨・| admin/sales/ops |
 
 ### Dashboard / Settings / Export / Audit / Search
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/dashboard` | GET | ✅ | any |
-| `/api/settings` | GET | ✅ | admin |
-| `/api/settings` | PATCH | ✅ | admin |
-| `/api/export/companies.csv` | GET | ✅ | admin |
-| `/api/export/tasks.csv` | GET | ✅ | admin |
-| `/api/audit-logs` | GET | ✅ | any |
-| `/api/search` | GET | ✅ | any |
+| `/api/dashboard` | GET | 笨・| any |
+| `/api/settings` | GET | 笨・| admin |
+| `/api/settings` | PATCH | 笨・| admin |
+| `/api/search` | GET | 笨・| any |
 
 ### Health
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
 | `/healthz` | GET | - | - |
 
-## 認証フロー
-**説明（一般）**: ログインから認証済みAPI利用までの流れを示します。  
-**このプロジェクトでは**: ログインでJWTを発行し、Cookie/Authorizationで`/api/auth/me`にアクセスします。
+## 隱崎ｨｼ繝輔Ο繝ｼ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｭ繧ｰ繧､繝ｳ縺九ｉ隱崎ｨｼ貂医∩API蛻ｩ逕ｨ縺ｾ縺ｧ縺ｮ豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝ｭ繧ｰ繧､繝ｳ縺ｧJWT繧堤匱陦後＠縲，ookie/Authorization縺ｧ`/api/auth/me`縺ｫ繧｢繧ｯ繧ｻ繧ｹ縺励∪縺吶・
 ```mermaid
 sequenceDiagram
   participant FE as Frontend
@@ -872,43 +861,42 @@ sequenceDiagram
   API-->>FE: clear cookie
 ```
 
-## ステータス / エラーコード一覧
-| HTTP | Code | 説明 |
+## 繧ｹ繝・・繧ｿ繧ｹ / 繧ｨ繝ｩ繝ｼ繧ｳ繝ｼ繝我ｸ隕ｧ
+| HTTP | Code | 隱ｬ譏・|
 | --- | --- | --- |
-| 400 | `BAD_REQUEST` | 入力不正 |
-| 401 | `UNAUTHORIZED` | 認証失敗 |
-| 403 | `FORBIDDEN` | 権限不足 |
-| 404 | `NOT_FOUND` | リソース不在 |
-| 409 | `CONFLICT` | 競合 |
-| 422 | `VALIDATION_ERROR` | バリデーション |
-| 429 | `TOO_MANY_REQUESTS` | レート制限 |
-| 500 | `INTERNAL_SERVER_ERROR` | 予期しないエラー |
+| 400 | `BAD_REQUEST` | 蜈･蜉帑ｸ肴ｭ｣ |
+| 401 | `UNAUTHORIZED` | 隱崎ｨｼ螟ｱ謨・|
+| 403 | `FORBIDDEN` | 讓ｩ髯蝉ｸ崎ｶｳ |
+| 404 | `NOT_FOUND` | 繝ｪ繧ｽ繝ｼ繧ｹ荳榊惠 |
+| 409 | `CONFLICT` | 遶ｶ蜷・|
+| 422 | `VALIDATION_ERROR` | 繝舌Μ繝・・繧ｷ繝ｧ繝ｳ |
+| 429 | `TOO_MANY_REQUESTS` | 繝ｬ繝ｼ繝亥宛髯・|
+| 500 | `INTERNAL_SERVER_ERROR` | 莠域悄縺励↑縺・お繝ｩ繝ｼ |
 
-Prisma 例外マッピング（例）:
-- `P2025` → 404
-- `P2002` → 409
-- `P2003` → 400
+Prisma 萓句､悶・繝・ヴ繝ｳ繧ｰ・井ｾ具ｼ・
+- `P2025` 竊・404
+- `P2002` 竊・409
+- `P2003` 竊・400
 
-## レート制限
-| 対象 | 設定 | 由来 |
+## 繝ｬ繝ｼ繝亥宛髯・
+| 蟇ｾ雎｡ | 險ｭ螳・| 逕ｱ譚･ |
 | --- | --- | --- |
 | `/api/auth/login` | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Fastify rate-limit |
-| Chatwork API | 5分300回相当の間隔制御 | クライアント内部制御 |
+| Chatwork API | 5蛻・00蝗樒嶌蠖薙・髢馴囈蛻ｶ蠕｡ | 繧ｯ繝ｩ繧､繧｢繝ｳ繝亥・驛ｨ蛻ｶ蠕｡ |
 
-## ページング / フィルタ / ソート（クエリあり）
-対象: `/api/companies`, `/api/projects`, `/api/wholesales`, `/api/tasks`, `/api/messages/*`, `/api/jobs`, `/api/audit-logs`, `/api/export/*`
+## 繝壹・繧ｸ繝ｳ繧ｰ / 繝輔ぅ繝ｫ繧ｿ / 繧ｽ繝ｼ繝茨ｼ医け繧ｨ繝ｪ縺ゅｊ・・
 
-## バージョニング方針
-- 現状は `/api` で固定（バージョン無し）
+## 繝舌・繧ｸ繝ｧ繝九Φ繧ｰ譁ｹ驥・
+- 迴ｾ迥ｶ縺ｯ `/api` 縺ｧ蝗ｺ螳夲ｼ医ヰ繝ｼ繧ｸ繝ｧ繝ｳ辟｡縺暦ｼ・
 
-## Webhook イベント
-| 送信元 | 受信エンドポイント | 認証 |
+## Webhook 繧､繝吶Φ繝・
+| 騾∽ｿ｡蜈・| 蜿嶺ｿ｡繧ｨ繝ｳ繝峨・繧､繝ｳ繝・| 隱崎ｨｼ |
 | --- | --- | --- |
 | Chatwork | `/api/chatwork/webhook` | `CHATWORK_WEBHOOK_TOKEN` |
 
-## 非同期 API（ジョブ）
-**説明（一般）**: ジョブを使う非同期APIの流れを示します。  
-**このプロジェクトでは**: APIが`jobs`を作成し、BullMQワーカーが処理して結果をDBに反映します。
+## 髱槫酔譛・API・医ず繝ｧ繝厄ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繧ｸ繝ｧ繝悶ｒ菴ｿ縺・撼蜷梧悄API縺ｮ豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: API縺形jobs`繧剃ｽ懈・縺励。ullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺悟・逅・＠縺ｦ邨先棡繧奪B縺ｫ蜿肴丐縺励∪縺吶・
 ```mermaid
 flowchart LR
   API[Backend API] --> DB[(jobs)]
@@ -918,21 +906,21 @@ flowchart LR
 ```
 
 ## OpenAPI / Swagger
-- `/api/docs` で Swagger UI を提供
+- `/api/docs` 縺ｧ Swagger UI 繧呈署萓・
 
-## 外部連携の契約（概要）
-| 連携先 | 用途 | エンドポイント |
+## 螟夜Κ騾｣謳ｺ縺ｮ螂醍ｴ・ｼ域ｦりｦ・ｼ・
+| 騾｣謳ｺ蜈・| 逕ｨ騾・| 繧ｨ繝ｳ繝峨・繧､繝ｳ繝・|
 | --- | --- | --- |
-| Chatwork API | ルーム/メッセージ取得 | `https://api.chatwork.com/v2` |
-| OpenAI API | 要約生成 | `https://api.openai.com/v1/chat/completions` |
+| Chatwork API | 繝ｫ繝ｼ繝/繝｡繝・そ繝ｼ繧ｸ蜿門ｾ・| `https://api.chatwork.com/v2` |
+| OpenAI API | 隕∫ｴ・函謌・| `https://api.openai.com/v1/chat/completions` |
 
 ---
 
-# フロントエンド / 画面まわり
+# 繝輔Ο繝ｳ繝医お繝ｳ繝・/ 逕ｻ髱｢縺ｾ繧上ｊ
 
-## サイトマップ
-**説明（一般）**: 画面構成を一覧で示す図です。  
-**このプロジェクトでは**: 主要リソース（Companies/Tasks/Projects/Wholesales）と設定系画面に分かれます。
+## 繧ｵ繧､繝医・繝・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 逕ｻ髱｢讒区・繧剃ｸ隕ｧ縺ｧ遉ｺ縺吝峙縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 荳ｻ隕√Μ繧ｽ繝ｼ繧ｹ・・ompanies/Tasks/Projects/Wholesales・峨→險ｭ螳夂ｳｻ逕ｻ髱｢縺ｫ蛻・°繧後∪縺吶・
 ```mermaid
 flowchart TB
   Root["/"]
@@ -949,7 +937,6 @@ flowchart TB
   Settings["/settings"]
   Accounts["/settings/accounts"]
   ChatworkSettings["/settings/chatwork"]
-  Exports["/exports"]
 
   Root --> Companies
   Root --> Tasks
@@ -958,7 +945,6 @@ flowchart TB
   Root --> Settings
   Settings --> Accounts
   Settings --> ChatworkSettings
-  Settings --> Exports
   Companies --> CompanyDetail
   Tasks --> TaskDetail
   Projects --> ProjectDetail
@@ -967,9 +953,9 @@ flowchart TB
   Root --> NotFound
 ```
 
-## 画面遷移（概要）
-**説明（一般）**: 代表的な画面遷移の流れを示します。  
-**このプロジェクトでは**: ダッシュボードを起点に詳細画面や設定画面へ移動します。
+## 逕ｻ髱｢驕ｷ遘ｻ・域ｦりｦ・ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 莉｣陦ｨ逧・↑逕ｻ髱｢驕ｷ遘ｻ縺ｮ豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝繝・す繝･繝懊・繝峨ｒ襍ｷ轤ｹ縺ｫ隧ｳ邏ｰ逕ｻ髱｢繧・ｨｭ螳夂判髱｢縺ｸ遘ｻ蜍輔＠縺ｾ縺吶・
 ```mermaid
 flowchart LR
   Login[Login] --> Home[Dashboard]
@@ -982,12 +968,11 @@ flowchart LR
   Wholesales --> WholesaleDetail
   Settings --> Accounts
   Settings --> ChatworkSettings
-  Settings --> Exports
 ```
 
-## コンポーネントツリー（主要）
-**説明（一般）**: UIの親子関係と責務の分担を示します。  
-**このプロジェクトでは**: `App` → `AuthProvider` → `ProtectedRoute` → `Layout` → 各ページの構成です。
+## 繧ｳ繝ｳ繝昴・繝阪Φ繝医ヤ繝ｪ繝ｼ・井ｸｻ隕・ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: UI縺ｮ隕ｪ蟄宣未菫ゅ→雋ｬ蜍吶・蛻・球繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `App` 竊・`AuthProvider` 竊・`ProtectedRoute` 竊・`Layout` 竊・蜷・・繝ｼ繧ｸ縺ｮ讒区・縺ｧ縺吶・
 ```mermaid
 flowchart TB
   App --> AuthProvider
@@ -998,9 +983,9 @@ flowchart TB
   Pages --> Components[UI Components]
 ```
 
-## 状態管理（現状）
-**説明（一般）**: 状態の置き場所と伝播のしかたを示します。  
-**このプロジェクトでは**: 認証はContext、データ取得は`useFetch`とメモリキャッシュで管理します。
+## 迥ｶ諷狗ｮ｡逅・ｼ育樟迥ｶ・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 迥ｶ諷九・鄂ｮ縺榊ｴ謇縺ｨ莨晄眺縺ｮ縺励°縺溘ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 隱崎ｨｼ縺ｯContext縲√ョ繝ｼ繧ｿ蜿門ｾ励・`useFetch`縺ｨ繝｡繝｢繝ｪ繧ｭ繝｣繝・す繝･縺ｧ邂｡逅・＠縺ｾ縺吶・
 ```mermaid
 flowchart LR
   AuthContext["AuthContext user role"] --> ProtectedRoute2[ProtectedRoute]
@@ -1010,9 +995,9 @@ flowchart LR
   useFetch --> Cache["In-memory cache"]
 ```
 
-## データ取得フロー
-**説明（一般）**: 画面がAPIからデータを取得する流れを示します。  
-**このプロジェクトでは**: `useFetch` → `apiRequest` → `fetch` → API の順で呼び出します。
+## 繝・・繧ｿ蜿門ｾ励ヵ繝ｭ繝ｼ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 逕ｻ髱｢縺窟PI縺九ｉ繝・・繧ｿ繧貞叙蠕励☆繧区ｵ√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `useFetch` 竊・`apiRequest` 竊・`fetch` 竊・API 縺ｮ鬆・〒蜻ｼ縺ｳ蜃ｺ縺励∪縺吶・
 ```mermaid
 flowchart LR
   Component --> useFetch
@@ -1023,9 +1008,9 @@ flowchart LR
   useFetch --> Component
 ```
 
-## UI 状態遷移
-**説明（一般）**: 読み込み/成功/空/エラーなどのUI状態を示します。  
-**このプロジェクトでは**: `useFetch`の状態に合わせてローディングやエラー表示を切り替えます。
+## UI 迥ｶ諷矩・遘ｻ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 隱ｭ縺ｿ霎ｼ縺ｿ/謌仙粥/遨ｺ/繧ｨ繝ｩ繝ｼ縺ｪ縺ｩ縺ｮUI迥ｶ諷九ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `useFetch`縺ｮ迥ｶ諷九↓蜷医ｏ縺帙※繝ｭ繝ｼ繝・ぅ繝ｳ繧ｰ繧・お繝ｩ繝ｼ陦ｨ遉ｺ繧貞・繧頑崛縺医∪縺吶・
 ```mermaid
 stateDiagram-v2
   [*] --> idle
@@ -1036,29 +1021,29 @@ stateDiagram-v2
   error --> loading : retry
 ```
 
-## フォーム / バリデーション（概要）
-| 画面 | 入力 | バリデーション |
+## 繝輔か繝ｼ繝 / 繝舌Μ繝・・繧ｷ繝ｧ繝ｳ・域ｦりｦ・ｼ・
+| 逕ｻ髱｢ | 蜈･蜉・| 繝舌Μ繝・・繧ｷ繝ｧ繝ｳ |
 | --- | --- | --- |
-| Login | email/password | サーバ側(Zod)で検証、クライアントは最小限 |
-| Company/Project/Task | 各種項目 | サーバ側(Zod)で検証 |
+| Login | email/password | 繧ｵ繝ｼ繝仙・(Zod)縺ｧ讀懆ｨｼ縲√け繝ｩ繧､繧｢繝ｳ繝医・譛蟆城剞 |
+| Company/Project/Task | 蜷・ｨｮ鬆・岼 | 繧ｵ繝ｼ繝仙・(Zod)縺ｧ讀懆ｨｼ |
 
-## アクセシビリティ（未監査・チェックリスト）
-- キーボード操作で主要導線が操作可能
-- フォーカスリングが視認できる
-- 主要ボタンに `aria-label` が付与されている
-- コントラスト比が確保されている
+## 繧｢繧ｯ繧ｻ繧ｷ繝薙Μ繝・ぅ・域悴逶｣譟ｻ繝ｻ繝√ぉ繝・け繝ｪ繧ｹ繝茨ｼ・
+- 繧ｭ繝ｼ繝懊・繝画桃菴懊〒荳ｻ隕∝ｰ守ｷ壹′謫堺ｽ懷庄閭ｽ
+- 繝輔か繝ｼ繧ｫ繧ｹ繝ｪ繝ｳ繧ｰ縺瑚ｦ冶ｪ阪〒縺阪ｋ
+- 荳ｻ隕√・繧ｿ繝ｳ縺ｫ `aria-label` 縺御ｻ倅ｸ弱＆繧後※縺・ｋ
+- 繧ｳ繝ｳ繝医Λ繧ｹ繝域ｯ斐′遒ｺ菫昴＆繧後※縺・ｋ
 
-## i18n / デザイントークン
-- i18n: 未導入（日本語固定）
-- デザイントークン: 未導入（Tailwindユーティリティ中心）
+## i18n / 繝・じ繧､繝ｳ繝医・繧ｯ繝ｳ
+- i18n: 譛ｪ蟆主・・域律譛ｬ隱槫崋螳夲ｼ・
+- 繝・じ繧､繝ｳ繝医・繧ｯ繝ｳ: 譛ｪ蟆主・・・ailwind繝ｦ繝ｼ繝・ぅ繝ｪ繝・ぅ荳ｭ蠢・ｼ・
 
 ---
 
-# 実装設計 / 規約
+# 螳溯｣・ｨｭ險・/ 隕冗ｴ・
 
-## クラス図（主要コンポーネント）
-**説明（一般）**: 主要クラス/インタフェースの関係を示します。  
-**このプロジェクトでは**: `LLMClient`がOpenAI/Mockで切替可能、ジョブが同期/要約を呼び出します。
+## 繧ｯ繝ｩ繧ｹ蝗ｳ・井ｸｻ隕√さ繝ｳ繝昴・繝阪Φ繝茨ｼ・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 荳ｻ隕√け繝ｩ繧ｹ/繧､繝ｳ繧ｿ繝輔ぉ繝ｼ繧ｹ縺ｮ髢｢菫ゅｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `LLMClient`縺薫penAI/Mock縺ｧ蛻・崛蜿ｯ閭ｽ縲√ず繝ｧ繝悶′蜷梧悄/隕∫ｴ・ｒ蜻ｼ縺ｳ蜃ｺ縺励∪縺吶・
 ```mermaid
 classDiagram
   class LLMClient {
@@ -1094,8 +1079,8 @@ classDiagram
   JobQueue --> SummaryGenerator
 ```
 
-## インタフェース契約（抜粋）
-| インタフェース | 入力 | 出力 |
+## 繧､繝ｳ繧ｿ繝輔ぉ繝ｼ繧ｹ螂醍ｴ・ｼ域栢邊具ｼ・
+| 繧､繝ｳ繧ｿ繝輔ぉ繝ｼ繧ｹ | 蜈･蜉・| 蜃ｺ蜉・|
 | --- | --- | --- |
 | `LLMClient.summarize` | `LLMInputMessage[]` | `LLMResult` |
 | `ChatworkClient.listRooms` | - | `ChatworkRoom[]` |
@@ -1103,14 +1088,14 @@ classDiagram
 | `enqueueSummaryDraftJob` | `companyId, periodStart, periodEnd` | `Job` |
 | `cancelJob` | `jobId` | `Job` |
 
-## 例外設計
-| 種別 | 発生源 | 扱い |
+## 萓句､冶ｨｭ險・
+| 遞ｮ蛻･ | 逋ｺ逕滓ｺ・| 謇ｱ縺・|
 | --- | --- | --- |
-| `ChatworkApiError` | Chatwork API | ルームにエラー記録、ジョブ失敗 |
-| `JobCanceledError` | Job処理 | `canceled` で終了 |
-| API Error Payload | API | `buildErrorPayload` に統一 |
+| `ChatworkApiError` | Chatwork API | 繝ｫ繝ｼ繝縺ｫ繧ｨ繝ｩ繝ｼ險倬鹸縲√ず繝ｧ繝門､ｱ謨・|
+| `JobCanceledError` | Job蜃ｦ逅・| `canceled` 縺ｧ邨ゆｺ・|
+| API Error Payload | API | `buildErrorPayload` 縺ｫ邨ｱ荳 |
 
-## エラーメッセージ規約
+## 繧ｨ繝ｩ繝ｼ繝｡繝・そ繝ｼ繧ｸ隕冗ｴ・
 ```json
 {
   "error": {
@@ -1121,17 +1106,16 @@ classDiagram
 }
 ```
 
-## ログ設計（API）
-| フィールド | 内容 |
+## 繝ｭ繧ｰ險ｭ險茨ｼ・PI・・
+| 繝輔ぅ繝ｼ繝ｫ繝・| 蜀・ｮｹ |
 | --- | --- |
 | `requestId` | `x-request-id` |
-| `method` | HTTPメソッド |
-| `url` | リクエストURL |
-| `statusCode` | ステータス |
-| `userId` / `role` | JWT由来 |
+| `method` | HTTP繝｡繧ｽ繝・ラ |
+| `url` | 繝ｪ繧ｯ繧ｨ繧ｹ繝・RL |
+| `statusCode` | 繧ｹ繝・・繧ｿ繧ｹ |
+| `userId` / `role` | JWT逕ｱ譚･ |
 
-## 設定項目（環境変数）
-`NODE_ENV`, `PORT`, `BACKEND_PORT`, `JWT_SECRET`, `CORS_ORIGINS`,  
+## 險ｭ螳夐・岼・育腸蠅・､画焚・・`NODE_ENV`, `PORT`, `BACKEND_PORT`, `JWT_SECRET`, `CORS_ORIGINS`,  
 `DATABASE_URL`, `DATABASE_URL_TEST`,  
 `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`, `TRUST_PROXY`,  
 `CHATWORK_API_TOKEN`, `CHATWORK_API_BASE_URL`, `CHATWORK_AUTO_SYNC_ENABLED`,  
@@ -1140,36 +1124,35 @@ classDiagram
 `CHATWORK_WEBHOOK_COOLDOWN_SECONDS`,  
 `OPENAI_API_KEY`, `OPENAI_MODEL`, `REDIS_URL`, `JOB_WORKER_ENABLED`
 
-### Seed / テスト用（任意）
-`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_ROLE`
+### Seed / 繝・せ繝育畑・井ｻｻ諢擾ｼ・`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_ROLE`
 
-## Feature Flags（実質）
-| 変数 | 目的 |
+## Feature Flags・亥ｮ溯ｳｪ・・
+| 螟画焚 | 逶ｮ逧・|
 | --- | --- |
-| `CHATWORK_AUTO_SYNC_ENABLED` | 自動同期ON/OFF |
-| `JOB_WORKER_ENABLED` | Worker有効化 |
-| `CHATWORK_NEW_ROOMS_ACTIVE` | 新規ルームの初期Active |
+| `CHATWORK_AUTO_SYNC_ENABLED` | 閾ｪ蜍募酔譛欅N/OFF |
+| `JOB_WORKER_ENABLED` | Worker譛牙柑蛹・|
+| `CHATWORK_NEW_ROOMS_ACTIVE` | 譁ｰ隕上Ν繝ｼ繝縺ｮ蛻晄悄Active |
 
-## 依存ライブラリ（主要）
+## 萓晏ｭ倥Λ繧､繝悶Λ繝ｪ・井ｸｻ隕・ｼ・
 ### Backend
 - Fastify / Prisma / BullMQ / Redis / Zod / bcryptjs
-- OpenAI 呼び出し（標準 fetch）
+- OpenAI 蜻ｼ縺ｳ蜃ｺ縺暦ｼ域ｨ呎ｺ・fetch・・
 
 ### Frontend
 - React / React Router
 - Tailwind CSS + clsx / tailwind-merge
-- @dnd-kit（D&D UI）
+- @dnd-kit・・&D UI・・
 
 ## ADR
-- まだ管理されていません（追加する場合は `Docs/ADR/` 推奨）
+- 縺ｾ縺邂｡逅・＆繧後※縺・∪縺帙ｓ・郁ｿｽ蜉縺吶ｋ蝣ｴ蜷医・ `Docs/ADR/` 謗ｨ螂ｨ・・
 
 ---
 
-# テスト / 品質
+# 繝・せ繝・/ 蜩∬ｳｪ
 
-## テスト戦略（俯瞰）
-**説明（一般）**: どのレイヤーで何をテストするかの全体像です。  
-**このプロジェクトでは**: Front/BackのユニットテストとPlaywright E2Eを併用します。
+## 繝・せ繝域姶逡･・井ｿｯ迸ｰ・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 縺ｩ縺ｮ繝ｬ繧､繝､繝ｼ縺ｧ菴輔ｒ繝・せ繝医☆繧九°縺ｮ蜈ｨ菴灘ワ縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Front/Back縺ｮ繝ｦ繝九ャ繝医ユ繧ｹ繝医→Playwright E2E繧剃ｽｵ逕ｨ縺励∪縺吶・
 ```mermaid
 flowchart TB
   UnitFE[Frontend Unit (Vitest)]
@@ -1179,9 +1162,9 @@ flowchart TB
   UnitBE --> E2E
 ```
 
-## テストピラミッド
-**説明（一般）**: ユニット→統合→E2Eの比率を示す考え方です。  
-**このプロジェクトでは**: ユニット中心で、重要フローをE2Eで補強します。
+## 繝・せ繝医ヴ繝ｩ繝溘ャ繝・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｦ繝九ャ繝遺・邨ｱ蜷遺・E2E縺ｮ豈皮紫繧堤､ｺ縺呵・∴譁ｹ縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝ｦ繝九ャ繝井ｸｭ蠢・〒縲・㍾隕√ヵ繝ｭ繝ｼ繧脱2E縺ｧ陬懷ｼｷ縺励∪縺吶・
 ```mermaid
 flowchart TB
   E2E2[E2E]
@@ -1190,36 +1173,36 @@ flowchart TB
   Unit --> Integration --> E2E2
 ```
 
-## テスト計画（現状）
-| 種別 | 目的 | コマンド |
+## 繝・せ繝郁ｨ育判・育樟迥ｶ・・
+| 遞ｮ蛻･ | 逶ｮ逧・| 繧ｳ繝槭Φ繝・|
 | --- | --- | --- |
-| Frontend Unit | コンポーネント/フック | `cd frontend && npm run test` |
-| Backend Unit | ルート/サービス | `cd backend && npm run test` |
-| E2E | UI一連動作 | `cd frontend && npm run test:e2e` |
+| Frontend Unit | 繧ｳ繝ｳ繝昴・繝阪Φ繝・繝輔ャ繧ｯ | `cd frontend && npm run test` |
+| Backend Unit | 繝ｫ繝ｼ繝・繧ｵ繝ｼ繝薙せ | `cd backend && npm run test` |
+| E2E | UI荳騾｣蜍穂ｽ・| `cd frontend && npm run test:e2e` |
 
-## 環境マトリクス（現状）
-| 環境 | OS | ブラウザ |
+## 迺ｰ蠅・・繝医Μ繧ｯ繧ｹ・育樟迥ｶ・・
+| 迺ｰ蠅・| OS | 繝悶Λ繧ｦ繧ｶ |
 | --- | --- | --- |
-| ローカル | Windows/macOS/Linux | Playwright (Chromium) |
-| CI | Ubuntu | Playwright (デフォルト) |
+| 繝ｭ繝ｼ繧ｫ繝ｫ | Windows/macOS/Linux | Playwright (Chromium) |
+| CI | Ubuntu | Playwright (繝・ヵ繧ｩ繝ｫ繝・ |
 
-## モック / スタブ方針
-- 外部API（Chatwork/OpenAI）は必要に応じてモック
-- ユニットテストはDB依存を減らす
+## 繝｢繝・け / 繧ｹ繧ｿ繝匁婿驥・
+- 螟夜ΚAPI・・hatwork/OpenAI・峨・蠢・ｦ√↓蠢懊§縺ｦ繝｢繝・け
+- 繝ｦ繝九ャ繝医ユ繧ｹ繝医・DB萓晏ｭ倥ｒ貂帙ｉ縺・
 
-## 品質ゲート（CI）
-| 対象 | 実行 |
+## 蜩∬ｳｪ繧ｲ繝ｼ繝茨ｼ・I・・
+| 蟇ｾ雎｡ | 螳溯｡・|
 | --- | --- |
-| Backend | lint → build → test |
-| Frontend | lint → typecheck → test → build |
+| Backend | lint 竊・build 竊・test |
+| Frontend | lint 竊・typecheck 竊・test 竊・build |
 
 ---
 
-# CI/CD / リリース
+# CI/CD / 繝ｪ繝ｪ繝ｼ繧ｹ
 
-## CI パイプライン
-**説明（一般）**: ビルドやテストの自動実行の流れを示します。  
-**このプロジェクトでは**: Front/Backを分けて lint → build → test を回します。
+## CI 繝代う繝励Λ繧､繝ｳ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝薙Ν繝峨ｄ繝・せ繝医・閾ｪ蜍募ｮ溯｡後・豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Front/Back繧貞・縺代※ lint 竊・build 竊・test 繧貞屓縺励∪縺吶・
 ```mermaid
 flowchart LR
   subgraph Backend
@@ -1230,79 +1213,79 @@ flowchart LR
   end
 ```
 
-## CD / デプロイフロー（現状）
-**説明（一般）**: リリースまでの流れを示します。  
-**このプロジェクトでは**: Docker/Staticのビルド後にRenderまたはComposeでデプロイします。
+## CD / 繝・・繝ｭ繧､繝輔Ο繝ｼ・育樟迥ｶ・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｪ繝ｪ繝ｼ繧ｹ縺ｾ縺ｧ縺ｮ豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Docker/Static縺ｮ繝薙Ν繝牙ｾ後↓Render縺ｾ縺溘・Compose縺ｧ繝・・繝ｭ繧､縺励∪縺吶・
 ```mermaid
 flowchart LR
   Push[Push/Tag] --> Build[Build Docker/Static]
   Build --> Deploy[Deploy (Render or Docker Compose)]
 ```
 
-## 環境一覧
-| 環境 | 構成 |
+## 迺ｰ蠅・ｸ隕ｧ
+| 迺ｰ蠅・| 讒区・ |
 | --- | --- |
-| Dev | ローカル (Vite + Fastify + Docker DB/Redis) |
+| Dev | 繝ｭ繝ｼ繧ｫ繝ｫ (Vite + Fastify + Docker DB/Redis) |
 | Prod | Render or Docker Compose (docker-compose.prod.yml) |
 
-## ロールバック（方針）
-- Docker Compose: 前のイメージで再起動
-- Render: 直前のデプロイに戻す（ダッシュボード操作）
+## 繝ｭ繝ｼ繝ｫ繝舌ャ繧ｯ・域婿驥晢ｼ・
+- Docker Compose: 蜑阪・繧､繝｡繝ｼ繧ｸ縺ｧ蜀崎ｵｷ蜍・
+- Render: 逶ｴ蜑阪・繝・・繝ｭ繧､縺ｫ謌ｻ縺呻ｼ医ム繝・す繝･繝懊・繝画桃菴懶ｼ・
 
 ---
 
-# 運用 / 監視 / インシデント
+# 驕狗畑 / 逶｣隕・/ 繧､繝ｳ繧ｷ繝・Φ繝・
 
-## 監視（現状）
-| 項目 | 取得方法 |
+## 逶｣隕厄ｼ育樟迥ｶ・・
+| 鬆・岼 | 蜿門ｾ玲婿豕・|
 | --- | --- |
-| ヘルスチェック | `/healthz` |
-| アプリログ | Fastify logger |
-| ジョブログ | Job status / error in DB |
+| 繝倥Ν繧ｹ繝√ぉ繝・け | `/healthz` |
+| 繧｢繝励Μ繝ｭ繧ｰ | Fastify logger |
+| 繧ｸ繝ｧ繝悶Ο繧ｰ | Job status / error in DB |
 
-## SLI / SLO（未定義）
-| 指標 | 目標 | 備考 |
+## SLI / SLO・域悴螳夂ｾｩ・・
+| 謖・ｨ・| 逶ｮ讓・| 蛯呵・|
 | --- | --- | --- |
-| API成功率 | TBD | 未定義 |
-| レイテンシ | TBD | 未定義 |
+| API謌仙粥邇・| TBD | 譛ｪ螳夂ｾｩ |
+| 繝ｬ繧､繝・Φ繧ｷ | TBD | 譛ｪ螳夂ｾｩ |
 
-## アラートルール（未定義）
-- 監視基盤の整備後に設定
+## 繧｢繝ｩ繝ｼ繝医Ν繝ｼ繝ｫ・域悴螳夂ｾｩ・・
+- 逶｣隕門渕逶､縺ｮ謨ｴ蛯吝ｾ後↓險ｭ螳・
 
-## Runbook（最小）
-1. `/healthz` を確認
-2. アプリログ（requestId）を確認
-3. DB/Redis の疎通確認
-4. 必要に応じて再起動
+## Runbook・域怙蟆擾ｼ・
+1. `/healthz` 繧堤｢ｺ隱・
+2. 繧｢繝励Μ繝ｭ繧ｰ・・equestId・峨ｒ遒ｺ隱・
+3. DB/Redis 縺ｮ逍朱夂｢ｺ隱・
+4. 蠢・ｦ√↓蠢懊§縺ｦ蜀崎ｵｷ蜍・
 
-## インシデントタイムライン（テンプレ）
-| 時刻 | 事象 | 対応 | 影響 |
+## 繧､繝ｳ繧ｷ繝・Φ繝医ち繧､繝繝ｩ繧､繝ｳ・医ユ繝ｳ繝励Ξ・・
+| 譎ょ綾 | 莠玖ｱ｡ | 蟇ｾ蠢・| 蠖ｱ髻ｿ |
 | --- | --- | --- | --- |
 
-## バックアップ / リストア
-**説明（一般）**: バックアップ取得と復元の基本的な流れを示します。  
-**このプロジェクトでは**: `pg_dump`/`pg_restore`（またはスクリプト）でPostgreSQLを扱います。
+## 繝舌ャ繧ｯ繧｢繝・・ / 繝ｪ繧ｹ繝医い
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝舌ャ繧ｯ繧｢繝・・蜿門ｾ励→蠕ｩ蜈・・蝓ｺ譛ｬ逧・↑豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `pg_dump`/`pg_restore`・医∪縺溘・繧ｹ繧ｯ繝ｪ繝励ヨ・峨〒PostgreSQL繧呈桶縺・∪縺吶・
 ```mermaid
 flowchart LR
   DB[(PostgreSQL)] -->|pg_dump| Backup[backup.dump]
   Backup -->|pg_restore| DB
 ```
 
-## 依存先サービス一覧
-| サービス | 用途 | 備考 |
+## 萓晏ｭ伜・繧ｵ繝ｼ繝薙せ荳隕ｧ
+| 繧ｵ繝ｼ繝薙せ | 逕ｨ騾・| 蛯呵・|
 | --- | --- | --- |
-| Chatwork API | メッセージ/ルーム取得 | 外部 |
-| OpenAI API | 要約生成 | 外部 |
-| PostgreSQL | 主DB | Render / Docker |
+| Chatwork API | 繝｡繝・そ繝ｼ繧ｸ/繝ｫ繝ｼ繝蜿門ｾ・| 螟夜Κ |
+| OpenAI API | 隕∫ｴ・函謌・| 螟夜Κ |
+| PostgreSQL | 荳ｻDB | Render / Docker |
 | Redis | Job Queue | Render / Docker |
 
 ---
 
-# セキュリティ
+# 繧ｻ繧ｭ繝･繝ｪ繝・ぅ
 
-## 脅威モデリング（DFD + Trust Boundary）
-**説明（一般）**: データの流れと信頼境界を可視化して脅威を洗い出します。  
-**このプロジェクトでは**: ブラウザは未信頼、バックエンドが認証/認可と外部API連携の中心です。
+## 閼・ｨ√Δ繝・Μ繝ｳ繧ｰ・・FD + Trust Boundary・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝・・繧ｿ縺ｮ豬√ｌ縺ｨ菫｡鬆ｼ蠅・阜繧貞庄隕門喧縺励※閼・ｨ√ｒ豢励＞蜃ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝悶Λ繧ｦ繧ｶ縺ｯ譛ｪ菫｡鬆ｼ縲√ヰ繝・け繧ｨ繝ｳ繝峨′隱崎ｨｼ/隱榊庄縺ｨ螟夜ΚAPI騾｣謳ｺ縺ｮ荳ｭ蠢・〒縺吶・
 ```mermaid
 flowchart TB
   subgraph Client[Untrusted]
@@ -1322,27 +1305,26 @@ flowchart TB
   External --> API
 ```
 
-## STRIDE（現状の対策）
-| 脅威 | 対応 |
+## STRIDE・育樟迥ｶ縺ｮ蟇ｾ遲厄ｼ・
+| 閼・ｨ・| 蟇ｾ蠢・|
 | --- | --- |
 | Spoofing | JWT + RBAC |
-| Tampering | DB制約 / 監査ログ |
-| Repudiation | AuditLog |
+| Tampering | DB蛻ｶ邏・/ 逶｣譟ｻ繝ｭ繧ｰ |
 | Information Disclosure | Cookie `httpOnly`, `secure`(prod) |
 | Denial of Service | rate-limit (login) |
 | Elevation of Privilege | `requireAdmin` / `requireWriteAccess` |
 
-## 権限マトリクス（概略）
-| 役割 | 読み取り | 書き込み | 管理 |
+## 讓ｩ髯舌・繝医Μ繧ｯ繧ｹ・域ｦら払・・
+| 蠖ｹ蜑ｲ | 隱ｭ縺ｿ蜿悶ｊ | 譖ｸ縺崎ｾｼ縺ｿ | 邂｡逅・|
 | --- | --- | --- | --- |
-| admin | ✅ | ✅ | ✅ |
-| sales | ✅ | ✅ | - |
-| ops | ✅ | ✅ | - |
-| readonly | ✅ | - | - |
+| admin | 笨・| 笨・| 笨・|
+| sales | 笨・| 笨・| - |
+| ops | 笨・| 笨・| - |
+| readonly | 笨・| - | - |
 
-## 秘密情報の取り扱いフロー
-**説明（一般）**: 秘密情報がどこで利用されるかを示します。  
-**このプロジェクトでは**: `.env`/環境変数から取得し、Chatwork/OpenAIの認証ヘッダで使います。
+## 遘伜ｯ・ュ蝣ｱ縺ｮ蜿悶ｊ謇ｱ縺・ヵ繝ｭ繝ｼ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 遘伜ｯ・ュ蝣ｱ縺後←縺薙〒蛻ｩ逕ｨ縺輔ｌ繧九°繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `.env`/迺ｰ蠅・､画焚縺九ｉ蜿門ｾ励＠縲，hatwork/OpenAI縺ｮ隱崎ｨｼ繝倥ャ繝縺ｧ菴ｿ縺・∪縺吶・
 ```mermaid
 flowchart LR
   Env[".env / Render Env"] --> Backend["Backend Process"]
@@ -1350,26 +1332,26 @@ flowchart LR
   Backend -->|x-chatworktoken| Chatwork["Chatwork API"]
 ```
 
-## 暗号化
-- パスワード: bcrypt ハッシュ
-- 通信: HTTPS（デプロイ環境に依存）
+## 證怜捷蛹・
+- 繝代せ繝ｯ繝ｼ繝・ bcrypt 繝上ャ繧ｷ繝･
+- 騾壻ｿ｡: HTTPS・医ョ繝励Ο繧､迺ｰ蠅・↓萓晏ｭ假ｼ・
 - Cookie: `httpOnly`, `secure`(production)
 
-## 監査ログ設計
-| 項目 | 内容 |
+## 逶｣譟ｻ繝ｭ繧ｰ險ｭ險・
+| 鬆・岼 | 蜀・ｮｹ |
 | --- | --- |
-| entityType / entityId | 対象 |
+| entityType / entityId | 蟇ｾ雎｡ |
 | action | create/update/delete |
 | changes | before/after |
-| userId | 操作者 |
+| userId | 謫堺ｽ懆・|
 
-## SBOM（依存一覧）
+## SBOM・井ｾ晏ｭ倅ｸ隕ｧ・・
 - `frontend/package.json`
 - `backend/package.json`
 
-## セキュリティテスト計画（現状）
-| 種別 | 実施 |
+## 繧ｻ繧ｭ繝･繝ｪ繝・ぅ繝・せ繝郁ｨ育判・育樟迥ｶ・・
+| 遞ｮ蛻･ | 螳滓命 |
 | --- | --- |
-| SAST | 未導入 |
-| DAST | 未導入 |
-| 手動レビュー | 適宜 |
+| SAST | 譛ｪ蟆主・ |
+| DAST | 譛ｪ蟆主・ |
+| 謇句虚繝ｬ繝薙Η繝ｼ | 驕ｩ螳・|

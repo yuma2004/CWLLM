@@ -1,7 +1,8 @@
+import Button from '../ui/Button'
 import Card from '../ui/Card'
 import ActiveFilters from '../ui/ActiveFilters'
 import FilterBadge from '../ui/FilterBadge'
-import FormInput from '../ui/FormInput'
+import DateInput from '../ui/DateInput'
 import FormSelect from '../ui/FormSelect'
 import {
   TASK_STATUS_OPTIONS,
@@ -32,8 +33,8 @@ export function TaskFilters({
 }: TaskFiltersProps) {
   return (
     <Card className="p-5">
-      <form onSubmit={onSubmit}>
-      <div className="grid gap-3 md:grid-cols-5">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-5">
         <FormSelect
           ref={searchInputRef}
           value={filters.status}
@@ -57,28 +58,23 @@ export function TaskFilters({
             </option>
           ))}
         </FormSelect>
-        <FormInput
-          type="date"
+        <DateInput
           value={filters.dueFrom}
           onChange={(e) => onFiltersChange({ ...filters, dueFrom: e.target.value })}
           placeholder="期限(開始)"
         />
-        <FormInput
-          type="date"
+        <DateInput
           value={filters.dueTo}
           onChange={(e) => onFiltersChange({ ...filters, dueTo: e.target.value })}
           placeholder="期限(終了)"
         />
-        <button
-          type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
-        >
+        <Button type="submit" className="w-full md:w-auto">
           検索
-        </button>
-      </div>
+        </Button>
+        </div>
 
-      {/* Active Filters */}
-      <ActiveFilters isActive={hasActiveFilters}>
+        {/* Active Filters */}
+        <ActiveFilters isActive={hasActiveFilters} className="border-t border-slate-100 pt-3">
           <span className="text-xs text-slate-500">絞り込み:</span>
           {filters.status && (
             <FilterBadge
@@ -111,7 +107,7 @@ export function TaskFilters({
           >
             すべて解除
           </button>
-      </ActiveFilters>
+        </ActiveFilters>
       </form>
     </Card>
   )

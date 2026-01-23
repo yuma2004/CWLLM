@@ -2,6 +2,8 @@ import { type Dispatch, type FormEvent, type SetStateAction } from 'react'
 import ErrorAlert from '../ui/ErrorAlert'
 import FormInput from '../ui/FormInput'
 import FormTextarea from '../ui/FormTextarea'
+import Modal from '../ui/Modal'
+import EmptyState from '../ui/EmptyState'
 import { cn } from '../../lib/cn'
 import { getAvatarColor, getInitials } from '../../utils/string'
 import type { Contact } from '../../types'
@@ -75,68 +77,75 @@ function CompanyContactsSection({
             <button
               type="button"
               onClick={() => setShowContactForm(true)}
-              className="flex size-7 items-center justify-center rounded-full bg-slate-900 text-white hover:bg-slate-800"
+              className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
             >
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
+              追加
             </button>
           )}
         </div>
       </div>
 
-      {/* Add Contact Form */}
+      {/* Add Contact Modal */}
       {canWrite && (
-        <form
-          onSubmit={onAddContact}
-          className={cn(
-            'mb-4 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4',
-            showContactForm ? '' : 'pointer-events-none max-h-0 overflow-hidden opacity-0'
-          )}
+        <Modal
+          isOpen={showContactForm}
+          onClose={() => setShowContactForm(false)}
+          title="担当者を追加"
+          className="max-w-lg"
         >
-          <FormInput
-            placeholder="担当者名（必須）"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <div className="grid grid-cols-2 gap-2">
+          <form onSubmit={onAddContact} className="space-y-3">
             <FormInput
-              placeholder="役職"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              label="担当者名（必須）"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="例: 山田 太郎"
+              required
             />
-            <FormInput
-              placeholder="電話番号"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </div>
-          <FormInput
-            placeholder="メールアドレス"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          {contactError && (
-            <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {contactError}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <FormInput
+                label="役職"
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                placeholder="例: 営業"
+              />
+              <FormInput
+                label="電話番号"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="例: 03-1234-5678"
+              />
             </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowContactForm(false)}
-              className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-700"
-            >
-              追加
-            </button>
-          </div>
-        </form>
+            <FormInput
+              label="メールアドレス"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="name@example.com"
+            />
+            {contactError && (
+              <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {contactError}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowContactForm(false)}
+                className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                className="rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-700"
+              >
+                追加
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {contactActionError && <ErrorAlert message={contactActionError} className="mb-3" />}
@@ -170,9 +179,26 @@ function CompanyContactsSection({
       {/* Contact List */}
       <div className="space-y-2">
         {contacts.length === 0 ? (
-          <div className="rounded-lg bg-slate-50 py-8 text-center text-sm text-slate-500">
-            担当者が登録されていません
-          </div>
+          <EmptyState
+            className="rounded-lg bg-slate-50 py-8"
+            message="担当者が登録されていません"
+            description={
+              canWrite
+                ? '「追加」から担当者情報を登録してください。'
+                : '担当者情報は閲覧のみです。'
+            }
+            action={
+              canWrite ? (
+                <button
+                  type="button"
+                  onClick={() => setShowContactForm(true)}
+                  className="text-xs font-semibold text-sky-600 hover:text-sky-700"
+                >
+                  担当者を追加
+                </button>
+              ) : null
+            }
+          />
         ) : (
           contacts.map((contact, index) => {
             const isEditing = editingContactId === contact.id

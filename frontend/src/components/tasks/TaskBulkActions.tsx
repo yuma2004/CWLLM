@@ -1,4 +1,4 @@
-import FormInput from '../ui/FormInput'
+import DateInput from '../ui/DateInput'
 import FormSelect from '../ui/FormSelect'
 import { TASK_STATUS_OPTIONS, statusLabel } from '../../constants/labels'
 
@@ -51,8 +51,7 @@ export function TaskBulkActions({
             </option>
           ))}
         </FormSelect>
-        <FormInput
-          type="date"
+        <DateInput
           value={bulkDueDate}
           onChange={(e) => onBulkDueDateChange(e.target.value)}
           placeholder="期限"

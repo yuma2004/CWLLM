@@ -44,10 +44,7 @@ function CompanyDetail() {
   const labelInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const [showContactForm, setShowContactForm] = useState(false)
   const hasOpenedContactForm = useRef(false)
-  const [isEditingTags, setIsEditingTags] = useState(false)
-  const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [isEditingCategory, setIsEditingCategory] = useState(false)
-  const [isEditingStatus, setIsEditingStatus] = useState(false)
+  const [isEditingOverview, setIsEditingOverview] = useState(false)
   const [form, setForm] = useState({
     name: '',
     role: '',
@@ -239,7 +236,7 @@ function CompanyDetail() {
     { orderedIds: string[] }
   >(id ? apiRoutes.companies.contactsReorder(id) : '', 'PATCH')
 
-  const { mutate: updateCompany } = useMutation<
+  const { mutate: updateCompany, isLoading: isUpdatingCompany } = useMutation<
     { company: Company },
     { tags?: string[]; profile?: string | null; category?: string | null; status?: string }
   >(id ? apiRoutes.companies.detail(id) : '', 'PATCH')
@@ -490,53 +487,51 @@ function CompanyDetail() {
       setIsDedupeConfirmOpen(false)
     }
   }
-  const handleUpdateCompany = async (
-    field: 'tags' | 'profile' | 'category' | 'status'
-  ) => {
+  const resetCompanyForm = (nextCompany?: Company | null) => {
+    const source = nextCompany ?? company
+    if (!source) return
+    setCompanyForm({
+      tags: source.tags ?? [],
+      profile: source.profile || '',
+      category: source.category || '',
+      status: source.status || '',
+    })
+    setTagInput('')
+  }
+
+  const handleUpdateCompany = async () => {
     setCompanyError('')
     if (!id) return
-
-    const tags = field === 'tags' ? companyForm.tags : company?.tags || []
-    const profile = field === 'profile' ? companyForm.profile || null : company?.profile
-    const category =
-      field === 'category'
-        ? companyForm.category.trim() || null
-        : company?.category || undefined
-    const status =
-      field === 'status'
-        ? companyForm.status.trim() || undefined
-        : company?.status || undefined
 
     try {
       const data = await updateCompany(
         {
-          tags,
-          profile,
-          category,
-          status,
+          tags: companyForm.tags,
+          profile: companyForm.profile.trim() || null,
+          category: companyForm.category.trim() || null,
+          status: companyForm.status.trim() || undefined,
         },
         { errorMessage: NETWORK_ERROR_MESSAGE }
       )
 
       if (data?.company) {
         setCompany(data.company)
-        setCompanyForm({
-          tags: data.company.tags ?? [],
-          profile: data.company.profile || '',
-          category: data.company.category || '',
-          status: data.company.status || '',
-        })
+        resetCompanyForm(data.company)
       } else {
         void refetchCompany(undefined, { ignoreCache: true })
       }
 
-      if (field === 'tags') setIsEditingTags(false)
-      if (field === 'profile') setIsEditingProfile(false)
-      if (field === 'category') setIsEditingCategory(false)
-      if (field === 'status') setIsEditingStatus(false)
+      setIsEditingOverview(false)
+      showToast('企業情報を更新しました', 'success')
     } catch (err) {
       setCompanyError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
     }
+  }
+
+  const handleCancelCompanyEdit = () => {
+    resetCompanyForm()
+    setIsEditingOverview(false)
+    setCompanyError('')
   }
 
   const handleAddLabel = async (messageId: string) => {
@@ -632,7 +627,7 @@ function CompanyDetail() {
             {getInitials(company.name)}
           </div>
           <div>
-            <p className="text-xs uppercase  text-slate-400">Company</p>
+            <p className="text-xs uppercase  text-slate-400">企業</p>
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold text-slate-900">{company.name}</h2>
               <StatusBadge status={company.status} />
@@ -668,15 +663,14 @@ function CompanyDetail() {
                   mergedCategories={mergedCategories}
                   mergedStatuses={mergedStatuses}
                   companyError={companyError}
-                  isEditingTags={isEditingTags}
-                  setIsEditingTags={setIsEditingTags}
-                  isEditingProfile={isEditingProfile}
-                  setIsEditingProfile={setIsEditingProfile}
-                  isEditingCategory={isEditingCategory}
-                  setIsEditingCategory={setIsEditingCategory}
-                  isEditingStatus={isEditingStatus}
-                  setIsEditingStatus={setIsEditingStatus}
-                  onUpdateCompany={handleUpdateCompany}
+                  isEditing={isEditingOverview}
+                  isSaving={isUpdatingCompany}
+                  onStartEdit={() => {
+                    resetCompanyForm()
+                    setIsEditingOverview(true)
+                  }}
+                  onCancelEdit={handleCancelCompanyEdit}
+                  onSave={handleUpdateCompany}
                   contactsSection={
                     <CompanyContactsSection
                       contacts={contacts}

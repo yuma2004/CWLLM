@@ -12,7 +12,7 @@ const FilterBadge = ({ label, onRemove, className }: FilterBadgeProps) => {
       type="button"
       onClick={onRemove}
       className={cn(
-        'inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-slate-200',
+        'inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40',
         className
       )}
     >

@@ -102,7 +102,7 @@ function CompanyCreateForm({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/30"
           aria-label="閉じる"
         >
           <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

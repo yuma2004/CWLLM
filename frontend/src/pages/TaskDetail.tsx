@@ -3,11 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import FormInput from '../components/ui/FormInput'
+import DateInput from '../components/ui/DateInput'
 import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
+import { useToast } from '../hooks/useToast'
+import Toast from '../components/ui/Toast'
 import { apiRoutes } from '../lib/apiRoutes'
 import {
   TASK_STATUS_OPTIONS,
@@ -25,6 +28,7 @@ function TaskDetail() {
   const [isEditing, setIsEditing] = useState(false)
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const { toast, showToast, clearToast } = useToast()
 
   const [form, setForm] = useState({
     title: '',
@@ -85,6 +89,7 @@ function TaskDetail() {
       )
       setIsEditing(false)
       void refetch(undefined, { ignoreCache: true })
+      showToast('タスクを更新しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'タスクの更新に失敗しました')
     }
@@ -98,6 +103,7 @@ function TaskDetail() {
         url: apiRoutes.tasks.detail(id),
         errorMessage: 'タスクの削除に失敗しました',
       })
+      showToast('タスクを削除しました', 'success')
       navigate('/tasks')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'タスクの削除に失敗しました')
@@ -228,8 +234,7 @@ function TaskDetail() {
               </div>
               <div>
                 <div className="mb-1 block text-sm font-medium text-slate-700">期限</div>
-                <FormInput
-                  type="date"
+                <DateInput
                   value={form.dueDate}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                 />
@@ -256,14 +261,14 @@ function TaskDetail() {
         ) : (
           <dl className="space-y-4">
             <div>
-              <dt className="text-xs font-medium uppercase r text-slate-500">
+              <dt className="text-xs font-medium uppercase text-slate-500">
                 タイトル
               </dt>
               <dd className="mt-1 text-lg font-semibold text-slate-900">{task.title}</dd>
             </div>
             {task.description && (
               <div>
-                <dt className="text-xs font-medium uppercase r text-slate-500">
+                <dt className="text-xs font-medium uppercase text-slate-500">
                   説明
                 </dt>
                 <dd className="mt-1 whitespace-pre-wrap text-slate-700">{task.description}</dd>
@@ -271,7 +276,7 @@ function TaskDetail() {
             )}
             <div className="grid gap-4 md:grid-cols-4">
               <div>
-                <dt className="text-xs font-medium uppercase r text-slate-500">
+                <dt className="text-xs font-medium uppercase text-slate-500">
                   ステータス
                 </dt>
                 <dd className="mt-1">
@@ -279,14 +284,14 @@ function TaskDetail() {
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase r text-slate-500">
+                <dt className="text-xs font-medium uppercase text-slate-500">
                   期限
                 </dt>
                 <dd className="mt-1 text-slate-700">{formatDate(task.dueDate)}</dd>
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase r text-slate-500">
-                  蟇ｾ雎｡
+                <dt className="text-xs font-medium uppercase text-slate-500">
+                  対象
                 </dt>
                 <dd className="mt-1">
                   <Link
@@ -311,11 +316,20 @@ function TaskDetail() {
           閲覧専用ロールのため、タスクの編集・削除はできません。
         </div>
       )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
+          onClose={clearToast}
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+        />
+      )}
     </div>
   )
 }
 
 export default TaskDetail
+
 
 
 

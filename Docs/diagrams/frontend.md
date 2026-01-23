@@ -1,9 +1,8 @@
-# フロントエンド / 画面まわり
+# 繝輔Ο繝ｳ繝医お繝ｳ繝・/ 逕ｻ髱｢縺ｾ繧上ｊ
 
-## サイトマップ
-**説明（一般）**: 画面構成を一覧で示す図です。  
-**このプロジェクトでは**: 主要リソース（Companies/Tasks/Projects/Wholesales）と設定系画面に分かれます。
-```mermaid
+## 繧ｵ繧､繝医・繝・・
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 逕ｻ髱｢讒区・繧剃ｸ隕ｧ縺ｧ遉ｺ縺吝峙縺ｧ縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 荳ｻ隕√Μ繧ｽ繝ｼ繧ｹ・・ompanies/Tasks/Projects/Wholesales・峨→險ｭ螳夂ｳｻ逕ｻ髱｢縺ｫ蛻・°繧後∪縺吶・```mermaid
 flowchart TB
   Root["/"]
   Login["/login"]
@@ -19,7 +18,6 @@ flowchart TB
   Settings["/settings"]
   Accounts["/settings/accounts"]
   ChatworkSettings["/settings/chatwork"]
-  Exports["/exports"]
 
   Root --> Companies
   Root --> Tasks
@@ -28,7 +26,6 @@ flowchart TB
   Root --> Settings
   Settings --> Accounts
   Settings --> ChatworkSettings
-  Settings --> Exports
   Companies --> CompanyDetail
   Tasks --> TaskDetail
   Projects --> ProjectDetail
@@ -37,10 +34,8 @@ flowchart TB
   Root --> NotFound
 ```
 
-## 画面遷移（概要）
-**説明（一般）**: 代表的な画面遷移の流れを示します。  
-**このプロジェクトでは**: ダッシュボードを起点に詳細画面や設定画面へ移動します。
-```mermaid
+## 逕ｻ髱｢驕ｷ遘ｻ・域ｦりｦ・ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 莉｣陦ｨ逧・↑逕ｻ髱｢驕ｷ遘ｻ縺ｮ豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝繝・す繝･繝懊・繝峨ｒ襍ｷ轤ｹ縺ｫ隧ｳ邏ｰ逕ｻ髱｢繧・ｨｭ螳夂判髱｢縺ｸ遘ｻ蜍輔＠縺ｾ縺吶・```mermaid
 flowchart LR
   Login[Login] --> Home[Dashboard]
   Home --> Companies
@@ -52,13 +47,10 @@ flowchart LR
   Wholesales --> WholesaleDetail
   Settings --> Accounts
   Settings --> ChatworkSettings
-  Settings --> Exports
 ```
 
-## コンポーネントツリー（主要）
-**説明（一般）**: UIの親子関係と責務の分担を示します。  
-**このプロジェクトでは**: `App` → `AuthProvider` → `ProtectedRoute` → `Layout` → 各ページの構成です。
-```mermaid
+## 繧ｳ繝ｳ繝昴・繝阪Φ繝医ヤ繝ｪ繝ｼ・井ｸｻ隕・ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: UI縺ｮ隕ｪ蟄宣未菫ゅ→雋ｬ蜍吶・蛻・球繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `App` 竊・`AuthProvider` 竊・`ProtectedRoute` 竊・`Layout` 竊・蜷・・繝ｼ繧ｸ縺ｮ讒区・縺ｧ縺吶・```mermaid
 flowchart TB
   App --> AuthProvider
   AuthProvider --> Routes
@@ -68,10 +60,8 @@ flowchart TB
   Pages --> Components[UI Components]
 ```
 
-## 状態管理（現状）
-**説明（一般）**: 状態の置き場所と伝播のしかたを示します。  
-**このプロジェクトでは**: 認証はContext、データ取得は`useFetch`とメモリキャッシュで管理します。
-```mermaid
+## 迥ｶ諷狗ｮ｡逅・ｼ育樟迥ｶ・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 迥ｶ諷九・鄂ｮ縺榊ｴ謇縺ｨ莨晄眺縺ｮ縺励°縺溘ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 隱崎ｨｼ縺ｯContext縲√ョ繝ｼ繧ｿ蜿門ｾ励・`useFetch`縺ｨ繝｡繝｢繝ｪ繧ｭ繝｣繝・す繝･縺ｧ邂｡逅・＠縺ｾ縺吶・```mermaid
 flowchart LR
   AuthContext["AuthContext user role"] --> ProtectedRoute2[ProtectedRoute]
   LocalState["local state useState"] --> Pages2[Pages]
@@ -80,10 +70,9 @@ flowchart LR
   useFetch --> Cache["In-memory cache"]
 ```
 
-## データ取得フロー
-**説明（一般）**: 画面がAPIからデータを取得する流れを示します。  
-**このプロジェクトでは**: `useFetch` → `apiRequest` → `fetch` → API の順で呼び出します。
-```mermaid
+## 繝・・繧ｿ蜿門ｾ励ヵ繝ｭ繝ｼ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 逕ｻ髱｢縺窟PI縺九ｉ繝・・繧ｿ繧貞叙蠕励☆繧区ｵ√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `useFetch` 竊・`apiRequest` 竊・`fetch` 竊・API 縺ｮ鬆・〒蜻ｼ縺ｳ蜃ｺ縺励∪縺吶・```mermaid
 flowchart LR
   Component --> useFetch
   useFetch --> apiRequest
@@ -93,10 +82,9 @@ flowchart LR
   useFetch --> Component
 ```
 
-## UI 状態遷移
-**説明（一般）**: 読み込み/成功/空/エラーなどのUI状態を示します。  
-**このプロジェクトでは**: `useFetch`の状態に合わせてローディングやエラー表示を切り替えます。
-```mermaid
+## UI 迥ｶ諷矩・遘ｻ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 隱ｭ縺ｿ霎ｼ縺ｿ/謌仙粥/遨ｺ/繧ｨ繝ｩ繝ｼ縺ｪ縺ｩ縺ｮUI迥ｶ諷九ｒ遉ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: `useFetch`縺ｮ迥ｶ諷九↓蜷医ｏ縺帙※繝ｭ繝ｼ繝・ぅ繝ｳ繧ｰ繧・お繝ｩ繝ｼ陦ｨ遉ｺ繧貞・繧頑崛縺医∪縺吶・```mermaid
 stateDiagram-v2
   [*] --> idle
   idle --> loading : fetch
@@ -106,18 +94,15 @@ stateDiagram-v2
   error --> loading : retry
 ```
 
-## フォーム / バリデーション（概要）
-| 画面 | 入力 | バリデーション |
+## 繝輔か繝ｼ繝 / 繝舌Μ繝・・繧ｷ繝ｧ繝ｳ・域ｦりｦ・ｼ・| 逕ｻ髱｢ | 蜈･蜉・| 繝舌Μ繝・・繧ｷ繝ｧ繝ｳ |
 | --- | --- | --- |
-| Login | email/password | サーバ側(Zod)で検証、クライアントは最小限 |
-| Company/Project/Task | 各種項目 | サーバ側(Zod)で検証 |
+| Login | email/password | 繧ｵ繝ｼ繝仙・(Zod)縺ｧ讀懆ｨｼ縲√け繝ｩ繧､繧｢繝ｳ繝医・譛蟆城剞 |
+| Company/Project/Task | 蜷・ｨｮ鬆・岼 | 繧ｵ繝ｼ繝仙・(Zod)縺ｧ讀懆ｨｼ |
 
-## アクセシビリティ（未監査・チェックリスト）
-- キーボード操作で主要導線が操作可能
-- フォーカスリングが視認できる
-- 主要ボタンに `aria-label` が付与されている
-- コントラスト比が確保されている
+## 繧｢繧ｯ繧ｻ繧ｷ繝薙Μ繝・ぅ・域悴逶｣譟ｻ繝ｻ繝√ぉ繝・け繝ｪ繧ｹ繝茨ｼ・- 繧ｭ繝ｼ繝懊・繝画桃菴懊〒荳ｻ隕∝ｰ守ｷ壹′謫堺ｽ懷庄閭ｽ
+- 繝輔か繝ｼ繧ｫ繧ｹ繝ｪ繝ｳ繧ｰ縺瑚ｦ冶ｪ阪〒縺阪ｋ
+- 荳ｻ隕√・繧ｿ繝ｳ縺ｫ `aria-label` 縺御ｻ倅ｸ弱＆繧後※縺・ｋ
+- 繧ｳ繝ｳ繝医Λ繧ｹ繝域ｯ斐′遒ｺ菫昴＆繧後※縺・ｋ
 
-## i18n / デザイントークン
-- i18n: 未導入（日本語固定）
-- デザイントークン: 未導入（Tailwindユーティリティ中心）
+## i18n / 繝・じ繧､繝ｳ繝医・繧ｯ繝ｳ
+- i18n: 譛ｪ蟆主・・域律譛ｬ隱槫崋螳夲ｼ・- 繝・じ繧､繝ｳ繝医・繧ｯ繝ｳ: 譛ｪ蟆主・・・ailwind繝ｦ繝ｼ繝・ぅ繝ｪ繝・ぅ荳ｭ蠢・ｼ・

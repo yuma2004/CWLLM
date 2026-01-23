@@ -3,8 +3,9 @@ import Button from '../components/ui/Button'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import FormInput from '../components/ui/FormInput'
 import FormTextarea from '../components/ui/FormTextarea'
-import SuccessAlert from '../components/ui/SuccessAlert'
+import Toast from '../components/ui/Toast'
 import { useFetch, useMutation } from '../hooks/useApi'
+import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
 import { SettingsPayload } from '../types'
 
@@ -12,7 +13,7 @@ function Settings() {
   const [summaryDefaultPeriodDays, setSummaryDefaultPeriodDays] = useState(30)
   const [tagOptions, setTagOptions] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { toast, showToast, clearToast } = useToast()
 
   const {
     data: settingsData,
@@ -37,7 +38,6 @@ function Settings() {
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault()
     setError('')
-    setSuccess('')
 
     const tags = tagOptions
       .split('\n')
@@ -52,7 +52,7 @@ function Settings() {
         }
       )
       if (data?.settings) {
-        setSuccess('設定を保存しました')
+        showToast('設定を保存しました', 'success')
         setTagOptions((data.settings.tagOptions || []).join('\n'))
       }
     } catch (err) {
@@ -66,12 +66,11 @@ function Settings() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-sm uppercase text-slate-400">Settings</p>
-        <h2 className="text-3xl font-bold text-slate-900">Settings</h2>
+        <p className="text-sm uppercase text-slate-400">設定</p>
+        <h2 className="text-3xl font-bold text-slate-900">システム設定</h2>
       </div>
 
       {displayError && <ErrorAlert message={displayError} />}
-      {success && <SuccessAlert message={success} />}
 
       <form
         onSubmit={handleSave}
@@ -106,6 +105,14 @@ function Settings() {
           </Button>
         </div>
       </form>
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
+          onClose={clearToast}
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+        />
+      )}
     </div>
   )
 }

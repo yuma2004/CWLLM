@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import EmptyState from '../ui/EmptyState'
-import FormInput from '../ui/FormInput'
+import DateInput from '../ui/DateInput'
 import FormSelect from '../ui/FormSelect'
 import StatusBadge from '../ui/StatusBadge'
 import { formatDate, formatDateInput } from '../../utils/date'
@@ -23,6 +23,8 @@ export type TaskTableProps = {
   onDelete: (task: Task) => void
   canWrite: boolean
   isBulkUpdating: boolean
+  emptyStateAction?: React.ReactNode
+  emptyStateDescription?: string
 }
 
 export function TaskTable({
@@ -36,18 +38,20 @@ export function TaskTable({
   onDelete,
   canWrite,
   isBulkUpdating,
+  emptyStateAction,
+  emptyStateDescription,
 }: TaskTableProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full divide-y divide-slate-100 text-sm">
-        <thead className="bg-slate-50/80 text-left text-xs uppercase r text-slate-500">
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <table className="min-w-full divide-y divide-slate-100 text-sm text-slate-600">
+        <thead className="bg-slate-50 text-left text-xs font-semibold uppercase whitespace-nowrap text-slate-500">
           <tr>
             <th className="px-4 py-3">
               <input
                 type="checkbox"
                 checked={allSelected}
                 onChange={onToggleSelectAll}
-                className="rounded border-slate-300"
+                className="size-4 rounded border-slate-300 accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/40"
                 disabled={isBulkUpdating}
               />
             </th>
@@ -64,6 +68,7 @@ export function TaskTable({
               <td colSpan={6} className="px-5 py-12 text-center">
                 <EmptyState
                   message="タスクが見つかりません"
+                  description={emptyStateDescription}
                   icon={
                     <svg
                       className="size-12 text-slate-300"
@@ -79,26 +84,27 @@ export function TaskTable({
                       />
                     </svg>
                   }
+                  action={emptyStateAction}
                 />
               </td>
             </tr>
           ) : (
             tasks.map((task) => (
-              <tr key={task.id} className="group  hover:bg-slate-50/80">
+              <tr key={task.id} className="group hover:bg-slate-50/80">
                 <td className="px-4 py-4">
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(task.id)}
                     onChange={() => onToggleSelected(task.id)}
-                    className="rounded border-slate-300"
+                    className="size-4 rounded border-slate-300 accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/40"
                     disabled={isBulkUpdating}
                   />
                 </td>
-                <td className="px-4 py-4">
-                  <div>
+                <td className="px-4 py-4 min-w-0">
+                  <div className="min-w-0">
                     <Link
                       to={`/tasks/${task.id}`}
-                      className="font-semibold text-slate-900 hover:text-sky-600"
+                      className="block truncate font-semibold text-slate-900 hover:text-sky-600"
                     >
                       {task.title}
                     </Link>
@@ -126,23 +132,22 @@ export function TaskTable({
                     <StatusBadge status={task.status} kind="task" size="sm" />
                   )}
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-4 min-w-0">
                   <Link
                     to={getTargetPath(task.targetType, task.targetId)}
-                    className="inline-flex flex-col items-start gap-1 text-slate-600 hover:text-sky-600"
+                    className="inline-flex min-w-0 flex-col items-start gap-1 text-slate-600 hover:text-sky-600"
                   >
                     <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">
                       {targetTypeLabel(task.targetType)}
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="truncate text-xs text-slate-500">
                       {task.target?.name || task.targetId}
                     </span>
                   </Link>
                 </td>
-                <td className="px-4 py-4 text-slate-600">
+                <td className="px-4 py-4 text-slate-600 tabular-nums">
                   {canWrite ? (
-                    <FormInput
-                      type="date"
+                    <DateInput
                       className="w-auto rounded border border-slate-200 px-2 py-1 text-xs"
                       value={task.dueDate ? formatDateInput(task.dueDate) : ''}
                       onChange={(e) => onDueDateChange(task.id, e.target.value)}

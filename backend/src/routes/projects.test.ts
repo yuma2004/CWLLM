@@ -48,7 +48,6 @@ describe('Project and wholesale endpoints', () => {
   })
 
   afterEach(async () => {
-    await prisma.auditLog.deleteMany()
     await prisma.wholesale.deleteMany()
     await prisma.project.deleteMany()
     await prisma.company.deleteMany()

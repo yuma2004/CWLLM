@@ -264,18 +264,6 @@ model Task {
   @@map("tasks")
 }
 
-model AuditLog {
-  id         String   @id @default(cuid())
-  entityType String
-  entityId   String
-  action     String
-  userId     String?
-  changes    Json
-  createdAt  DateTime @default(now())
-
-  @@map("audit_logs")
-}
-
 model AppSetting {
   id        String   @id @default(cuid())
   key       String   @unique

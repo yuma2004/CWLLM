@@ -74,19 +74,22 @@ function Home() {
       {error && <ErrorAlert message={error} />}
 
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Task Triage Panel */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col h-full shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col h-full shadow-sm">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-balance font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-6 bg-slate-800 rounded-sm"></span>
+            <h3 className="text-balance text-base font-semibold text-slate-900 flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-sky-600"></span>
               タスクトリアージ
             </h3>
             <Link
               to="/tasks"
-              className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700"
             >
               マイタスクへ
+              <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </Link>
           </div>
 
@@ -94,14 +97,16 @@ function Home() {
             {taskGroups.map((group) => (
               <div
                 key={group.id}
-                className="rounded-lg border border-slate-100 bg-slate-50/40 p-3"
+                className="rounded-xl border border-slate-200/70 bg-slate-50/70 p-3"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                     <span className={cn('size-2 rounded-full', group.dotClass)} />
                     {group.label}
                   </div>
-                  <span className="text-xs text-slate-500 tabular-nums">{group.tasks.length}件</span>
+                  <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 tabular-nums">
+                    {group.tasks.length}件
+                  </span>
                 </div>
                 <div className="mt-2 space-y-2">
                   {isLoading ? (
@@ -114,7 +119,7 @@ function Home() {
                     group.tasks.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start justify-between gap-2 rounded-lg bg-white px-2 py-2"
+                        className="flex items-start justify-between gap-2 rounded-lg border border-slate-100 bg-white px-3 py-2 shadow-sm hover:border-slate-200"
                       >
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-slate-900">
@@ -135,7 +140,8 @@ function Home() {
                         </div>
                         <Link
                           to={getTargetPath(task.targetType, task.targetId)}
-                          className="mt-1 text-slate-400 hover:text-slate-600"
+                          className="mt-1 text-slate-400 hover:text-sky-600"
+                          aria-label={`${task.title} の詳細へ移動`}
                         >
                           <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -143,6 +149,11 @@ function Home() {
                         </Link>
                       </div>
                     ))
+                  )}
+                  {!isLoading && group.tasks.length === 0 && (
+                    <div className="rounded-md border border-dashed border-slate-200 bg-white/70 px-2 py-2 text-[11px] text-slate-500">
+                      該当なし
+                    </div>
                   )}
                 </div>
               </div>
@@ -165,27 +176,30 @@ function Home() {
         </div>
 
         {/* Latest Summaries Panel */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col h-full shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col h-full shadow-sm">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-balance font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-6 bg-slate-800 rounded-sm"></span>
+            <h3 className="text-balance text-base font-semibold text-slate-900 flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-sky-600"></span>
               最新の要約
             </h3>
           </div>
 
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-3">
             {isLoading ? (
-              <div className="space-y-4">
-                 {[1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-50 rounded" />)}
+              <div className="space-y-3">
+                 {[1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-50 rounded-lg" />)}
               </div>
             ) : latestSummaries.length === 0 ? (
-              <div className="h-32 flex flex-col items-center justify-center text-center text-slate-400 gap-2">
-                <p className="text-pretty text-sm">要約はまだありません</p>
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center text-slate-500">
+                <p className="text-pretty text-sm font-medium text-slate-600">要約はまだありません</p>
                 <Link
                   to="/companies"
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+                  className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
                 >
                   企業を確認する
+                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </Link>
               </div>
             ) : (
@@ -195,20 +209,23 @@ function Home() {
                 return (
                   <div
                     key={summary.id}
-                    className="relative pl-4 border-l-2 border-slate-100 hover:border-slate-200"
+                    className="group relative rounded-xl border border-slate-200/60 bg-slate-50/60 p-3 hover:border-slate-200 hover:bg-white"
                   >
-                    <div className="flex justify-between items-baseline mb-1">
+                    <div className="flex justify-between items-center mb-1">
                       <div className="text-xs text-slate-400 tabular-nums">
                         {new Date(summary.createdAt).toLocaleDateString()}
                       </div>
+                      <svg className="size-4 text-slate-300 group-hover:text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                    <div className="font-medium text-slate-900 text-sm mb-1">{companyName}</div>
+                    <div className="truncate font-medium text-slate-900 text-sm mb-1">{companyName}</div>
                     <p className="text-pretty line-clamp-2 text-xs text-slate-500 leading-relaxed">
                       {summary.content}
                     </p>
                     <Link
                       to={`/companies/${companyId}`}
-                      className="absolute inset-0"
+                      className="absolute inset-0 rounded-xl"
                       aria-label={`${companyName} の要約を表示`}
                     />
                   </div>
@@ -219,10 +236,10 @@ function Home() {
         </div>
 
         {/* Recent Companies Panel */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col h-full shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col h-full shadow-sm">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-balance font-bold text-slate-900 flex items-center gap-2">
-               <span className="w-2 h-6 bg-slate-800 rounded-sm"></span>
+            <h3 className="text-balance text-base font-semibold text-slate-900 flex items-center gap-2">
+               <span className="size-1.5 rounded-full bg-sky-600"></span>
               最近更新した企業
             </h3>
           </div>
@@ -230,16 +247,19 @@ function Home() {
           <div className="flex-1 space-y-3">
             {isLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map(i => <div key={i} className="h-12 bg-slate-50 rounded" />)}
+                {[1, 2, 3].map(i => <div key={i} className="h-12 bg-slate-50 rounded-lg" />)}
               </div>
             ) : recentCompanies.length === 0 ? (
-              <div className="h-32 flex flex-col items-center justify-center text-center text-slate-400 gap-2">
-                <p className="text-pretty text-sm">企業はまだありません</p>
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center text-slate-500">
+                <p className="text-pretty text-sm font-medium text-slate-600">企業はまだありません</p>
                 <Link
                   to="/companies"
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+                  className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
                 >
                   企業管理へ
+                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </Link>
               </div>
             ) : (
@@ -248,28 +268,24 @@ function Home() {
                   ? new Date(company.updatedAt).toLocaleDateString()
                   : '-'
                 return (
-                  <div
+                  <Link
                     key={company.id}
-                    className="flex items-center justify-between group p-2 -mx-2 hover:bg-slate-50 rounded-lg"
+                    to={`/companies/${company.id}`}
+                    className="group flex items-center justify-between rounded-lg border border-transparent px-2 py-2 hover:border-slate-200 hover:bg-slate-50"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="size-8 rounded bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="size-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
                         {company.name.slice(0, 1)}
                       </div>
-                      <div>
-                        <div className="font-medium text-slate-900 text-sm">{company.name}</div>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-slate-900 text-sm">{company.name}</div>
                         <div className="text-xs text-slate-400 tabular-nums">{updatedAtLabel}</div>
                       </div>
                     </div>
-                    <Link
-                      to={`/companies/${company.id}`}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-sky-600"
-                    >
-                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  </div>
+                    <svg className="size-4 text-slate-300 group-hover:text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
                 )
               })
             )}
@@ -277,7 +293,7 @@ function Home() {
           <div className="mt-6 pt-4 border-t border-slate-100">
             <Link
               to="/companies"
-              className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 hover:text-slate-900"
+              className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-700 hover:bg-sky-100"
             >
               全ての企業を表示
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

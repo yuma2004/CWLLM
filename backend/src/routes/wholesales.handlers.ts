@@ -1,6 +1,5 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma, WholesaleStatus } from '@prisma/client'
-import { logAuditEntry } from '../services'
 import {
   badRequest,
   buildPaginatedResponse,
@@ -15,7 +14,6 @@ import {
   parsePagination,
   prisma,
 } from '../utils'
-import { JWTUser } from '../types/auth'
 import type {
   WholesaleCreateBody,
   WholesaleListQuery,
@@ -125,15 +123,6 @@ export const createWholesaleHandler = async (
         agreedDate: agreedDate ?? undefined,
         ownerId,
       },
-    })
-
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Wholesale',
-      entityId: wholesale.id,
-      action: 'create',
-      userId,
-      after: wholesale,
     })
 
     return reply.code(201).send({ wholesale })
@@ -251,16 +240,6 @@ export const updateWholesaleHandler = async (
       data,
     })
 
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Wholesale',
-      entityId: wholesale.id,
-      action: 'update',
-      userId,
-      before: existing,
-      after: wholesale,
-    })
-
     return { wholesale }
   } catch (error) {
     return handlePrismaError(reply, error)
@@ -278,15 +257,6 @@ export const deleteWholesaleHandler = async (
 
   try {
     await prisma.wholesale.delete({ where: { id: request.params.id } })
-
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Wholesale',
-      entityId: existing.id,
-      action: 'delete',
-      userId,
-      before: existing,
-    })
 
     return reply.code(204).send()
   } catch (error) {

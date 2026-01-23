@@ -39,7 +39,7 @@ function Layout({ children }: LayoutProps) {
       {/* Sidebar Toggle Button - Mobile */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="fixed top-4 left-4 z-30 p-2 rounded-lg bg-white border border-slate-200 shadow-md lg:hidden safe-area-top"
+        className="fixed top-4 left-4 z-30 rounded-lg border border-slate-200 bg-white p-2 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2 lg:hidden safe-area-top"
         aria-label="サイドバーを開閉"
       >
         <svg className="size-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -55,7 +55,7 @@ function Layout({ children }: LayoutProps) {
       {!isSidebarOpen && (
         <button
           onClick={() => setIsSidebarOpen(true)}
-          className="hidden lg:block lg:fixed top-4 left-4 z-30 p-2 rounded-lg bg-white border border-slate-200 shadow-md safe-area-top"
+          className="hidden lg:fixed top-4 left-4 z-30 rounded-lg border border-slate-200 bg-white p-2 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2 lg:block safe-area-top"
           aria-label="サイドバーを開く"
         >
           <svg className="size-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,7 +76,7 @@ function Layout({ children }: LayoutProps) {
             <h1 className="text-balance text-base font-semibold text-slate-800">CW管理システム</h1>
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 rounded-lg hover:bg-slate-100"
+              className="rounded-lg p-1.5 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
               aria-label="サイドバーを閉じる"
             >
               <svg className="size-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -85,17 +85,40 @@ function Layout({ children }: LayoutProps) {
             </button>
           </div>
 
-          <nav className="space-y-0.5">
+          <p className="px-3 text-[11px] font-medium text-slate-400 uppercase mb-2">メイン</p>
+          <nav className="space-y-0.5" aria-label="メインナビゲーション">
             {navItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.end ?? item.path === '/'}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2',
+                    isActive
+                      ? 'bg-sky-50 text-slate-900 border-sky-600 shadow-sm'
+                      : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-slate-50'
+                  )
+                }
+              >
+                {item.icon}
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="mt-6 pt-6 border-t border-slate-100">
+            <p className="px-3 text-[11px] font-medium text-slate-400 uppercase mb-2">設定</p>
+            <nav className="space-y-0.5" aria-label="設定">
+              {settingsItems.map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  end={item.end ?? item.path === '/'}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium border-l-2',
+                      'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2',
                       isActive
-                        ? 'bg-slate-100 text-slate-900 border-slate-900 shadow-sm'
+                        ? 'bg-sky-50 text-slate-900 border-sky-600 shadow-sm'
                         : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-slate-50'
                     )
                   }
@@ -104,28 +127,6 @@ function Layout({ children }: LayoutProps) {
                   {item.label}
                 </NavLink>
               ))}
-          </nav>
-
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="px-3 text-[11px] font-medium text-slate-400 uppercase mb-2">設定</p>
-            <nav className="space-y-0.5">
-              {settingsItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium border-l-2',
-                        isActive
-                          ? 'bg-slate-100 text-slate-900 border-slate-900 shadow-sm'
-                          : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-slate-50'
-                      )
-                    }
-                  >
-                    {item.icon}
-                    {item.label}
-                  </NavLink>
-                ))}
             </nav>
           </div>
         </div>
@@ -142,7 +143,9 @@ function Layout({ children }: LayoutProps) {
 
       {/* Main content */}
       <div className={cn('flex-1 min-w-0', isSidebarOpen ? 'lg:ml-64' : '')}>
-        <main className="max-w-7xl mx-auto px-4 py-5 sm:px-6 sm:py-5 lg:px-8">{children}</main>
+        <main className="max-w-7xl mx-auto px-4 pt-16 pb-6 sm:px-6 sm:py-6 lg:px-8">
+          {children}
+        </main>
       </div>
     </div>
   )

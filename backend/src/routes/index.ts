@@ -1,10 +1,8 @@
 import { FastifyInstance } from 'fastify'
-import { auditLogRoutes } from './audit-logs'
 import { authRoutes } from './auth'
 import { chatworkRoutes } from './chatwork'
 import { companyRoutes } from './companies'
 import { dashboardRoutes } from './dashboard'
-import { exportRoutes } from './export'
 import { messageRoutes } from './messages'
 import { projectRoutes } from './projects'
 import { searchRoutes } from './search'
@@ -27,10 +25,8 @@ const ROUTES = [
   wholesaleRoutes,
   searchRoutes,
   summaryRoutes,
-  auditLogRoutes,
   dashboardRoutes,
   settingRoutes,
-  exportRoutes,
 ]
 
 export const registerRoutes = (fastify: FastifyInstance) => {

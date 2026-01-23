@@ -1,126 +1,121 @@
-# API / インターフェース
+# API / 繧､繝ｳ繧ｿ繝ｼ繝輔ぉ繝ｼ繧ｹ
 
-## API 一覧（主要）
-### Auth
+## API 荳隕ｧ・井ｸｻ隕・ｼ・### Auth
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
 | `/api/auth/login` | POST | - | - |
 | `/api/auth/logout` | POST | - | - |
-| `/api/auth/me` | GET | ✅ | any |
+| `/api/auth/me` | GET | 笨・| any |
 
 ### Users
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/users` | GET | ✅ | admin |
-| `/api/users` | POST | ✅ | admin |
-| `/api/users/options` | GET | ✅ | any |
-| `/api/users/:id/role` | PATCH | ✅ | admin |
+| `/api/users` | GET | 笨・| admin |
+| `/api/users` | POST | 笨・| admin |
+| `/api/users/options` | GET | 笨・| any |
+| `/api/users/:id/role` | PATCH | 笨・| admin |
 
 ### Companies / Contacts / Related
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/companies` | GET | ✅ | any |
-| `/api/companies` | POST | ✅ | admin/sales/ops |
-| `/api/companies/:id` | GET | ✅ | any |
-| `/api/companies/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/companies/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/companies/search` | GET | ✅ | any |
-| `/api/companies/options` | GET | ✅ | any |
-| `/api/companies/:id/contacts` | GET | ✅ | any |
-| `/api/companies/:id/contacts` | POST | ✅ | admin/sales/ops |
-| `/api/companies/:id/contacts/reorder` | PATCH | ✅ | admin/sales/ops |
-| `/api/contacts/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/contacts/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/companies/:id/projects` | GET | ✅ | any |
-| `/api/companies/:id/wholesales` | GET | ✅ | any |
-| `/api/companies/:id/tasks` | GET | ✅ | any |
-| `/api/companies/:id/messages` | GET | ✅ | any |
-| `/api/companies/:id/summaries` | GET | ✅ | any |
-| `/api/companies/:id/summaries` | POST | ✅ | admin/sales/ops |
-| `/api/companies/:id/summaries/draft` | POST | ✅ | admin/sales/ops |
+| `/api/companies` | GET | 笨・| any |
+| `/api/companies` | POST | 笨・| admin/sales/ops |
+| `/api/companies/:id` | GET | 笨・| any |
+| `/api/companies/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/companies/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/companies/search` | GET | 笨・| any |
+| `/api/companies/options` | GET | 笨・| any |
+| `/api/companies/:id/contacts` | GET | 笨・| any |
+| `/api/companies/:id/contacts` | POST | 笨・| admin/sales/ops |
+| `/api/companies/:id/contacts/reorder` | PATCH | 笨・| admin/sales/ops |
+| `/api/contacts/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/contacts/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/companies/:id/projects` | GET | 笨・| any |
+| `/api/companies/:id/wholesales` | GET | 笨・| any |
+| `/api/companies/:id/tasks` | GET | 笨・| any |
+| `/api/companies/:id/messages` | GET | 笨・| any |
+| `/api/companies/:id/summaries` | GET | 笨・| any |
+| `/api/companies/:id/summaries` | POST | 笨・| admin/sales/ops |
+| `/api/companies/:id/summaries/draft` | POST | 笨・| admin/sales/ops |
 
 ### Projects / Wholesales
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/projects` | GET | ✅ | any |
-| `/api/projects` | POST | ✅ | admin/sales/ops |
-| `/api/projects/:id` | GET | ✅ | any |
-| `/api/projects/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/projects/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/projects/search` | GET | ✅ | any |
-| `/api/projects/:id/wholesales` | GET | ✅ | any |
-| `/api/projects/:id/tasks` | GET | ✅ | any |
-| `/api/wholesales` | GET | ✅ | any |
-| `/api/wholesales` | POST | ✅ | admin/sales/ops |
-| `/api/wholesales/:id` | GET | ✅ | any |
-| `/api/wholesales/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/wholesales/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/wholesales/:id/tasks` | GET | ✅ | any |
+| `/api/projects` | GET | 笨・| any |
+| `/api/projects` | POST | 笨・| admin/sales/ops |
+| `/api/projects/:id` | GET | 笨・| any |
+| `/api/projects/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/projects/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/projects/search` | GET | 笨・| any |
+| `/api/projects/:id/wholesales` | GET | 笨・| any |
+| `/api/projects/:id/tasks` | GET | 笨・| any |
+| `/api/wholesales` | GET | 笨・| any |
+| `/api/wholesales` | POST | 笨・| admin/sales/ops |
+| `/api/wholesales/:id` | GET | 笨・| any |
+| `/api/wholesales/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/wholesales/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/wholesales/:id/tasks` | GET | 笨・| any |
 
 ### Messages
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/messages/search` | GET | ✅ | any |
-| `/api/messages/unassigned` | GET | ✅ | any |
-| `/api/messages/:id/assign-company` | PATCH | ✅ | admin/sales/ops |
-| `/api/messages/assign-company` | PATCH | ✅ | admin/sales/ops |
-| `/api/messages/:id/labels` | POST | ✅ | admin/sales/ops |
-| `/api/messages/:id/labels/:label` | DELETE | ✅ | admin/sales/ops |
-| `/api/messages/labels` | GET | ✅ | any |
-| `/api/messages/labels/bulk` | POST | ✅ | admin/sales/ops |
-| `/api/messages/labels/bulk/remove` | POST | ✅ | admin/sales/ops |
+| `/api/messages/search` | GET | 笨・| any |
+| `/api/messages/unassigned` | GET | 笨・| any |
+| `/api/messages/:id/assign-company` | PATCH | 笨・| admin/sales/ops |
+| `/api/messages/assign-company` | PATCH | 笨・| admin/sales/ops |
+| `/api/messages/:id/labels` | POST | 笨・| admin/sales/ops |
+| `/api/messages/:id/labels/:label` | DELETE | 笨・| admin/sales/ops |
+| `/api/messages/labels` | GET | 笨・| any |
+| `/api/messages/labels/bulk` | POST | 笨・| admin/sales/ops |
+| `/api/messages/labels/bulk/remove` | POST | 笨・| admin/sales/ops |
 
 ### Tasks
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/tasks` | GET | ✅ | any |
-| `/api/tasks` | POST | ✅ | admin/sales/ops |
-| `/api/tasks/:id` | GET | ✅ | any |
-| `/api/tasks/:id` | PATCH | ✅ | admin/sales/ops |
-| `/api/tasks/:id` | DELETE | ✅ | admin/sales/ops |
-| `/api/tasks/bulk` | PATCH | ✅ | admin/sales/ops |
-| `/api/me/tasks` | GET | ✅ | any |
+| `/api/tasks` | GET | 笨・| any |
+| `/api/tasks` | POST | 笨・| admin/sales/ops |
+| `/api/tasks/:id` | GET | 笨・| any |
+| `/api/tasks/:id` | PATCH | 笨・| admin/sales/ops |
+| `/api/tasks/:id` | DELETE | 笨・| admin/sales/ops |
+| `/api/tasks/bulk` | PATCH | 笨・| admin/sales/ops |
+| `/api/me/tasks` | GET | 笨・| any |
 
 ### Jobs / Summaries
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/jobs` | GET | ✅ | any |
-| `/api/jobs/:id` | GET | ✅ | any |
-| `/api/jobs/:id/cancel` | POST | ✅ | any |
-| `/api/summaries/:id/tasks/candidates` | POST | ✅ | any |
+| `/api/jobs` | GET | 笨・| any |
+| `/api/jobs/:id` | GET | 笨・| any |
+| `/api/jobs/:id/cancel` | POST | 笨・| any |
+| `/api/summaries/:id/tasks/candidates` | POST | 笨・| any |
 
 ### Chatwork
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/chatwork/rooms` | GET | ✅ | admin |
-| `/api/chatwork/rooms/sync` | POST | ✅ | admin |
-| `/api/chatwork/rooms/:id` | PATCH | ✅ | admin |
-| `/api/chatwork/messages/sync` | POST | ✅ | admin |
+| `/api/chatwork/rooms` | GET | 笨・| admin |
+| `/api/chatwork/rooms/sync` | POST | 笨・| admin |
+| `/api/chatwork/rooms/:id` | PATCH | 笨・| admin |
+| `/api/chatwork/messages/sync` | POST | 笨・| admin |
 | `/api/chatwork/webhook` | POST | - | - |
-| `/api/companies/:id/chatwork-rooms` | GET | ✅ | any |
-| `/api/companies/:id/chatwork-rooms` | POST | ✅ | admin/sales/ops |
-| `/api/companies/:id/chatwork-rooms/:roomId` | DELETE | ✅ | admin/sales/ops |
+| `/api/companies/:id/chatwork-rooms` | GET | 笨・| any |
+| `/api/companies/:id/chatwork-rooms` | POST | 笨・| admin/sales/ops |
+| `/api/companies/:id/chatwork-rooms/:roomId` | DELETE | 笨・| admin/sales/ops |
 
-### Dashboard / Settings / Export / Audit / Search
+### Dashboard / Settings / Search
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
-| `/api/dashboard` | GET | ✅ | any |
-| `/api/settings` | GET | ✅ | admin |
-| `/api/settings` | PATCH | ✅ | admin |
-| `/api/export/companies.csv` | GET | ✅ | admin |
-| `/api/export/tasks.csv` | GET | ✅ | admin |
-| `/api/audit-logs` | GET | ✅ | any |
-| `/api/search` | GET | ✅ | any |
+| `/api/dashboard` | GET | 笨・| any |
+| `/api/settings` | GET | 笨・| admin |
+| `/api/settings` | PATCH | 笨・| admin |
+| `/api/search` | GET | 笨・| any |
 
 ### Health
 | Endpoint | Method | Auth | Role |
 | --- | --- | --- | --- |
 | `/healthz` | GET | - | - |
 
-## 認証フロー
-**説明（一般）**: ログインから認証済みAPI利用までの流れを示します。  
-**このプロジェクトでは**: ログインでJWTを発行し、Cookie/Authorizationで`/api/auth/me`にアクセスします。
-```mermaid
+## 隱崎ｨｼ繝輔Ο繝ｼ
+**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｭ繧ｰ繧､繝ｳ縺九ｉ隱崎ｨｼ貂医∩API蛻ｩ逕ｨ縺ｾ縺ｧ縺ｮ豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝ｭ繧ｰ繧､繝ｳ縺ｧJWT繧堤匱陦後＠縲，ookie/Authorization縺ｧ`/api/auth/me`縺ｫ繧｢繧ｯ繧ｻ繧ｹ縺励∪縺吶・```mermaid
 sequenceDiagram
   participant FE as Frontend
   participant API as Backend
@@ -135,44 +130,36 @@ sequenceDiagram
   API-->>FE: clear cookie
 ```
 
-## ステータス / エラーコード一覧
-| HTTP | Code | 説明 |
+## 繧ｹ繝・・繧ｿ繧ｹ / 繧ｨ繝ｩ繝ｼ繧ｳ繝ｼ繝我ｸ隕ｧ
+| HTTP | Code | 隱ｬ譏・|
 | --- | --- | --- |
-| 400 | `BAD_REQUEST` | 入力不正 |
-| 401 | `UNAUTHORIZED` | 認証失敗 |
-| 403 | `FORBIDDEN` | 権限不足 |
-| 404 | `NOT_FOUND` | リソース不在 |
-| 409 | `CONFLICT` | 競合 |
-| 422 | `VALIDATION_ERROR` | バリデーション |
-| 429 | `TOO_MANY_REQUESTS` | レート制限 |
-| 500 | `INTERNAL_SERVER_ERROR` | 予期しないエラー |
+| 400 | `BAD_REQUEST` | 蜈･蜉帑ｸ肴ｭ｣ |
+| 401 | `UNAUTHORIZED` | 隱崎ｨｼ螟ｱ謨・|
+| 403 | `FORBIDDEN` | 讓ｩ髯蝉ｸ崎ｶｳ |
+| 404 | `NOT_FOUND` | 繝ｪ繧ｽ繝ｼ繧ｹ荳榊惠 |
+| 409 | `CONFLICT` | 遶ｶ蜷・|
+| 422 | `VALIDATION_ERROR` | 繝舌Μ繝・・繧ｷ繝ｧ繝ｳ |
+| 429 | `TOO_MANY_REQUESTS` | 繝ｬ繝ｼ繝亥宛髯・|
+| 500 | `INTERNAL_SERVER_ERROR` | 莠域悄縺励↑縺・お繝ｩ繝ｼ |
 
-Prisma 例外マッピング（例）:
-- `P2025` → 404
-- `P2002` → 409
-- `P2003` → 400
+Prisma 萓句､悶・繝・ヴ繝ｳ繧ｰ・井ｾ具ｼ・
+- `P2025` 竊・404
+- `P2002` 竊・409
+- `P2003` 竊・400
 
-## レート制限
-| 対象 | 設定 | 由来 |
+## 繝ｬ繝ｼ繝亥宛髯・| 蟇ｾ雎｡ | 險ｭ螳・| 逕ｱ譚･ |
 | --- | --- | --- |
 | `/api/auth/login` | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Fastify rate-limit |
-| Chatwork API | 5分300回相当の間隔制御 | クライアント内部制御 |
+| Chatwork API | 5蛻・00蝗樒嶌蠖薙・髢馴囈蛻ｶ蠕｡ | 繧ｯ繝ｩ繧､繧｢繝ｳ繝亥・驛ｨ蛻ｶ蠕｡ |
 
-## ページング / フィルタ / ソート（クエリあり）
-対象: `/api/companies`, `/api/projects`, `/api/wholesales`, `/api/tasks`, `/api/messages/*`, `/api/jobs`, `/api/audit-logs`, `/api/export/*`
 
-## バージョニング方針
-- 現状は `/api` で固定（バージョン無し）
-
-## Webhook イベント
-| 送信元 | 受信エンドポイント | 認証 |
+## 繝舌・繧ｸ繝ｧ繝九Φ繧ｰ譁ｹ驥・- 迴ｾ迥ｶ縺ｯ `/api` 縺ｧ蝗ｺ螳夲ｼ医ヰ繝ｼ繧ｸ繝ｧ繝ｳ辟｡縺暦ｼ・
+## Webhook 繧､繝吶Φ繝・| 騾∽ｿ｡蜈・| 蜿嶺ｿ｡繧ｨ繝ｳ繝峨・繧､繝ｳ繝・| 隱崎ｨｼ |
 | --- | --- | --- |
 | Chatwork | `/api/chatwork/webhook` | `CHATWORK_WEBHOOK_TOKEN` |
 
-## 非同期 API（ジョブ）
-**説明（一般）**: ジョブを使う非同期APIの流れを示します。  
-**このプロジェクトでは**: APIが`jobs`を作成し、BullMQワーカーが処理して結果をDBに反映します。
-```mermaid
+## 髱槫酔譛・API・医ず繝ｧ繝厄ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繧ｸ繝ｧ繝悶ｒ菴ｿ縺・撼蜷梧悄API縺ｮ豬√ｌ繧堤､ｺ縺励∪縺吶・ 
+**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: API縺形jobs`繧剃ｽ懈・縺励。ullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺悟・逅・＠縺ｦ邨先棡繧奪B縺ｫ蜿肴丐縺励∪縺吶・```mermaid
 flowchart LR
   API[Backend API] --> DB[(jobs)]
   API --> Queue[(BullMQ)]
@@ -181,10 +168,8 @@ flowchart LR
 ```
 
 ## OpenAPI / Swagger
-- `/api/docs` で Swagger UI を提供
-
-## 外部連携の契約（概要）
-| 連携先 | 用途 | エンドポイント |
+- `/api/docs` 縺ｧ Swagger UI 繧呈署萓・
+## 螟夜Κ騾｣謳ｺ縺ｮ螂醍ｴ・ｼ域ｦりｦ・ｼ・| 騾｣謳ｺ蜈・| 逕ｨ騾・| 繧ｨ繝ｳ繝峨・繧､繝ｳ繝・|
 | --- | --- | --- |
-| Chatwork API | ルーム/メッセージ取得 | `https://api.chatwork.com/v2` |
-| OpenAI API | 要約生成 | `https://api.openai.com/v1/chat/completions` |
+| Chatwork API | 繝ｫ繝ｼ繝/繝｡繝・そ繝ｼ繧ｸ蜿門ｾ・| `https://api.chatwork.com/v2` |
+| OpenAI API | 隕∫ｴ・函謌・| `https://api.openai.com/v1/chat/completions` |

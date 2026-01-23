@@ -6,7 +6,6 @@ import cookie from '@fastify/cookie'
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { PrismaClient } from '@prisma/client'
 import { settingRoutes } from './settings'
-import { exportRoutes } from './export'
 import { dashboardRoutes } from './dashboard'
 
 const prisma = new PrismaClient()
@@ -25,7 +24,6 @@ const buildTestServer = async () => {
     },
   })
   await app.register(settingRoutes, { prefix: '/api' })
-  await app.register(exportRoutes, { prefix: '/api' })
   await app.register(dashboardRoutes, { prefix: '/api' })
   return app
 }
@@ -45,7 +43,7 @@ describe('Admin tools endpoints', () => {
     await fastify.close()
   })
 
-  it('updates settings, exports csv, and returns dashboard data', async () => {
+  it('updates settings and returns dashboard data', async () => {
     const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
 
     const settingsResponse = await fastify.inject({
@@ -124,26 +122,5 @@ describe('Admin tools endpoints', () => {
     expect(dashboardBody.latestSummaries.length).toBeGreaterThan(0)
     expect(dashboardBody.recentCompanies.length).toBeGreaterThan(0)
 
-    const exportCompanies = await fastify.inject({
-      method: 'GET',
-      url: '/api/export/companies.csv',
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-    })
-
-    expect(exportCompanies.statusCode).toBe(200)
-    expect(exportCompanies.body).toContain('Export Co')
-
-    const exportTasks = await fastify.inject({
-      method: 'GET',
-      url: '/api/export/tasks.csv',
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-    })
-
-    expect(exportTasks.statusCode).toBe(200)
-    expect(exportTasks.body).toContain('Overdue')
   })
 })

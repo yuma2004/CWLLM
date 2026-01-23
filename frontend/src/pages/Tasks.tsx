@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePermissions } from '../hooks/usePermissions'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
-import SuccessAlert from '../components/ui/SuccessAlert'
 import Button from '../components/ui/Button'
 import FormInput from '../components/ui/FormInput'
+import DateInput from '../components/ui/DateInput'
 import FormTextarea from '../components/ui/FormTextarea'
 import Card from '../components/ui/Card'
 import Pagination from '../components/ui/Pagination'
@@ -15,6 +15,8 @@ import { TaskTable } from '../components/tasks/TaskTable'
 import { TaskKanban } from '../components/tasks/TaskKanban'
 import { TaskBulkActions } from '../components/tasks/TaskBulkActions'
 import { useMutation } from '../hooks/useApi'
+import { useToast } from '../hooks/useToast'
+import Toast from '../components/ui/Toast'
 import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useListPage } from '../hooks/useListPage'
 import { toErrorMessage } from '../utils/errorState'
@@ -32,6 +34,7 @@ const defaultFilters: TasksFilters = {
 function Tasks() {
   const { canWrite } = usePermissions()
   const searchInputRef = useRef<HTMLSelectElement>(null)
+  const createFormRef = useRef<HTMLDivElement>(null)
 
   const {
     filters,
@@ -76,7 +79,7 @@ function Tasks() {
     companyId: '',
   })
   const [createError, setCreateError] = useState('')
-  const [createSuccess, setCreateSuccess] = useState('')
+  const { toast, showToast, clearToast } = useToast()
 
   const { mutate: createTask, isLoading: isCreating } = useMutation<
     Task,
@@ -151,12 +154,13 @@ function Tasks() {
     try {
       await updateTaskStatus(
         { status: nextStatus },
-        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'Failed to update task status' }
+        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'ステータスの更新に失敗しました' }
       )
       void refetchTasks()
+      showToast('ステータスを更新しました', 'success')
     } catch (err) {
       restoreOptimisticTasks(previousItems)
-      setError(err instanceof Error ? err.message : 'Failed to update task')
+      setError(err instanceof Error ? err.message : 'タスクの更新に失敗しました')
     }
   }
 
@@ -172,19 +176,19 @@ function Tasks() {
     try {
       await updateTask(
         { dueDate },
-        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'Failed to update due date' }
+        { url: apiRoutes.tasks.detail(taskId), errorMessage: '期限の更新に失敗しました' }
       )
       void refetchTasks()
+      showToast('期限を更新しました', 'success')
     } catch (err) {
       restoreOptimisticTasks(previousItems)
-      setError(err instanceof Error ? err.message : 'Failed to update task')
+      setError(err instanceof Error ? err.message : 'タスクの更新に失敗しました')
     }
   }
 
   const handleCreateTask = async (event: React.FormEvent) => {
     event.preventDefault()
     setCreateError('')
-    setCreateSuccess('')
 
     if (!createForm.title.trim()) {
       setCreateError('タスクタイトルを入力してください')
@@ -206,7 +210,7 @@ function Tasks() {
         },
         { errorMessage: 'タスクの作成に失敗しました' }
       )
-      setCreateSuccess('タスクを作成しました')
+      showToast('タスクを作成しました', 'success')
       setCreateForm((prev) => ({ ...prev, title: '', description: '', dueDate: '' }))
       void refetchTasks()
     } catch (err) {
@@ -240,6 +244,7 @@ function Tasks() {
       setBulkDueDate('')
       setClearBulkDueDate(false)
       void refetchTasks()
+      showToast('一括更新しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '一括更新に失敗しました')
     }
@@ -255,6 +260,7 @@ function Tasks() {
       })
       setDeleteTarget(null)
       void refetchTasks()
+      showToast('タスクを削除しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'タスクの削除に失敗しました')
     }
@@ -295,12 +301,16 @@ function Tasks() {
     clearAllFilters()
   }
 
+  const handleScrollToCreate = () => {
+    createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   return (
     <div className="space-y-4 ">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase  text-slate-400">Tasks</p>
+          <p className="text-sm uppercase  text-slate-400">タスク</p>
           <h2 className="text-3xl font-bold text-slate-900">マイタスク</h2>
         </div>
         <div className="flex items-center gap-3">
@@ -317,7 +327,7 @@ function Tasks() {
             onClick={() => setExtraParams((prev) => ({ ...prev, view: 'list' }))}
             className={cn(
               'rounded-full px-3 py-1',
-              viewMode === 'list' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'
+              viewMode === 'list' ? 'bg-sky-600 text-white' : 'hover:bg-slate-100'
             )}
           >
             リスト
@@ -327,7 +337,7 @@ function Tasks() {
             onClick={() => setExtraParams((prev) => ({ ...prev, view: 'kanban' }))}
             className={cn(
               'rounded-full px-3 py-1',
-              viewMode === 'kanban' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'
+              viewMode === 'kanban' ? 'bg-sky-600 text-white' : 'hover:bg-slate-100'
             )}
           >
             カンバン
@@ -336,75 +346,70 @@ function Tasks() {
       </div>
 
       {canWrite && (
-        <Card
-          title="タスク作成"
-          description="タスク管理から企業に紐づけて追加できます。"
-        >
-          <form onSubmit={handleCreateTask} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <FormInput
-                label="タスクタイトル"
-                value={createForm.title}
-                onChange={(event) =>
-                  setCreateForm((prev) => ({ ...prev, title: event.target.value }))
-                }
-                placeholder="対応内容を入力"
-                disabled={isCreating}
-                containerClassName="md:col-span-2"
-              />
-              <CompanySearchSelect
-                label="紐づける企業"
-                value={createForm.companyId}
-                onChange={(companyId) =>
-                  setCreateForm((prev) => ({ ...prev, companyId }))
-                }
-                placeholder="企業名で検索"
-                disabled={isCreating}
-              />
-              <FormTextarea
-                label="詳細"
-                rows={3}
-                value={createForm.description}
-                onChange={(event) =>
-                  setCreateForm((prev) => ({ ...prev, description: event.target.value }))
-                }
-                placeholder="背景や補足メモ"
-                disabled={isCreating}
-                containerClassName="md:col-span-2"
-              />
-              <FormInput
-                label="期限"
-                type="date"
-                value={createForm.dueDate}
-                onChange={(event) =>
-                  setCreateForm((prev) => ({ ...prev, dueDate: event.target.value }))
-                }
-                disabled={isCreating}
-              />
-            </div>
+        <div ref={createFormRef}>
+          <Card
+            title="タスク作成"
+            description="タスク管理から企業に紐づけて追加できます。"
+          >
+            <form onSubmit={handleCreateTask} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <FormInput
+                  label="タスクタイトル"
+                  value={createForm.title}
+                  onChange={(event) =>
+                    setCreateForm((prev) => ({ ...prev, title: event.target.value }))
+                  }
+                  placeholder="対応内容を入力"
+                  disabled={isCreating}
+                  containerClassName="md:col-span-2"
+                />
+                <CompanySearchSelect
+                  label="紐づける企業"
+                  value={createForm.companyId}
+                  onChange={(companyId) =>
+                    setCreateForm((prev) => ({ ...prev, companyId }))
+                  }
+                  placeholder="企業名で検索"
+                  disabled={isCreating}
+                />
+                <FormTextarea
+                  label="詳細"
+                  rows={3}
+                  value={createForm.description}
+                  onChange={(event) =>
+                    setCreateForm((prev) => ({ ...prev, description: event.target.value }))
+                  }
+                  placeholder="背景や補足メモ"
+                  disabled={isCreating}
+                  containerClassName="md:col-span-2"
+                />
+                <DateInput
+                  label="期限"
+                  value={createForm.dueDate}
+                  onChange={(event) =>
+                    setCreateForm((prev) => ({ ...prev, dueDate: event.target.value }))
+                  }
+                  disabled={isCreating}
+                />
+              </div>
 
-            {createError && (
-              <ErrorAlert message={createError} onClose={() => setCreateError('')} />
-            )}
-            {createSuccess && (
-              <SuccessAlert
-                message={createSuccess}
-                onClose={() => setCreateSuccess('')}
-              />
-            )}
+              {createError && (
+                <ErrorAlert message={createError} onClose={() => setCreateError('')} />
+              )}
 
-            <div className="flex justify-end">
-              <Button
-                type="submit"
-                isLoading={isCreating}
-                loadingLabel="作成中..."
-                disabled={!canSubmitCreate}
-              >
-                タスクを作成
-              </Button>
-            </div>
-          </form>
-        </Card>
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  isLoading={isCreating}
+                  loadingLabel="作成中..."
+                  disabled={!canSubmitCreate}
+                >
+                  タスクを作成
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
       )}
 
       {/* Search & Filter */}
@@ -471,6 +476,20 @@ function Tasks() {
           onDelete={setDeleteTarget}
           canWrite={canWrite}
           isBulkUpdating={isBulkUpdating}
+          emptyStateDescription={
+            canWrite ? 'まずはタスクを追加して、対応状況を見える化しましょう。' : '検索条件をリセットして確認してください。'
+          }
+          emptyStateAction={
+            canWrite ? (
+              <button
+                type="button"
+                onClick={handleScrollToCreate}
+                className="text-sm font-semibold text-sky-600 hover:text-sky-700"
+              >
+                タスクを作成
+              </button>
+            ) : null
+          }
         />
       ) : (
         <TaskKanban
@@ -498,6 +517,14 @@ function Tasks() {
       <div className="text-center text-xs text-slate-400">
         <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">/</kbd> フィルターにフォーカス
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
+          onClose={clearToast}
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+        />
+      )}
     </div>
   )
 }

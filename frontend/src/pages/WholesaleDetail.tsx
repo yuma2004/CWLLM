@@ -10,6 +10,9 @@ import LoadingState from '../components/ui/LoadingState'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
+import DateInput from '../components/ui/DateInput'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePagination } from '../hooks/usePagination'
 import { usePaginationSync } from '../hooks/usePaginationSync'
@@ -175,7 +178,7 @@ function WholesaleDetail() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase  text-slate-400">Wholesale Detail</p>
+          <p className="text-sm uppercase  text-slate-400">卸詳細</p>
           <h2 className="text-3xl font-bold text-slate-900">卸詳細</h2>
         </div>
         {wholesaleStatus && <StatusBadge status={wholesaleStatus} kind="wholesale" />}
@@ -183,28 +186,32 @@ function WholesaleDetail() {
 
       {wholesaleError && <ErrorAlert message={wholesaleError} />}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <Card className="space-y-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-900">卸情報</h3>
           {canWrite && wholesale && !isEditing && (
             <div className="flex items-center gap-3">
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   setFormError('')
                   setIsEditing(true)
                 }}
-                className="text-xs font-medium text-sky-600 hover:text-sky-700"
+                variant="ghost"
+                size="sm"
+                className="text-sky-600 hover:text-sky-700"
               >
                 編集
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                variant="ghost"
+                size="sm"
+                className="text-rose-600 hover:text-rose-700"
               >
                 削除
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -249,8 +256,7 @@ function WholesaleDetail() {
                 </div>
                 <div>
                   <div className="mb-1 block text-xs font-medium text-slate-600">合意日</div>
-                  <FormInput
-                    type="date"
+                  <DateInput
                     value={form.agreedDate}
                     onChange={(event) => setForm({ ...form, agreedDate: event.target.value })}
                     className="rounded-lg"
@@ -268,20 +274,22 @@ function WholesaleDetail() {
               </div>
               {formError && <ErrorAlert message={formError} />}
               <div className="flex justify-end gap-2">
-                <button
+                <Button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+                  variant="secondary"
+                  size="sm"
                 >
                   キャンセル
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-700"
-                  disabled={isUpdatingWholesale}
+                  size="sm"
+                  isLoading={isUpdatingWholesale}
+                  loadingLabel="保存中..."
                 >
-                  {isUpdatingWholesale ? '保存中...' : '保存'}
-                </button>
+                  保存
+                </Button>
               </div>
             </form>
           ) : (
@@ -331,9 +339,9 @@ function WholesaleDetail() {
         ) : (
           <div className="text-sm text-slate-500">卸情報が見つかりません。</div>
         )}
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <Card className="space-y-4">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">関連タスク</h3>
           <span className="text-xs text-slate-500">{pagination.total}件</span>
@@ -375,7 +383,7 @@ function WholesaleDetail() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
       <Pagination
         page={pagination.page}

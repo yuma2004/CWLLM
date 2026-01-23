@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import ErrorAlert from '../ui/ErrorAlert'
 import FormInput from '../ui/FormInput'
+import DateInput from '../ui/DateInput'
 import FormSelect from '../ui/FormSelect'
 import FormTextarea from '../ui/FormTextarea'
 import LoadingState from '../ui/LoadingState'
 import StatusBadge from '../ui/StatusBadge'
+import EmptyState from '../ui/EmptyState'
 import { useFetch, useMutation } from '../../hooks/useApi'
 import { apiRoutes } from '../../lib/apiRoutes'
 import { formatDate } from '../../utils/date'
@@ -17,6 +19,7 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
   const [error, setError] = useState('')
   const [form, setForm] = useState({ title: '', description: '', dueDate: '' })
   const [formError, setFormError] = useState('')
+  const titleInputRef = useRef<HTMLInputElement>(null)
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
@@ -116,7 +119,25 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
         {isLoading ? (
           <LoadingState message="タスクを読み込み中..." />
         ) : tasks.length === 0 ? (
-          <div className="text-sm text-slate-500">タスクはまだありません</div>
+          <EmptyState
+            message="タスクはまだありません"
+            description={
+              canWrite
+                ? '下のフォームから最初のタスクを追加できます。'
+                : '絞り込み条件を見直してください。'
+            }
+            action={
+              canWrite ? (
+                <button
+                  type="button"
+                  onClick={() => titleInputRef.current?.focus()}
+                  className="text-xs font-semibold text-sky-600 hover:text-sky-700"
+                >
+                  タスクを追加
+                </button>
+              ) : null
+            }
+          />
         ) : (
           tasks.map((task) => (
             <div
@@ -162,9 +183,9 @@ function CompanyTasksSection({ companyId, canWrite }: { companyId: string; canWr
               placeholder="タスクタイトル"
               value={form.title}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
+              ref={titleInputRef}
             />
-            <FormInput
-              type="date"
+            <DateInput
               value={form.dueDate}
               onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
             />

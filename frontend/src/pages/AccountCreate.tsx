@@ -4,8 +4,9 @@ import Card from '../components/ui/Card'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
-import SuccessAlert from '../components/ui/SuccessAlert'
+import Toast from '../components/ui/Toast'
 import { useMutation } from '../hooks/useApi'
+import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
 import { toErrorMessage } from '../utils/errorState'
 
@@ -24,18 +25,34 @@ const ROLE_OPTIONS = [
 
 function AccountCreate() {
   const [form, setForm] = useState({ email: '', password: '', role: 'readonly' })
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { toast, showToast, clearToast } = useToast()
 
   const { mutate: createUser, isLoading } = useMutation<{ user: { id: string } }, CreateUserPayload>(
     apiRoutes.users.create(),
     'POST'
   )
 
+  const passwordChecks = {
+    length: form.password.length >= 8,
+    letter: /[a-zA-Z]/.test(form.password),
+    number: /\d/.test(form.password),
+  }
+  const strengthScore = Object.values(passwordChecks).filter(Boolean).length
+  const strengthLabel =
+    strengthScore <= 1 ? '弱い' : strengthScore === 2 ? '普通' : '強い'
+  const strengthClass =
+    strengthScore <= 1
+      ? 'text-rose-600'
+      : strengthScore === 2
+        ? 'text-amber-600'
+        : 'text-emerald-600'
+  const isPasswordMismatch = passwordConfirm.length > 0 && form.password !== passwordConfirm
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setError('')
-    setSuccess('')
 
     if (!form.email.trim()) {
       setError('メールアドレスを入力してください')
@@ -49,6 +66,10 @@ function AccountCreate() {
       setError('パスワードは8文字以上で入力してください')
       return
     }
+    if (form.password !== passwordConfirm) {
+      setError('パスワードが一致しません')
+      return
+    }
 
     try {
       await createUser(
@@ -59,8 +80,9 @@ function AccountCreate() {
         },
         { errorMessage: 'アカウントの作成に失敗しました' }
       )
-      setSuccess('アカウントを作成しました')
+      showToast('アカウントを作成しました', 'success')
       setForm((prev) => ({ ...prev, email: '', password: '' }))
+      setPasswordConfirm('')
     } catch (err) {
       setError(toErrorMessage(err, 'アカウントの作成に失敗しました'))
     }
@@ -69,7 +91,7 @@ function AccountCreate() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-sm uppercase text-slate-400">Accounts</p>
+        <p className="text-sm uppercase text-slate-400">アカウント</p>
         <h2 className="text-3xl font-bold text-slate-900">アカウント作成</h2>
         <p className="mt-1 text-sm text-slate-500">
           管理者が新しいユーザーアカウントを追加できます。
@@ -80,30 +102,62 @@ function AccountCreate() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <FormInput
-              label="メールアドレス"
+              label="メールアドレス（必須）"
               type="email"
               autoComplete="email"
               value={form.email}
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
               placeholder="user@example.com"
               disabled={isLoading}
+              required
             />
             <FormInput
-              label="パスワード"
+              label="パスワード（必須）"
               type="password"
               autoComplete="new-password"
               value={form.password}
               onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
               placeholder="8文字以上"
-              hint="8文字以上で入力してください"
               disabled={isLoading}
+              required
             />
+            <FormInput
+              label="パスワード（確認）"
+              type="password"
+              autoComplete="new-password"
+              value={passwordConfirm}
+              onChange={(event) => setPasswordConfirm(event.target.value)}
+              placeholder="もう一度入力"
+              disabled={isLoading}
+              required
+            />
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            <div className="flex items-center justify-between">
+              <span>パスワード強度</span>
+              <span className={strengthClass}>{strengthLabel}</span>
+            </div>
+            <div className="mt-2 grid gap-1 text-[11px]">
+              <span className={passwordChecks.length ? 'text-emerald-600' : 'text-slate-500'}>
+                8文字以上
+              </span>
+              <span className={passwordChecks.letter ? 'text-emerald-600' : 'text-slate-500'}>
+                英字を含む
+              </span>
+              <span className={passwordChecks.number ? 'text-emerald-600' : 'text-slate-500'}>
+                数字を含む
+              </span>
+              {isPasswordMismatch && (
+                <span className="text-rose-600">確認用パスワードが一致していません</span>
+              )}
+            </div>
           </div>
           <FormSelect
             label="権限"
             value={form.role}
             onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
             disabled={isLoading}
+            hint="管理者は全機能、営業/オペは担当範囲、閲覧は参照のみ。"
           >
             {ROLE_OPTIONS.map((role) => (
               <option key={role.value} value={role.value}>
@@ -113,7 +167,6 @@ function AccountCreate() {
           </FormSelect>
 
           {error && <ErrorAlert message={error} onClose={() => setError('')} />}
-          {success && <SuccessAlert message={success} />}
 
           <div className="flex justify-end">
             <Button type="submit" isLoading={isLoading} loadingLabel="作成中...">
@@ -122,6 +175,14 @@ function AccountCreate() {
           </div>
         </form>
       </Card>
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
+          onClose={clearToast}
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+        />
+      )}
     </div>
   )
 }

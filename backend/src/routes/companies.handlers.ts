@@ -1,6 +1,5 @@
 ﻿import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma } from '@prisma/client'
-import { logAuditEntry } from '../services'
 import {
   CACHE_KEYS,
   CACHE_TTLS_MS,
@@ -19,7 +18,6 @@ import {
   prisma,
   setCache,
 } from '../utils'
-import { JWTUser } from '../types/auth'
 import {
   CompanyCreateBody,
   CompanyListQuery,
@@ -138,14 +136,6 @@ export const createCompanyHandler = async (
         tags: tags ?? [],
       },
     })
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Company',
-      entityId: company.id,
-      action: 'create',
-      userId,
-      after: company,
-    })
     return reply.code(201).send({ company })
   } catch (error) {
     return handlePrismaError(reply, error, prismaErrorOverrides)
@@ -226,15 +216,6 @@ export const updateCompanyHandler = async (
       where: { id: request.params.id },
       data,
     })
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Company',
-      entityId: company.id,
-      action: 'update',
-      userId,
-      before: existing,
-      after: company,
-    })
     return { company }
   } catch (error) {
     return handlePrismaError(reply, error, prismaErrorOverrides)
@@ -255,14 +236,6 @@ export const deleteCompanyHandler = async (
   try {
     await prisma.company.delete({
       where: { id: request.params.id },
-    })
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Company',
-      entityId: existing.id,
-      action: 'delete',
-      userId,
-      before: existing,
     })
     return reply.code(204).send()
   } catch (error) {

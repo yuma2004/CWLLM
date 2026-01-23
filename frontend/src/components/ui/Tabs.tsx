@@ -58,15 +58,16 @@ export default function Tabs({
     <div className="w-full">
       {/* Tab List */}
       <div className="border-b border-slate-200">
-        <nav className="-mb-px flex gap-1 overflow-x-auto" aria-label="タブ">
+        <nav className="-mb-px flex gap-1 overflow-x-auto" aria-label="Tabs">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => handleTabClick(tab.id)}
                 className={cn(
-                  'relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium',
+                  'relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
                   isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'
                 )}
                 aria-current={isActive ? 'page' : undefined}

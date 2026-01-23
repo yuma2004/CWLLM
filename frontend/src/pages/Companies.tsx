@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePermissions } from '../hooks/usePermissions'
+import Button from '../components/ui/Button'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import Pagination from '../components/ui/Pagination'
 import CompanyFilters from '../components/companies/CompanyFilters'
 import CompanyTable from '../components/companies/CompanyTable'
 import CompanyCreateForm, { type CompanyFormState } from '../components/companies/CompanyCreateForm'
 import { useFetch, useMutation } from '../hooks/useApi'
+import { useToast } from '../hooks/useToast'
+import Toast from '../components/ui/Toast'
 import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useListPage } from '../hooks/useListPage'
 import { apiRoutes } from '../lib/apiRoutes'
@@ -50,6 +53,7 @@ function Companies() {
     tags: '',
     profile: '',
   })
+  const { toast, showToast, clearToast } = useToast()
   const {
     filters,
     setFilters,
@@ -225,6 +229,7 @@ function Companies() {
       setShowCreateForm(false)
       void refetchCompanies()
       void refetchOptions()
+      showToast('企業を作成しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '通信エラーが発生しました')
     }
@@ -239,11 +244,11 @@ function Companies() {
   }
 
   return (
-    <div className="space-y-4 ">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase  text-slate-400">Company</p>
+          <p className="text-sm uppercase  text-slate-400">企業</p>
           <h2 className="text-3xl font-bold text-slate-900">企業一覧</h2>
         </div>
         <div className="flex items-center gap-3">
@@ -251,15 +256,15 @@ function Companies() {
             登録数: <span className="font-semibold text-slate-700">{pagination.total}</span>
           </span>
           {canWrite && (
-            <button
+            <Button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white  hover:bg-slate-800"
+              className="inline-flex items-center gap-2"
             >
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               企業を追加
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -344,6 +349,14 @@ function Companies() {
           </>
         )}
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
+          onClose={clearToast}
+          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+        />
+      )}
     </div>
   )
 }

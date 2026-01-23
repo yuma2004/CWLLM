@@ -16,6 +16,8 @@ type SearchSelectProps<T extends BaseOption> = {
   label?: string
   placeholder?: string
   disabled?: boolean
+  name?: string
+  autoComplete?: string
   errorMessageDetail?: string
   errorMessageSearch?: string
 }
@@ -29,6 +31,8 @@ function SearchSelect<T extends BaseOption>({
   label,
   placeholder = '検索',
   disabled = false,
+  name,
+  autoComplete = 'off',
   errorMessageDetail = '取得に失敗しました',
   errorMessageSearch = '検索に失敗しました',
 }: SearchSelectProps<T>) {
@@ -103,6 +107,8 @@ function SearchSelect<T extends BaseOption>({
       )}
       <FormInput
         id={inputId}
+        name={name}
+        type="search"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value)
@@ -113,12 +119,13 @@ function SearchSelect<T extends BaseOption>({
         onFocus={() => setIsOpen(true)}
         placeholder={placeholder}
         disabled={disabled}
+        autoComplete={autoComplete}
         aria-label={label ? undefined : placeholder}
       />
       {value && (
         <button
           type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/30"
           onClick={handleClear}
           aria-label="選択をクリア"
         >
@@ -167,6 +174,8 @@ type SimpleSearchSelectProps<T extends BaseOption> = {
   label?: string
   placeholder?: string
   disabled?: boolean
+  name?: string
+  autoComplete?: string
 }
 
 export const CompanySearchSelect = ({

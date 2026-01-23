@@ -1,6 +1,5 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma, ProjectStatus } from '@prisma/client'
-import { logAuditEntry } from '../services'
 import {
   badRequest,
   buildPaginatedResponse,
@@ -16,7 +15,6 @@ import {
   parsePagination,
   prisma,
 } from '../utils'
-import { JWTUser } from '../types/auth'
 import type {
   ProjectCreateBody,
   ProjectListQuery,
@@ -160,15 +158,6 @@ export const createProjectHandler = async (
       },
     })
 
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Project',
-      entityId: project.id,
-      action: 'create',
-      userId,
-      after: project,
-    })
-
     return reply.code(201).send({ project })
   } catch (error) {
     return handlePrismaError(reply, error)
@@ -260,16 +249,6 @@ export const updateProjectHandler = async (
       data,
     })
 
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Project',
-      entityId: project.id,
-      action: 'update',
-      userId,
-      before: existing,
-      after: project,
-    })
-
     return { project }
   } catch (error) {
     return handlePrismaError(reply, error)
@@ -287,15 +266,6 @@ export const deleteProjectHandler = async (
 
   try {
     await prisma.project.delete({ where: { id: request.params.id } })
-
-    const userId = (request.user as JWTUser | undefined)?.userId
-    await logAuditEntry({
-      entityType: 'Project',
-      entityId: existing.id,
-      action: 'delete',
-      userId,
-      before: existing,
-    })
 
     return reply.code(204).send()
   } catch (error) {
