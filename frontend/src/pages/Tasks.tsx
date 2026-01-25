@@ -34,10 +34,19 @@ const defaultFilters: TasksFilters = {
 }
 
 function Tasks() {
-  const { canWrite } = usePermissions()
+  const { canWrite, isAdmin } = usePermissions()
+  const [taskScope, setTaskScope] = useState<'mine' | 'all'>('mine')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const createTitleRef = useRef<HTMLInputElement>(null)
   const createCompanyRef = useRef<HTMLInputElement>(null)
+
+  const buildTaskUrl = useMemo(
+    () => (queryString: string) =>
+      isAdmin && taskScope === 'all'
+        ? apiRoutes.tasks.list(queryString)
+        : apiRoutes.tasks.myList(queryString),
+    [isAdmin, taskScope]
+  )
 
   const {
     filters,
@@ -64,7 +73,7 @@ function Tasks() {
       defaultParams: { view: 'list' },
       resetPageOnFilterChange: false,
     },
-    buildUrl: apiRoutes.tasks.myList,
+    buildUrl: buildTaskUrl,
     debounce: { key: 'q', delayMs: 300 },
     fetchOptions: {
       errorMessage: 'タスクの読み込みに失敗しました',
@@ -144,6 +153,12 @@ function Tasks() {
   useEffect(() => {
     setSelectedIds([])
   }, [tasksData?.items])
+
+  useEffect(() => {
+    if (!isAdmin && taskScope !== 'mine') {
+      setTaskScope('mine')
+    }
+  }, [isAdmin, taskScope])
 
   useEffect(() => {
     if (!isCreateDirty) return undefined
@@ -372,19 +387,30 @@ function Tasks() {
     setIsCreateOpen(true)
   }
 
+  const handleScopeChange = (nextScope: 'mine' | 'all') => {
+    if (!isAdmin) return
+    setTaskScope(nextScope)
+    setPage(1)
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs uppercase text-notion-text-tertiary">タスク</p>
-          <h2 className="text-3xl font-semibold text-notion-text text-balance">マイタスク</h2>
+          <h2 className="text-3xl font-semibold text-notion-text text-balance">タスク管理</h2>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-notion-text-secondary">
             合計件数:{' '}
             <span className="font-semibold text-notion-text tabular-nums">{pagination.total}</span>
           </span>
+          {isAdmin && (
+            <span className="rounded-full border border-notion-border bg-notion-bg px-2 py-1 text-xs font-semibold text-notion-text-secondary">
+              表示範囲: {taskScope === 'all' ? '全員' : '自分'}
+            </span>
+          )}
           {canWrite && (
             <Button onClick={() => setIsCreateOpen(true)} className="inline-flex items-center gap-2">
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -421,6 +447,32 @@ function Tasks() {
             カンバン
           </button>
         </div>
+        {isAdmin && (
+          <div className="inline-flex rounded-full border border-notion-border bg-notion-bg p-1 text-xs font-semibold text-notion-text-secondary shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleScopeChange('mine')}
+              aria-pressed={taskScope === 'mine'}
+              className={cn(
+                'rounded-full px-3 py-1',
+                taskScope === 'mine' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
+              )}
+            >
+              自分
+            </button>
+            <button
+              type="button"
+              onClick={() => handleScopeChange('all')}
+              aria-pressed={taskScope === 'all'}
+              className={cn(
+                'rounded-full px-3 py-1',
+                taskScope === 'all' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
+              )}
+            >
+              全員
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search & Filter */}
@@ -491,7 +543,9 @@ function Tasks() {
           userOptions={userOptions}
           emptyStateDescription={
             canWrite
-              ? 'まずはタスクを追加して、対応状況を見える化しましょう。'
+              ? isAdmin && taskScope === 'all'
+                ? '全員分のタスクがまだありません。'
+                : 'まずはタスクを追加して、対応状況を見える化しましょう。'
               : '検索条件をリセットして確認してください。'
           }
           emptyStateAction={

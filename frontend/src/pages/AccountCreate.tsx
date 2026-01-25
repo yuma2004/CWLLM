@@ -1,14 +1,18 @@
 ﻿import { useState } from 'react'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import EmptyState from '../components/ui/EmptyState'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
+import { SkeletonTable } from '../components/ui/Skeleton'
 import Toast from '../components/ui/Toast'
-import { useMutation } from '../hooks/useApi'
+import { useFetch, useMutation } from '../hooks/useApi'
 import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
+import { formatDate } from '../utils/date'
 import { toErrorMessage } from '../utils/errorState'
+import type { User } from '../types'
 
 type CreateUserPayload = {
   email: string
@@ -27,6 +31,12 @@ function AccountCreate() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [error, setError] = useState('')
   const { toast, showToast, clearToast } = useToast()
+  const {
+    data: usersData,
+    error: usersError,
+    isLoading: isUsersLoading,
+    refetch: refetchUsers,
+  } = useFetch<{ users: User[] }>(apiRoutes.users.list())
 
   const { mutate: createUser, isLoading } = useMutation<{ user: { id: string } }, CreateUserPayload>(
     apiRoutes.users.create(),
@@ -87,10 +97,13 @@ function AccountCreate() {
       showToast('アカウントを作成しました', 'success')
       setForm((prev) => ({ ...prev, email: '', name: '', password: '' }))
       setPasswordConfirm('')
+      await refetchUsers(undefined, { ignoreCache: true })
     } catch (err) {
       setError(toErrorMessage(err, 'アカウントの作成に失敗しました'))
     }
   }
+
+  const users = usersData?.users ?? []
 
   return (
     <div className="space-y-4">
@@ -188,6 +201,65 @@ function AccountCreate() {
             </Button>
           </div>
         </form>
+      </Card>
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">登録済みアカウント</h3>
+            <p className="text-xs text-slate-500">作成済みのアカウントを確認できます。</p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => void refetchUsers(undefined, { ignoreCache: true })}
+            disabled={isUsersLoading}
+          >
+            更新
+          </Button>
+        </div>
+        {usersError && <ErrorAlert message={usersError} />}
+        {isUsersLoading ? (
+          <SkeletonTable rows={4} columns={4} />
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-notion-border bg-notion-bg shadow-sm">
+            <table className="min-w-full divide-y divide-notion-border text-sm text-notion-text-secondary">
+              <thead className="bg-notion-bg-secondary text-left text-xs font-semibold uppercase whitespace-nowrap text-notion-text-tertiary">
+                <tr>
+                  <th className="px-4 py-3">メールアドレス</th>
+                  <th className="px-4 py-3">名前</th>
+                  <th className="px-4 py-3">権限</th>
+                  <th className="px-4 py-3">作成日</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-notion-border bg-notion-bg">
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-10 text-center">
+                      <EmptyState
+                        message="アカウントがまだありません"
+                        description="作成するとここに一覧が表示されます。"
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.id} className="hover:bg-notion-bg-hover">
+                      <td className="px-4 py-3 font-medium text-notion-text">{user.email}</td>
+                      <td className="px-4 py-3">{user.name || '-'}</td>
+                      <td className="px-4 py-3">
+                        {user.role === 'admin' ? '管理者' : '一般社員'}
+                      </td>
+                      <td className="px-4 py-3 text-notion-text-tertiary">
+                        {formatDate(user.createdAt)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
       {toast && (
         <Toast

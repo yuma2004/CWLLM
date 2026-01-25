@@ -127,6 +127,33 @@ describe('Task endpoints', () => {
     expect(updated.status).toBe('done')
   })
 
+  it('allows only admin to list all tasks', async () => {
+    const admin = await createUser(`task-admin-${Date.now()}@example.com`, UserRole.admin)
+    const employee = await createUser(`task-employee-${Date.now()}@example.com`, UserRole.employee)
+    const adminToken = fastify.jwt.sign({ userId: admin.id, role: 'admin' })
+    const employeeToken = fastify.jwt.sign({ userId: employee.id, role: 'employee' })
+
+    const employeeResponse = await fastify.inject({
+      method: 'GET',
+      url: '/api/tasks',
+      headers: {
+        authorization: `Bearer ${employeeToken}`,
+      },
+    })
+
+    expect(employeeResponse.statusCode).toBe(403)
+
+    const adminResponse = await fastify.inject({
+      method: 'GET',
+      url: '/api/tasks',
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+      },
+    })
+
+    expect(adminResponse.statusCode).toBe(200)
+  })
+
   it('rejects invalid role create', async () => {
     const token = fastify.jwt.sign({ userId: 'invalid', role: 'invalid-role' })
     const company = await prisma.company.create({

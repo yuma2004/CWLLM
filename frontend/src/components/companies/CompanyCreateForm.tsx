@@ -21,7 +21,7 @@ export type CompanyCreateFormProps = {
   isOpen: boolean
   isAdmin: boolean
   showChatworkSelector: boolean
-  onToggleChatworkSelector: () => void
+  onToggleChatworkSelector: (nextOpen: boolean) => void
   onClose: () => void
   roomSearchQuery: string
   onRoomSearchChange: (value: string) => void
@@ -79,7 +79,7 @@ function CompanyCreateForm({
         {isAdmin ? (
           <details
             open={showChatworkSelector}
-            onToggle={onToggleChatworkSelector}
+            onToggle={(event) => onToggleChatworkSelector(event.currentTarget.open)}
             className="rounded-xl border border-notion-border bg-notion-bg-secondary p-4"
           >
             <summary className="flex cursor-pointer items-center justify-between rounded-lg text-sm font-semibold text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40 [&::-webkit-details-marker]:hidden">

@@ -43,10 +43,43 @@ describe('User endpoints', () => {
           { email: { startsWith: 'admin-' } },
           { email: 'duplicate@example.com' },
           { email: 'new-user@example.com' },
+          { email: 'created-user@example.com' },
         ],
       },
     })
     await fastify.close()
+  })
+
+  it('creates a user and returns 201', async () => {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/users',
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+      },
+      payload: {
+        email: 'created-user@example.com',
+        name: 'Created User',
+        password: 'password123',
+        role: 'employee',
+      },
+    })
+
+    expect(response.statusCode).toBe(201)
+
+    const body = JSON.parse(response.body)
+    expect(body.user.email).toBe('created-user@example.com')
+    expect(body.user.name).toBe('Created User')
+    expect(body.user.role).toBe('employee')
+    expect(typeof body.user.createdAt).toBe('string')
+
+    const createdUser = await prisma.user.findUnique({
+      where: { email: 'created-user@example.com' },
+    })
+
+    if (!createdUser) {
+      throw new Error('Expected created user to exist')
+    }
   })
 
   it('returns 409 for duplicate email', async () => {

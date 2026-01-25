@@ -318,9 +318,9 @@ function Companies() {
         isOpen={canWrite && showCreateForm}
         isAdmin={isAdmin}
         showChatworkSelector={showChatworkSelector}
-        onToggleChatworkSelector={() => {
-          setShowChatworkSelector(!showChatworkSelector)
-          if (!showChatworkSelector) {
+        onToggleChatworkSelector={(nextOpen) => {
+          setShowChatworkSelector(nextOpen)
+          if (!nextOpen) {
             setRoomSearchQuery('')
           }
         }}

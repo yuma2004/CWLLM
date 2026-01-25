@@ -1,7 +1,7 @@
 ﻿import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { requireAuth, requireWriteAccess } from '../middleware/rbac'
+import { requireAdmin, requireAuth, requireWriteAccess } from '../middleware/rbac'
 import {
   TaskBulkUpdateBody,
   TaskCreateBody,
@@ -35,7 +35,7 @@ export async function taskRoutes(fastify: FastifyInstance) {
   app.get<{ Querystring: TaskListQuery }>(
     '/tasks',
     {
-      preHandler: requireAuth(),
+      preHandler: requireAdmin(),
       schema: {
         tags: ['Tasks'],
         querystring: taskListQuerySchema,
