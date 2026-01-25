@@ -34,7 +34,7 @@ export const getDashboardHandler = async () => {
       orderBy: { dueDate: 'asc' },
       take: 5,
       include: {
-        assignee: { select: { id: true, email: true } },
+        assignee: { select: { id: true, email: true, name: true } },
       },
     }),
     prisma.task.findMany({
@@ -45,7 +45,7 @@ export const getDashboardHandler = async () => {
       orderBy: { dueDate: 'asc' },
       take: 5,
       include: {
-        assignee: { select: { id: true, email: true } },
+        assignee: { select: { id: true, email: true, name: true } },
       },
     }),
     prisma.task.findMany({
@@ -56,7 +56,7 @@ export const getDashboardHandler = async () => {
       orderBy: { dueDate: 'asc' },
       take: 5,
       include: {
-        assignee: { select: { id: true, email: true } },
+        assignee: { select: { id: true, email: true, name: true } },
       },
     }),
     prisma.task.findMany({
@@ -67,7 +67,7 @@ export const getDashboardHandler = async () => {
       orderBy: { dueDate: 'asc' },
       take: 5,
       include: {
-        assignee: { select: { id: true, email: true } },
+        assignee: { select: { id: true, email: true, name: true } },
       },
     }),
     prisma.summary.findMany({

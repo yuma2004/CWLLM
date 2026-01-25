@@ -104,7 +104,7 @@ describe('Company endpoints', () => {
 
   it('filters companies by query, tag, and owner', async () => {
     const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
-    const owner = await createUser(`test-owner-${Date.now()}@example.com`, UserRole.sales)
+    const owner = await createUser(`test-owner-${Date.now()}@example.com`, UserRole.employee)
 
     await prisma.company.create({
       data: {
@@ -113,7 +113,7 @@ describe('Company endpoints', () => {
         category: 'media',
         status: 'active',
         tags: ['vip', 'priority'],
-        ownerId: owner.id,
+        ownerIds: [owner.id],
       },
     })
     await prisma.company.create({
@@ -257,8 +257,8 @@ describe('Company endpoints', () => {
     expect(listBody.contacts[0].name).toBe('Taro Contact')
   })
 
-  it('prevents readonly from creating companies', async () => {
-    const token = fastify.jwt.sign({ userId: 'readonly', role: 'readonly' })
+  it('rejects invalid role when creating companies', async () => {
+    const token = fastify.jwt.sign({ userId: 'invalid', role: 'invalid-role' })
 
     const response = await fastify.inject({
       method: 'POST',
@@ -271,6 +271,6 @@ describe('Company endpoints', () => {
       },
     })
 
-    expect(response.statusCode).toBe(403)
+    expect(response.statusCode).toBe(401)
   })
 })

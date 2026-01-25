@@ -18,7 +18,7 @@ export const createUserHandler = async (
   request: FastifyRequest<{ Body: CreateUserBody }>,
   reply: FastifyReply
 ) => {
-  const { email, password, role } = request.body
+  const { email, name, password, role } = request.body
 
   const validRoles = new Set(Object.values(UserRole))
   if (!validRoles.has(role)) {
@@ -36,12 +36,14 @@ export const createUserHandler = async (
     const user = await prisma.user.create({
       data: {
         email,
+        name: name.trim(),
         password: hashedPassword,
         role,
       },
       select: {
         id: true,
         email: true,
+        name: true,
         role: true,
         createdAt: true,
       },
@@ -66,6 +68,7 @@ export const listUsersHandler = async () => {
     select: {
       id: true,
       email: true,
+      name: true,
       role: true,
       createdAt: true,
     },
@@ -82,9 +85,9 @@ export const listUsersHandler = async () => {
 
 export const listUserOptionsHandler = async () => {
   const cacheKey = CACHE_KEYS.userOptions
-  const cached = getCache<{ users: Array<{ id: string; email: string; role: UserRole }> }>(
-    cacheKey
-  )
+  const cached = getCache<{
+    users: Array<{ id: string; email: string; name?: string | null; role: UserRole }>
+  }>(cacheKey)
   if (cached) {
     return cached
   }
@@ -93,6 +96,7 @@ export const listUserOptionsHandler = async () => {
     select: {
       id: true,
       email: true,
+      name: true,
       role: true,
     },
     orderBy: { createdAt: 'asc' },
@@ -123,6 +127,7 @@ export const updateUserRoleHandler = async (
       select: {
         id: true,
         email: true,
+        name: true,
         role: true,
       },
     })

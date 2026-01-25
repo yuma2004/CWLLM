@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn'
 type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string
   hint?: string
+  error?: string
   containerClassName?: string
   noContainer?: boolean
 }
@@ -16,20 +17,31 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
     {
       label,
       hint,
+      error,
       className,
       containerClassName,
       id,
       noContainer,
       placeholder,
       'aria-label': ariaLabelProp,
+      'aria-describedby': ariaDescribedByProp,
+      'aria-invalid': ariaInvalidProp,
       ...props
     },
     ref
   ) => {
     const generatedId = useId()
-    const inputClassName = cn(BASE_CLASS, className)
-    const inputId = id ?? (label ? generatedId : undefined)
+    const shouldHaveId = Boolean(label || error || ariaDescribedByProp)
+    const inputId = id ?? (shouldHaveId ? generatedId : undefined)
+    const errorId = error && inputId ? `${inputId}-error` : undefined
+    const inputClassName = cn(
+      BASE_CLASS,
+      error && 'border-rose-300 focus-visible:border-rose-500 focus-visible:ring-rose-500/30',
+      className
+    )
     const ariaLabel = ariaLabelProp ?? (label ? undefined : placeholder)
+    const describedBy = [ariaDescribedByProp, errorId].filter(Boolean).join(' ') || undefined
+    const ariaInvalid = ariaInvalidProp ?? Boolean(error)
 
     if (noContainer) {
       return (
@@ -39,6 +51,8 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
           className={inputClassName}
           placeholder={placeholder}
           aria-label={ariaLabel}
+          aria-describedby={describedBy}
+          aria-invalid={ariaInvalid}
           {...props}
         />
       )
@@ -57,8 +71,11 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
           className={inputClassName}
           placeholder={placeholder}
           aria-label={ariaLabel}
+          aria-describedby={describedBy}
+          aria-invalid={ariaInvalid}
           {...props}
         />
+        {error ? <p id={errorId} className="mt-1 text-xs text-rose-600">{error}</p> : null}
         {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
       </div>
     )

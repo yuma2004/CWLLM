@@ -5,7 +5,6 @@ import {
   CACHE_TTLS_MS,
   badRequest,
   buildPaginatedResponse,
-  connectOrDisconnect,
   getCache,
   handlePrismaError,
   isNonEmptyString,
@@ -60,7 +59,7 @@ export const listCompaniesHandler = async (
     where.tags = { has: tag }
   }
   if (ownerId) {
-    where.ownerId = ownerId
+    where.ownerIds = { has: ownerId }
   }
 
   const [items, total] = await prisma.$transaction([
@@ -113,7 +112,7 @@ export const createCompanyHandler = async (
   request: FastifyRequest<{ Body: CompanyCreateBody }>,
   reply: FastifyReply
 ) => {
-  const { name, category, status, profile, ownerId } = request.body
+  const { name, category, status, profile, ownerIds } = request.body
   const tags = parseStringArray(request.body.tags)
 
   if (!isNonEmptyString(name)) {
@@ -121,6 +120,10 @@ export const createCompanyHandler = async (
   }
   if (tags === null) {
     return reply.code(400).send(badRequest('Tags must be string array'))
+  }
+
+  if (ownerIds && (!Array.isArray(ownerIds) || ownerIds.some((id) => !isNonEmptyString(id)))) {
+    return reply.code(400).send(badRequest('Invalid ownerIds'))
   }
 
   try {
@@ -132,7 +135,7 @@ export const createCompanyHandler = async (
         category,
         status,
         profile,
-        ownerId,
+        ownerIds: ownerIds ?? [],
         tags: tags ?? [],
       },
     })
@@ -161,7 +164,7 @@ export const updateCompanyHandler = async (
   request: FastifyRequest<{ Params: { id: string }; Body: CompanyUpdateBody }>,
   reply: FastifyReply
 ) => {
-  const { name, category, status, profile, ownerId } = request.body
+  const { name, category, status, profile, ownerIds } = request.body
   const tags = parseStringArray(request.body.tags)
 
   if (name !== undefined && !isNonEmptyString(name)) {
@@ -173,11 +176,8 @@ export const updateCompanyHandler = async (
   if (status !== undefined && !isNonEmptyString(status)) {
     return reply.code(400).send(badRequest('Status is required'))
   }
-  if (!isNullableString(ownerId)) {
-    return reply.code(400).send(badRequest('Invalid payload'))
-  }
-  if (typeof ownerId === 'string' && ownerId.trim() === '') {
-    return reply.code(400).send(badRequest('Invalid payload'))
+  if (ownerIds && (!Array.isArray(ownerIds) || ownerIds.some((id) => !isNonEmptyString(id)))) {
+    return reply.code(400).send(badRequest('Invalid ownerIds'))
   }
   if (tags === null) {
     return reply.code(400).send(badRequest('Tags must be string array'))
@@ -200,8 +200,8 @@ export const updateCompanyHandler = async (
   if (tags !== undefined) {
     data.tags = tags
   }
-  if (ownerId !== undefined) {
-    data.owner = connectOrDisconnect(ownerId)
+  if (ownerIds !== undefined) {
+    data.ownerIds = ownerIds
   }
 
   const existing = await prisma.company.findUnique({

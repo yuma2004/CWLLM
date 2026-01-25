@@ -21,4 +21,5 @@ export interface BaseFilters {
 export interface UserOption {
   id: string
   email: string
+  name?: string | null
 }

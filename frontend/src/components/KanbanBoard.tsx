@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core'
 import KanbanColumn from './KanbanColumn'
 import KanbanCard from './KanbanCard'
-import { Task } from '../types'
+import { Task, User } from '../types'
 import { statusLabel } from '../constants/labels'
 
 type KanbanBoardProps = {
@@ -20,7 +20,9 @@ type KanbanBoardProps = {
   selectedIds: string[]
   onToggleSelect: (taskId: string) => void
   onStatusChange: (taskId: string, newStatus: string) => Promise<void>
+  onAssigneeChange: (taskId: string, assigneeId: string) => void
   disabled?: boolean
+  userOptions: User[]
 }
 
 const columns = ['todo', 'in_progress', 'done', 'cancelled'].map((key) => ({
@@ -35,7 +37,9 @@ function KanbanBoard({
   selectedIds,
   onToggleSelect,
   onStatusChange,
+  onAssigneeChange,
   disabled,
+  userOptions,
 }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
 
@@ -110,6 +114,8 @@ function KanbanBoard({
             canWrite={canWrite}
             selectedIdSet={selectedIdSet}
             onToggleSelect={onToggleSelect}
+            onAssigneeChange={onAssigneeChange}
+            userOptions={userOptions}
             disabled={disabled}
           />
         ))}
@@ -118,9 +124,11 @@ function KanbanBoard({
         {activeTask ? (
           <KanbanCard
             task={activeTask}
-            canWrite={canWrite}
+            canWrite={false}
             isSelected={selectedIdSet.has(activeTask.id)}
             onToggleSelect={() => {}}
+            onAssigneeChange={() => {}}
+            userOptions={userOptions}
             disabled
           />
         ) : null}

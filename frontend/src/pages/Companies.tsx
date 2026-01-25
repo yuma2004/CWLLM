@@ -21,6 +21,7 @@ import type {
   CompaniesFilters,
   Company,
   CompanyOptions,
+  User,
 } from '../types'
 
 const defaultFilters: CompaniesFilters = {
@@ -28,7 +29,7 @@ const defaultFilters: CompaniesFilters = {
   category: '',
   status: '',
   tag: '',
-  ownerId: '',
+  ownerIds: [],
 }
 
 function Companies() {
@@ -50,6 +51,7 @@ function Companies() {
     name: '',
     category: '',
     status: '',
+    ownerIds: [],
     tags: '',
     profile: '',
   })
@@ -108,6 +110,7 @@ function Companies() {
       category?: string
       status?: string
       profile?: string
+      ownerIds?: string[]
       tags: string[]
     }
   >(apiRoutes.companies.base(), 'POST')
@@ -116,6 +119,16 @@ function Companies() {
     apiRoutes.companies.base(),
     'POST'
   )
+
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
+    cacheTimeMs: 30_000,
+  })
+  const userOptions = usersData?.users ?? []
+
+  const { mutate: updateCompanyOwner, isLoading: isUpdatingOwner } = useMutation<
+    { company: Company },
+    { ownerIds?: string[] }
+  >(apiRoutes.companies.base(), 'PATCH')
 
   const companies = companiesData?.items ?? []
 
@@ -198,6 +211,7 @@ function Companies() {
           name: form.name,
           category: form.category || undefined,
           status: form.status || undefined,
+          ownerIds: form.ownerIds.length > 0 ? form.ownerIds : undefined,
           profile: form.profile || undefined,
           tags,
         },
@@ -221,6 +235,7 @@ function Companies() {
         name: '',
         category: '',
         status: '',
+        ownerIds: [],
         tags: '',
         profile: '',
       })
@@ -241,6 +256,21 @@ function Companies() {
 
   const handleClearAllFilters = () => {
     clearAllFilters()
+  }
+
+  const handleOwnerChange = async (companyId: string, ownerIds: string[]) => {
+    if (!canWrite) return
+    setError('')
+    try {
+      await updateCompanyOwner(
+        { ownerIds },
+        { url: apiRoutes.companies.detail(companyId), errorMessage: '担当者の更新に失敗しました' }
+      )
+      void refetchCompanies(undefined, { ignoreCache: true })
+      showToast('担当者を更新しました', 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
+    }
   }
 
   return (
@@ -308,12 +338,13 @@ function Companies() {
         mergedCategories={mergedCategories}
         mergedStatuses={mergedStatuses}
         tagOptions={options.tags}
+        userOptions={userOptions}
       />
 
       {/* Readonly Notice */}
       {!canWrite && (
         <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-          閲覧専用ロールのため、企業の追加・編集はできません。
+          権限がないため、企業の追加・編集はできません。
         </div>
       )}
 
@@ -325,6 +356,9 @@ function Companies() {
         companies={companies}
         isLoading={isLoadingCompanies}
         canWrite={canWrite}
+        userOptions={userOptions}
+        isUpdatingOwner={isUpdatingOwner}
+        onOwnerChange={handleOwnerChange}
         onOpenCreateForm={() => setShowCreateForm(true)}
       />
 

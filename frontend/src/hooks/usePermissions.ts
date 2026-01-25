@@ -8,7 +8,7 @@ export function usePermissions() {
     const role = user?.role
     return {
       role,
-      canWrite: !!role && role !== 'readonly',
+      canWrite: role === 'admin' || role === 'employee',
       isAdmin: role === 'admin',
     }
   }, [user?.role])

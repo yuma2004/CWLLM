@@ -4,6 +4,7 @@ import { dateSchema, idParamsSchema } from './shared/schemas'
 
 export interface CreateUserBody {
   email: string
+  name: string
   password: string
   role: UserRole
 }
@@ -15,6 +16,7 @@ export interface UpdateUserRoleBody {
 export const userSchema = z.object({
   id: z.string(),
   email: z.string().email(),
+  name: z.string().nullable().optional(),
   role: z.nativeEnum(UserRole),
   createdAt: dateSchema.optional(),
 })
@@ -32,6 +34,7 @@ export const userOptionsResponseSchema = z.object({
     z.object({
       id: z.string(),
       email: z.string().email(),
+      name: z.string().nullable().optional(),
       role: z.nativeEnum(UserRole),
     })
   ),
@@ -39,6 +42,7 @@ export const userOptionsResponseSchema = z.object({
 
 export const createUserBodySchema = z.object({
   email: z.string().email(),
+  name: z.string().min(1),
   password: z.string().min(8),
   role: z.nativeEnum(UserRole),
 })

@@ -12,7 +12,7 @@ export interface CompanyCreateBody {
   status?: string
   tags?: string[]
   profile?: string
-  ownerId?: string
+  ownerIds?: string[]
 }
 
 export interface CompanyUpdateBody {
@@ -21,7 +21,7 @@ export interface CompanyUpdateBody {
   status?: string
   tags?: string[]
   profile?: string | null
-  ownerId?: string | null
+  ownerIds?: string[]
 }
 
 export interface CompanyListQuery {
@@ -69,7 +69,7 @@ export const companySchema = z
     status: z.string(),
     tags: z.array(z.string()),
     profile: z.string().nullable().optional(),
-    ownerId: z.string().nullable().optional(),
+    ownerIds: z.array(z.string()).optional(),
   })
   .merge(timestampsSchema)
   .passthrough()
@@ -109,7 +109,7 @@ export const companyCreateBodySchema = z.object({
   status: z.string().optional(),
   tags: z.array(z.string()).optional(),
   profile: z.string().optional(),
-  ownerId: z.string().optional(),
+  ownerIds: z.array(z.string().min(1)).optional(),
 })
 
 export const companyUpdateBodySchema = z.object({
@@ -118,7 +118,7 @@ export const companyUpdateBodySchema = z.object({
   status: z.string().optional(),
   tags: z.array(z.string()).optional(),
   profile: z.string().nullable().optional(),
-  ownerId: z.string().nullable().optional(),
+  ownerIds: z.array(z.string().min(1)).optional(),
 })
 
 export const contactCreateBodySchema = z.object({

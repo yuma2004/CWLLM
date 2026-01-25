@@ -6,13 +6,14 @@ import FormInput from '../ui/FormInput'
 import FormSelect from '../ui/FormSelect'
 import FormTextarea from '../ui/FormTextarea'
 import StatusBadge from '../ui/StatusBadge'
-import type { Company } from '../../types'
+import type { Company, User } from '../../types'
 
 type CompanyFormState = {
   tags: string[]
   profile: string
   category: string
   status: string
+  ownerIds: string[]
 }
 
 type CompanyOverviewTabProps = {
@@ -25,6 +26,7 @@ type CompanyOverviewTabProps = {
   tagOptions: string[]
   mergedCategories: string[]
   mergedStatuses: string[]
+  userOptions: User[]
   companyError: string
   isEditing: boolean
   isSaving: boolean
@@ -44,6 +46,7 @@ function CompanyOverviewTab({
   tagOptions,
   mergedCategories,
   mergedStatuses,
+  userOptions,
   companyError,
   isEditing,
   isSaving,
@@ -52,6 +55,19 @@ function CompanyOverviewTab({
   onSave,
   contactsSection,
 }: CompanyOverviewTabProps) {
+  const getOwnerLabels = (ownerIds?: string[]) => {
+    if (!ownerIds || ownerIds.length === 0) return '-'
+    return (
+      ownerIds
+        .map((ownerId) => {
+          const owner = userOptions.find((user) => user.id === ownerId)
+          return owner?.name || owner?.email || ownerId
+        })
+        .filter(Boolean)
+        .join(' / ') || '-'
+    )
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
       {/* Basic Info */}
@@ -72,7 +88,7 @@ function CompanyOverviewTab({
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">区分</div>
+                <div className="mb-1 block text-xs font-medium text-slate-600">カテゴリ</div>
                 <FormSelect
                   value={companyForm.category}
                   onChange={(e) =>
@@ -80,7 +96,7 @@ function CompanyOverviewTab({
                   }
                   className="text-sm"
                 >
-                  <option value="">区分を選択</option>
+                  <option value="">カテゴリを選択</option>
                   {mergedCategories.map((category) => (
                     <option key={category} value={category}>
                       {category}
@@ -107,9 +123,23 @@ function CompanyOverviewTab({
               </div>
               <div className="sm:col-span-2">
                 <div className="mb-1 block text-xs font-medium text-slate-600">担当者</div>
-                <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  {company.ownerId || '-'}
-                </div>
+                <FormSelect
+                  multiple
+                  value={companyForm.ownerIds}
+                  onChange={(e) =>
+                    setCompanyForm((prev) => ({
+                      ...prev,
+                      ownerIds: Array.from(e.target.selectedOptions, (option) => option.value),
+                    }))
+                  }
+                  className="text-sm"
+                >
+                  {userOptions.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name || user.email}
+                    </option>
+                  ))}
+                </FormSelect>
               </div>
             </div>
 
@@ -230,12 +260,14 @@ function CompanyOverviewTab({
             <div className="rounded-lg bg-slate-50 px-4 py-3">
               <dt className="text-slate-500">ステータス</dt>
               <dd className="mt-2">
-                <StatusBadge status={company.status} size="sm" />
+                <StatusBadge status={company.status} kind="company" size="sm" />
               </dd>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
               <dt className="text-slate-500">担当者</dt>
-              <dd className="font-medium text-slate-900">{company.ownerId || '-'}</dd>
+              <dd className="font-medium text-slate-900">
+                {getOwnerLabels(company.ownerIds)}
+              </dd>
             </div>
             <div className="rounded-lg bg-slate-50 px-4 py-3">
               <dt className="text-slate-500">タグ</dt>

@@ -12,9 +12,7 @@ datasource db {
 
 enum UserRole {
   admin
-  sales
-  ops
-  readonly
+  employee
 }
 
 enum TaskStatus {
@@ -64,12 +62,12 @@ enum JobType {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
+  name      String?
   password  String
-  role      UserRole @default(readonly)
+  role      UserRole @default(employee)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  companies  Company[]
   projects   Project[]
   wholesales Wholesale[]
   tasks      Task[]
@@ -86,11 +84,10 @@ model Company {
   status         String   @default("active")
   tags           String[]
   profile        String?
-  ownerId        String?
+  ownerIds       String[] @default([])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  owner     User?             @relation(fields: [ownerId], references: [id])
   contacts  Contact[]
   projects  Project[]
   wholesales Wholesale[]
@@ -263,16 +260,6 @@ model Task {
   @@index([dueDate, status])
   @@index([assigneeId])
   @@map("tasks")
-}
-
-model AppSetting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("app_settings")
 }
 
 model SummaryDraft {

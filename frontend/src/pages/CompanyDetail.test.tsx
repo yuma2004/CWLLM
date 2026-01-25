@@ -83,6 +83,9 @@ describe('CompanyDetail page', () => {
       if (url === `/api/companies/${companyId}/chatwork-rooms`) {
         return buildResponse({ rooms: [] })
       }
+      if (url === '/api/users/options') {
+        return buildResponse({ users: [] })
+      }
       if (url.startsWith(`/api/companies/${companyId}/tasks`)) {
         return buildResponse({
           items: [],

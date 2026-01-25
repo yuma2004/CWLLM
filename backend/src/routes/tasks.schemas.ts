@@ -65,6 +65,7 @@ export const taskSchema = z
       .object({
         id: z.string(),
         email: z.string(),
+        name: z.string().nullable().optional(),
       })
       .nullable()
       .optional(),
@@ -118,5 +119,4 @@ export const taskListResponseSchema = z
   })
   .passthrough()
 export const taskBulkUpdateResponseSchema = z.object({ updated: z.number() }).passthrough()
-
 

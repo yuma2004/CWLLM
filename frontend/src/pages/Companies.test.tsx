@@ -35,11 +35,12 @@ describe('Companies page', () => {
   it('renders company list from API', async () => {
     queueResponse({
       items: [
-        { id: 'c1', name: 'Acme', status: 'active', tags: [], ownerId: null },
+        { id: 'c1', name: 'Acme', status: 'active', tags: [], ownerIds: [] },
       ],
       pagination: { page: 1, pageSize: 20, total: 1 },
     })
     queueResponse({ categories: [], statuses: [], tags: [] })
+    queueResponse({ users: [] })
 
     render(
       <MemoryRouter>
@@ -60,6 +61,7 @@ describe('Companies page', () => {
       statuses: ['active'],
       tags: ['VIP'],
     })
+    queueResponse({ users: [] })
     queueResponse({
       items: [],
       pagination: { page: 1, pageSize: 20, total: 0 },

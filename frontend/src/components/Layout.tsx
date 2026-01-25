@@ -107,28 +107,30 @@ function Layout({ children }: LayoutProps) {
             ))}
           </nav>
 
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="px-3 text-[11px] font-medium text-slate-400 uppercase mb-2">設定</p>
-            <nav className="space-y-0.5" aria-label="設定">
-              {settingsItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2',
-                      isActive
-                        ? 'bg-sky-50 text-slate-900 border-sky-600 shadow-sm'
-                        : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-slate-50'
-                    )
-                  }
-                >
-                  {item.icon}
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          </div>
+          {settingsItems.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-slate-100">
+              <p className="px-3 text-[11px] font-medium text-slate-400 uppercase mb-2">設定</p>
+              <nav className="space-y-0.5" aria-label="設定">
+                {settingsItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2',
+                        isActive
+                          ? 'bg-sky-50 text-slate-900 border-sky-600 shadow-sm'
+                          : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-slate-50'
+                      )
+                    }
+                  >
+                    {item.icon}
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          )}
         </div>
       </aside>
 

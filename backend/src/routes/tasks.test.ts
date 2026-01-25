@@ -57,8 +57,8 @@ describe('Task endpoints', () => {
   })
 
   it('creates task and lists by company and assignee', async () => {
-    const user = await createUser(`task-owner-${Date.now()}@example.com`, UserRole.sales)
-    const token = fastify.jwt.sign({ userId: user.id, role: 'sales' })
+    const user = await createUser(`task-owner-${Date.now()}@example.com`, UserRole.employee)
+    const token = fastify.jwt.sign({ userId: user.id, role: 'employee' })
 
     const company = await prisma.company.create({
       data: {
@@ -127,8 +127,8 @@ describe('Task endpoints', () => {
     expect(updated.status).toBe('done')
   })
 
-  it('rejects readonly create', async () => {
-    const token = fastify.jwt.sign({ userId: 'readonly', role: 'readonly' })
+  it('rejects invalid role create', async () => {
+    const token = fastify.jwt.sign({ userId: 'invalid', role: 'invalid-role' })
     const company = await prisma.company.create({
       data: {
         name: 'Task Block',
@@ -151,12 +151,12 @@ describe('Task endpoints', () => {
       },
     })
 
-    expect(response.statusCode).toBe(403)
+    expect(response.statusCode).toBe(401)
   })
 
   it('filters my tasks by targetType', async () => {
-    const user = await createUser(`task-filter-${Date.now()}@example.com`, UserRole.sales)
-    const token = fastify.jwt.sign({ userId: user.id, role: 'sales' })
+    const user = await createUser(`task-filter-${Date.now()}@example.com`, UserRole.employee)
+    const token = fastify.jwt.sign({ userId: user.id, role: 'employee' })
 
     const company = await prisma.company.create({
       data: {

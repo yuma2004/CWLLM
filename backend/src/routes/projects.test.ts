@@ -60,7 +60,7 @@ describe('Project and wholesale endpoints', () => {
   })
 
   it('creates project and wholesale and lists relations', async () => {
-    const user = await createUser(`proj-owner-${Date.now()}@example.com`, UserRole.sales)
+    const user = await createUser(`proj-owner-${Date.now()}@example.com`, UserRole.employee)
     const token = fastify.jwt.sign({ userId: user.id, role: 'admin' })
 
     const advertiser = await prisma.company.create({
@@ -159,12 +159,12 @@ describe('Project and wholesale endpoints', () => {
     expect(response.statusCode).toBe(404)
   })
 
-  it('rejects readonly project create', async () => {
-    const token = fastify.jwt.sign({ userId: 'readonly', role: 'readonly' })
+  it('rejects invalid role project create', async () => {
+    const token = fastify.jwt.sign({ userId: 'invalid', role: 'invalid-role' })
     const company = await prisma.company.create({
       data: {
         name: 'Readonly Co',
-        normalizedName: 'readonlyco',
+        normalizedName: 'invalidco',
         status: 'active',
         tags: [],
       },
@@ -182,6 +182,6 @@ describe('Project and wholesale endpoints', () => {
       },
     })
 
-    expect(response.statusCode).toBe(403)
+    expect(response.statusCode).toBe(401)
   })
 })

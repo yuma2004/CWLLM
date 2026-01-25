@@ -10,7 +10,7 @@ async function main() {
   // 初期adminユーザーを作成（既に存在する場合はスキップ）
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com'
   const adminPassword = process.env.ADMIN_PASSWORD
-  const adminRole = (process.env.ADMIN_ROLE || 'admin') as 'admin' | 'sales' | 'ops' | 'readonly'
+  const adminRole = (process.env.ADMIN_ROLE || 'admin') as 'admin' | 'employee'
 
   console.log('Admin email:', adminEmail)
   console.log('Admin role:', adminRole)
@@ -48,11 +48,7 @@ async function main() {
 
   // テスト用ユーザー（開発環境のみ）
   if (process.env.NODE_ENV !== 'production') {
-    const testUsers = [
-      { email: 'sales@example.com', role: 'sales' as const },
-      { email: 'ops@example.com', role: 'ops' as const },
-      { email: 'readonly@example.com', role: 'readonly' as const },
-    ]
+    const testUsers = [{ email: 'employee@example.com', role: 'employee' as const }]
 
     for (const testUser of testUsers) {
       const existing = await prisma.user.findUnique({

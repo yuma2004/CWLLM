@@ -44,9 +44,16 @@ export const COMPANY_CATEGORY_DEFAULT_OPTIONS = ['広告主', 'メディア', '�
 
 // 企業ステータス（標準候補）
 export const COMPANY_STATUS_DEFAULT_OPTIONS = ['商談中', '稼働中', '停止', '休眠', 'active'] as const
+export const COMPANY_STATUS_LABELS: Record<string, string> = {
+  商談中: '商談中',
+  稼働中: '稼働中',
+  停止: '停止',
+  休眠: '休眠',
+  active: 'active',
+}
 
 // 共通ラベル
-export type StatusKind = 'task' | 'project' | 'wholesale'
+export type StatusKind = 'task' | 'project' | 'wholesale' | 'company'
 
 const labelFrom = (labels: Record<string, string>, value?: string, fallback = '') =>
   labels[value ?? ''] ?? (value ?? fallback)
@@ -55,6 +62,7 @@ const STATUS_LABELS: Record<StatusKind, Record<string, string>> = {
   task: TASK_STATUS_LABELS,
   project: PROJECT_STATUS_LABELS,
   wholesale: WHOLESALE_STATUS_LABELS,
+  company: COMPANY_STATUS_LABELS,
 }
 
 export const statusLabel = (kind: StatusKind, value?: string, fallback = '') =>

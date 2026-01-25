@@ -50,7 +50,7 @@ describe('ProtectedRoute', () => {
     mockUseAuth.mockReturnValue(
       buildAuthState({
         isAuthenticated: true,
-        user: { id: '1', email: 'readonly@example.com', role: 'readonly' },
+        user: { id: '1', email: 'employee@example.com', role: 'employee' },
       })
     )
 

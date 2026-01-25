@@ -102,8 +102,8 @@ describe('RBAC middleware', () => {
     expect(response.statusCode).toBe(200)
   })
 
-  it('should deny readonly access to admin-only route', async () => {
-    const readonlyToken = fastify.jwt.sign({ userId: '123', role: 'readonly' })
+  it('should deny employee access to admin-only route', async () => {
+    const employeeToken = fastify.jwt.sign({ userId: '123', role: 'employee' })
 
     fastify.get('/admin', { preHandler: requireAdmin() }, async () => {
       return { message: 'ok' }
@@ -113,15 +113,15 @@ describe('RBAC middleware', () => {
       method: 'GET',
       url: '/admin',
       headers: {
-        authorization: `Bearer ${readonlyToken}`,
+        authorization: `Bearer ${employeeToken}`,
       },
     })
 
     expect(response.statusCode).toBe(403)
   })
 
-  it('should allow write access for sales role', async () => {
-    const salesToken = fastify.jwt.sign({ userId: '123', role: 'sales' })
+  it('should allow write access for employee role', async () => {
+    const employeeToken = fastify.jwt.sign({ userId: '123', role: 'employee' })
 
     fastify.post('/write', { preHandler: requireWriteAccess() }, async () => {
       return { message: 'ok' }
@@ -131,28 +131,10 @@ describe('RBAC middleware', () => {
       method: 'POST',
       url: '/write',
       headers: {
-        authorization: `Bearer ${salesToken}`,
+        authorization: `Bearer ${employeeToken}`,
       },
     })
 
     expect(response.statusCode).toBe(200)
-  })
-
-  it('should deny write access for readonly role', async () => {
-    const readonlyToken = fastify.jwt.sign({ userId: '123', role: 'readonly' })
-
-    fastify.post('/write', { preHandler: requireWriteAccess() }, async () => {
-      return { message: 'ok' }
-    })
-
-    const response = await fastify.inject({
-      method: 'POST',
-      url: '/write',
-      headers: {
-        authorization: `Bearer ${readonlyToken}`,
-      },
-    })
-
-    expect(response.statusCode).toBe(403)
   })
 })

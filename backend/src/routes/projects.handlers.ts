@@ -287,7 +287,7 @@ export const listProjectWholesalesHandler = async (
     orderBy: { createdAt: 'desc' },
     include: {
       company: { select: { id: true, name: true } },
-      owner: { select: { id: true, email: true } },
+      owner: { select: { id: true, email: true, name: true } },
     },
   })
 

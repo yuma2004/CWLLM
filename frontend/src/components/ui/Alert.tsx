@@ -77,7 +77,7 @@ const Alert = ({ variant, message, onClose, className, children }: AlertProps) =
             styles.button,
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/40'
           )}
-          aria-label="Dismiss alert"
+          aria-label="アラートを閉じる"
         >
           <CloseIcon className="size-4" />
         </button>

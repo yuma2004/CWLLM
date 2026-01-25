@@ -159,21 +159,13 @@ describe('Summary endpoints', () => {
     expect(candidates.length).toBeGreaterThan(0)
   })
 
-  it('returns 403 for readonly user when requesting draft', async () => {
-    const readonlyUser = await prisma.user.create({
-      data: {
-        email: `summary-readonly-${Date.now()}@example.com`,
-        password: 'password',
-        role: 'readonly',
-      },
-    })
-
-    const token = fastify.jwt.sign({ userId: readonlyUser.id, role: 'readonly' })
+  it('returns 401 for invalid role when requesting draft', async () => {
+    const token = fastify.jwt.sign({ userId: 'invalid', role: 'invalid-role' })
 
     const company = await prisma.company.create({
       data: {
-        name: 'Readonly Co',
-        normalizedName: 'readonlyco',
+        name: 'Invalid Co',
+        normalizedName: 'invalidco',
         status: 'active',
         tags: [],
       },
@@ -191,6 +183,6 @@ describe('Summary endpoints', () => {
       },
     })
 
-    expect(response.statusCode).toBe(403)
+    expect(response.statusCode).toBe(401)
   })
 })

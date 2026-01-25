@@ -16,6 +16,7 @@ export interface Task {
   assignee?: {
     id: string
     email: string
+    name?: string | null
   } | null
   createdAt?: string
   updatedAt?: string
@@ -55,12 +56,8 @@ export interface Company {
   category?: string | null
   status: string
   tags: string[]
-  ownerId?: string | null
+  ownerIds?: string[]
   profile?: string | null
-  owner?: {
-    id: string
-    email: string
-  } | null
   createdAt?: string
   updatedAt?: string
 }
@@ -83,6 +80,7 @@ export interface Project {
   owner?: {
     id: string
     email: string
+    name?: string | null
   } | null
   createdAt?: string
   updatedAt?: string
@@ -92,6 +90,7 @@ export interface Project {
 export interface User {
   id: string
   email: string
+  name?: string | null
   role?: string
 }
 

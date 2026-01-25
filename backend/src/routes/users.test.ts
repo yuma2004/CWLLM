@@ -54,7 +54,7 @@ describe('User endpoints', () => {
       data: {
         email: 'duplicate@example.com',
         password: 'password',
-        role: 'sales',
+        role: 'employee',
       },
     })
 
@@ -66,8 +66,9 @@ describe('User endpoints', () => {
       },
       payload: {
         email: 'duplicate@example.com',
+        name: 'Duplicate User',
         password: 'password123',
-        role: 'sales',
+        role: 'employee',
       },
     })
 
@@ -82,7 +83,7 @@ describe('User endpoints', () => {
         authorization: `Bearer ${adminToken}`,
       },
       payload: {
-        role: 'sales',
+        role: 'employee',
       },
     })
 
@@ -108,8 +109,9 @@ describe('User endpoints', () => {
       },
       payload: {
         email: 'new-user@example.com',
+        name: 'New User',
         password: 'password123',
-        role: 'sales',
+        role: 'employee',
       },
     })
 
@@ -142,7 +144,7 @@ describe('User endpoints', () => {
         authorization: `Bearer ${adminToken}`,
       },
       payload: {
-        role: 'ops',
+        role: 'admin',
       },
     })
 
@@ -159,6 +161,6 @@ describe('User endpoints', () => {
       (user: { email: string }) => user.email === 'new-user@example.com'
     )
 
-    expect(updatedUser?.role).toBe('ops')
+    expect(updatedUser?.role).toBe('admin')
   })
 })

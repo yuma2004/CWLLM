@@ -12,19 +12,18 @@ import { toErrorMessage } from '../utils/errorState'
 
 type CreateUserPayload = {
   email: string
+  name: string
   password: string
   role: string
 }
 
 const ROLE_OPTIONS = [
   { value: 'admin', label: '管理者' },
-  { value: 'sales', label: '営業' },
-  { value: 'ops', label: 'オペレーション' },
-  { value: 'readonly', label: '閲覧のみ' },
+  { value: 'employee', label: '一般社員' },
 ] as const
 
 function AccountCreate() {
-  const [form, setForm] = useState({ email: '', password: '', role: 'readonly' })
+  const [form, setForm] = useState({ email: '', name: '', password: '', role: 'employee' })
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [error, setError] = useState('')
   const { toast, showToast, clearToast } = useToast()
@@ -58,6 +57,10 @@ function AccountCreate() {
       setError('メールアドレスを入力してください')
       return
     }
+    if (!form.name.trim()) {
+      setError('名前を入力してください')
+      return
+    }
     if (!form.password) {
       setError('パスワードを入力してください')
       return
@@ -75,13 +78,14 @@ function AccountCreate() {
       await createUser(
         {
           email: form.email.trim(),
+          name: form.name.trim(),
           password: form.password,
           role: form.role,
         },
         { errorMessage: 'アカウントの作成に失敗しました' }
       )
       showToast('アカウントを作成しました', 'success')
-      setForm((prev) => ({ ...prev, email: '', password: '' }))
+      setForm((prev) => ({ ...prev, email: '', name: '', password: '' }))
       setPasswordConfirm('')
     } catch (err) {
       setError(toErrorMessage(err, 'アカウントの作成に失敗しました'))
@@ -108,6 +112,16 @@ function AccountCreate() {
               value={form.email}
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
               placeholder="user@example.com"
+              disabled={isLoading}
+              required
+            />
+            <FormInput
+              label="名前（必須）"
+              type="text"
+              autoComplete="name"
+              value={form.name}
+              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              placeholder="山田 太郎"
               disabled={isLoading}
               required
             />
@@ -157,7 +171,7 @@ function AccountCreate() {
             value={form.role}
             onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
             disabled={isLoading}
-            hint="管理者は全機能、営業/オペは担当範囲、閲覧は参照のみ。"
+            hint="管理者は全機能、一般社員は設定以外の操作が可能です。"
           >
             {ROLE_OPTIONS.map((role) => (
               <option key={role.value} value={role.value}>

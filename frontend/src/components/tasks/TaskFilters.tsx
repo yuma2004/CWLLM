@@ -35,42 +35,54 @@ export function TaskFilters({
     <Card className="p-5">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid gap-3 md:grid-cols-5">
-        <FormSelect
-          ref={searchInputRef}
-          value={filters.status}
-          onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
-        >
-          <option value="">ステータス</option>
-          {TASK_STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status}>
-              {statusLabel('task', status)}
-            </option>
-          ))}
-        </FormSelect>
-        <FormSelect
-          value={filters.targetType}
-          onChange={(e) => onFiltersChange({ ...filters, targetType: e.target.value })}
-        >
-          <option value="">対象</option>
-          {TARGET_TYPE_OPTIONS.map((type) => (
-            <option key={type} value={type}>
-              {targetTypeLabel(type)}
-            </option>
-          ))}
-        </FormSelect>
-        <DateInput
-          value={filters.dueFrom}
-          onChange={(e) => onFiltersChange({ ...filters, dueFrom: e.target.value })}
-          placeholder="期限(開始)"
-        />
-        <DateInput
-          value={filters.dueTo}
-          onChange={(e) => onFiltersChange({ ...filters, dueTo: e.target.value })}
-          placeholder="期限(終了)"
-        />
-        <Button type="submit" className="w-full md:w-auto">
-          検索
-        </Button>
+          <FormSelect
+            ref={searchInputRef}
+            name="status"
+            aria-label="ステータスで絞り込み"
+            autoComplete="off"
+            value={filters.status}
+            onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
+          >
+            <option value="">ステータス</option>
+            {TASK_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {statusLabel('task', status)}
+              </option>
+            ))}
+          </FormSelect>
+          <FormSelect
+            name="targetType"
+            aria-label="対象で絞り込み"
+            autoComplete="off"
+            value={filters.targetType}
+            onChange={(e) => onFiltersChange({ ...filters, targetType: e.target.value })}
+          >
+            <option value="">対象</option>
+            {TARGET_TYPE_OPTIONS.map((type) => (
+              <option key={type} value={type}>
+                {targetTypeLabel(type)}
+              </option>
+            ))}
+          </FormSelect>
+          <DateInput
+            name="dueFrom"
+            aria-label="期限（開始）"
+            autoComplete="off"
+            value={filters.dueFrom}
+            onChange={(e) => onFiltersChange({ ...filters, dueFrom: e.target.value })}
+            placeholder="期限(開始)…"
+          />
+          <DateInput
+            name="dueTo"
+            aria-label="期限（終了）"
+            autoComplete="off"
+            value={filters.dueTo}
+            onChange={(e) => onFiltersChange({ ...filters, dueTo: e.target.value })}
+            placeholder="期限(終了)…"
+          />
+          <Button type="submit" className="w-full md:w-auto">
+            検索
+          </Button>
         </div>
 
         {/* Active Filters */}

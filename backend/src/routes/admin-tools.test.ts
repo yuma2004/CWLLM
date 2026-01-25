@@ -5,7 +5,6 @@ import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { PrismaClient } from '@prisma/client'
-import { settingRoutes } from './settings'
 import { dashboardRoutes } from './dashboard'
 
 const prisma = new PrismaClient()
@@ -23,7 +22,6 @@ const buildTestServer = async () => {
       signed: false,
     },
   })
-  await app.register(settingRoutes, { prefix: '/api' })
   await app.register(dashboardRoutes, { prefix: '/api' })
   return app
 }
@@ -38,41 +36,12 @@ describe('Admin tools endpoints', () => {
   afterEach(async () => {
     await prisma.task.deleteMany()
     await prisma.summary.deleteMany()
-    await prisma.appSetting.deleteMany()
     await prisma.company.deleteMany()
     await fastify.close()
   })
 
-  it('updates settings and returns dashboard data', async () => {
+  it('returns dashboard data', async () => {
     const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
-
-    const settingsResponse = await fastify.inject({
-      method: 'GET',
-      url: '/api/settings',
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-    })
-
-    expect(settingsResponse.statusCode).toBe(200)
-    const settingsBody = JSON.parse(settingsResponse.body)
-    expect(settingsBody.settings.summaryDefaultPeriodDays).toBe(30)
-
-    const patchResponse = await fastify.inject({
-      method: 'PATCH',
-      url: '/api/settings',
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-      payload: {
-        summaryDefaultPeriodDays: 14,
-        tagOptions: ['vip', 'focus'],
-      },
-    })
-
-    expect(patchResponse.statusCode).toBe(200)
-    const patchBody = JSON.parse(patchResponse.body)
-    expect(patchBody.settings.summaryDefaultPeriodDays).toBe(14)
 
     const company = await prisma.company.create({
       data: {

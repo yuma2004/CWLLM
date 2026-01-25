@@ -18,6 +18,8 @@ type SearchSelectProps<T extends BaseOption> = {
   disabled?: boolean
   name?: string
   autoComplete?: string
+  error?: string
+  inputRef?: React.Ref<HTMLInputElement>
   errorMessageDetail?: string
   errorMessageSearch?: string
 }
@@ -29,10 +31,12 @@ function SearchSelect<T extends BaseOption>({
   detailEndpoint,
   responseKey,
   label,
-  placeholder = '検索',
+  placeholder = '検索…',
   disabled = false,
   name,
   autoComplete = 'off',
+  error,
+  inputRef,
   errorMessageDetail = '取得に失敗しました',
   errorMessageSearch = '検索に失敗しました',
 }: SearchSelectProps<T>) {
@@ -106,6 +110,7 @@ function SearchSelect<T extends BaseOption>({
         </label>
       )}
       <FormInput
+        ref={inputRef}
         id={inputId}
         name={name}
         type="search"
@@ -120,6 +125,7 @@ function SearchSelect<T extends BaseOption>({
         placeholder={placeholder}
         disabled={disabled}
         autoComplete={autoComplete}
+        error={error}
         aria-label={label ? undefined : placeholder}
       />
       {value && (
@@ -176,10 +182,12 @@ type SimpleSearchSelectProps<T extends BaseOption> = {
   disabled?: boolean
   name?: string
   autoComplete?: string
+  error?: string
+  inputRef?: React.Ref<HTMLInputElement>
 }
 
 export const CompanySearchSelect = ({
-  placeholder = '企業名で検索',
+  placeholder = '企業名で検索…',
   ...props
 }: SimpleSearchSelectProps<CompanyOption>) => (
   <SearchSelect
@@ -193,7 +201,7 @@ export const CompanySearchSelect = ({
 )
 
 export const ProjectSearchSelect = ({
-  placeholder = '案件名で検索',
+  placeholder = '案件名で検索…',
   ...props
 }: SimpleSearchSelectProps<ProjectOption>) => (
   <SearchSelect

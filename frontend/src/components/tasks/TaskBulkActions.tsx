@@ -37,13 +37,20 @@ export function TaskBulkActions({
             type="checkbox"
             checked={allSelected}
             onChange={onToggleSelectAll}
-            className="rounded border-slate-300"
+            name="selectAll"
+            className="rounded border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
             disabled={isBulkUpdating}
           />
           全選択
         </label>
         <span>{selectedIds.length}件選択中</span>
-        <FormSelect value={bulkStatus} onChange={(e) => onBulkStatusChange(e.target.value)}>
+        <FormSelect
+          name="bulkStatus"
+          aria-label="ステータスを一括変更"
+          autoComplete="off"
+          value={bulkStatus}
+          onChange={(e) => onBulkStatusChange(e.target.value)}
+        >
           <option value="">ステータス</option>
           {TASK_STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
@@ -52,9 +59,12 @@ export function TaskBulkActions({
           ))}
         </FormSelect>
         <DateInput
+          name="bulkDueDate"
+          aria-label="期限を一括変更"
+          autoComplete="off"
           value={bulkDueDate}
           onChange={(e) => onBulkDueDateChange(e.target.value)}
-          placeholder="期限"
+          placeholder="期限…"
           disabled={clearBulkDueDate}
         />
         <label className="flex items-center gap-2">
@@ -62,7 +72,8 @@ export function TaskBulkActions({
             type="checkbox"
             checked={clearBulkDueDate}
             onChange={(e) => onClearBulkDueDateChange(e.target.checked)}
-            className="rounded border-slate-300"
+            name="clearBulkDueDate"
+            className="rounded border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
           />
           期限をクリア
         </label>
@@ -70,7 +81,7 @@ export function TaskBulkActions({
           type="button"
           onClick={onBulkUpdate}
           disabled={isBulkUpdating || selectedIds.length === 0}
-          className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white disabled:bg-slate-300"
+          className="rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/30 disabled:bg-slate-300"
         >
           一括更新
         </button>

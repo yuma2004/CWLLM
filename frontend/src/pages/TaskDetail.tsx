@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -19,7 +19,7 @@ import {
 } from '../constants/labels'
 import { formatDate, formatDateInput } from '../utils/date'
 import { getTargetPath } from '../utils/routes'
-import { Task } from '../types'
+import { Task, User } from '../types'
 
 function TaskDetail() {
   const { id } = useParams<{ id: string }>()
@@ -35,6 +35,7 @@ function TaskDetail() {
     description: '',
     status: '',
     dueDate: '',
+    assigneeId: '',
   })
 
   const {
@@ -52,6 +53,7 @@ function TaskDetail() {
           description: data.task.description || '',
           status: data.task.status,
           dueDate: data.task.dueDate ? formatDateInput(data.task.dueDate) : '',
+          assigneeId: data.task.assigneeId || '',
         })
       }
     },
@@ -60,9 +62,14 @@ function TaskDetail() {
 
   const task = taskData?.task ?? null
 
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
+    cacheTimeMs: 30_000,
+  })
+  const userOptions = usersData?.users ?? []
+
   const { mutate: updateTask, isLoading: isUpdating } = useMutation<
     { task: Task },
-    { title?: string; description?: string; status?: string; dueDate?: string | null }
+    { title?: string; description?: string; status?: string; dueDate?: string | null; assigneeId?: string | null }
   >(apiRoutes.tasks.base(), 'PATCH')
 
   const { mutate: deleteTask, isLoading: isDeleting } = useMutation<void, void>(
@@ -84,6 +91,7 @@ function TaskDetail() {
           description: form.description.trim() || undefined,
           status: form.status,
           dueDate: form.dueDate || null,
+          assigneeId: form.assigneeId || null,
         },
         { url: apiRoutes.tasks.detail(id), errorMessage: 'タスクの更新に失敗しました' }
       )
@@ -117,6 +125,7 @@ function TaskDetail() {
         description: task.description || '',
         status: task.status,
         dueDate: task.dueDate ? formatDateInput(task.dueDate) : '',
+        assigneeId: task.assigneeId || '',
       })
     }
     setIsEditing(false)
@@ -233,6 +242,20 @@ function TaskDetail() {
                 </FormSelect>
               </div>
               <div>
+                <div className="mb-1 block text-sm font-medium text-slate-700">担当者</div>
+                <FormSelect
+                  value={form.assigneeId}
+                  onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}
+                >
+                  <option value="">未割当</option>
+                  {userOptions.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name || user.email}
+                    </option>
+                  ))}
+                </FormSelect>
+              </div>
+              <div>
                 <div className="mb-1 block text-sm font-medium text-slate-700">期限</div>
                 <DateInput
                   value={form.dueDate}
@@ -285,6 +308,14 @@ function TaskDetail() {
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase text-slate-500">
+                  担当者
+                </dt>
+                <dd className="mt-1 text-slate-700">
+                  {task.assignee?.name || task.assignee?.email || task.assigneeId || '-'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase text-slate-500">
                   期限
                 </dt>
                 <dd className="mt-1 text-slate-700">{formatDate(task.dueDate)}</dd>
@@ -313,7 +344,7 @@ function TaskDetail() {
       {/* Readonly Notice */}
       {!canWrite && (
         <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-          閲覧専用ロールのため、タスクの編集・削除はできません。
+          権限がないため、タスクの編集・削除はできません。
         </div>
       )}
       {toast && (

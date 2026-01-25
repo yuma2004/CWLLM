@@ -185,7 +185,7 @@ function CompanyContactsSection({
             description={
               canWrite
                 ? '「追加」から担当者情報を登録してください。'
-                : '担当者情報は閲覧のみです。'
+                : '担当者情報は編集できません。'
             }
             action={
               canWrite ? (

@@ -17,7 +17,7 @@ import { useFetch, useMutation } from '../hooks/useApi'
 import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
 import { cn } from '../lib/cn'
-import { ApiListResponse, Company, Contact, MessageItem } from '../types'
+import { ApiListResponse, Company, Contact, MessageItem, User } from '../types'
 import { toErrorMessage } from '../utils/errorState'
 import { getAvatarColor, getInitials } from '../utils/string'
 import {
@@ -69,11 +69,13 @@ function CompanyDetail() {
     profile: string
     category: string
     status: string
+    ownerIds: string[]
   }>({
     tags: [],
     profile: '',
     category: '',
     status: '',
+    ownerIds: [],
   })
   const [tagInput, setTagInput] = useState('')
   const { toast, showToast, clearToast } = useToast()
@@ -100,6 +102,7 @@ function CompanyDetail() {
         profile: data.company.profile || '',
         category: data.company.category || '',
         status: data.company.status || '',
+        ownerIds: data.company.ownerIds ?? [],
       })
     },
   })
@@ -131,7 +134,6 @@ function CompanyDetail() {
     () => [
       { id: 'overview', label: '概要' },
       { id: 'timeline', label: 'タイムライン', count: messagePagination.total },
-      { id: 'tasks', label: 'タスク' },
     ],
     [messagePagination.total]
   )
@@ -192,6 +194,11 @@ function CompanyDetail() {
     }
   )
 
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
+    cacheTimeMs: 30_000,
+  })
+  const userOptions = usersData?.users ?? []
+
 
   const tagOptions = companyOptionsData?.tags ?? []
   const labelOptions = labelOptionsData?.items?.map((item) => item.label) ?? []
@@ -238,7 +245,13 @@ function CompanyDetail() {
 
   const { mutate: updateCompany, isLoading: isUpdatingCompany } = useMutation<
     { company: Company },
-    { tags?: string[]; profile?: string | null; category?: string | null; status?: string }
+    {
+      tags?: string[]
+      profile?: string | null
+      category?: string | null
+      status?: string
+      ownerIds?: string[]
+    }
   >(id ? apiRoutes.companies.detail(id) : '', 'PATCH')
 
   const { mutate: addLabel } = useMutation<unknown, { label: string }>(
@@ -257,6 +270,7 @@ function CompanyDetail() {
       hasOpenedContactForm.current = true
     }
   }, [canWrite, contacts.length])
+
 
   useEffect(() => {
     setMessagePage(1)
@@ -495,6 +509,7 @@ function CompanyDetail() {
       profile: source.profile || '',
       category: source.category || '',
       status: source.status || '',
+      ownerIds: source.ownerIds ?? [],
     })
     setTagInput('')
   }
@@ -510,6 +525,7 @@ function CompanyDetail() {
           profile: companyForm.profile.trim() || null,
           category: companyForm.category.trim() || null,
           status: companyForm.status.trim() || undefined,
+          ownerIds: companyForm.ownerIds,
         },
         { errorMessage: NETWORK_ERROR_MESSAGE }
       )
@@ -630,13 +646,13 @@ function CompanyDetail() {
             <p className="text-xs uppercase  text-slate-400">企業</p>
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold text-slate-900">{company.name}</h2>
-              <StatusBadge status={company.status} />
+              <StatusBadge status={company.status} kind="company" />
             </div>
           </div>
         </div>
         <Link
           to="/companies"
-          className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm  hover:bg-slate-50"
+          className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm hover:bg-slate-50"
         >
           <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -645,94 +661,100 @@ function CompanyDetail() {
         </Link>
       </div>
 
-      {/* Main Tabs Container */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <Tabs tabs={tabs} defaultTab="overview" syncWithHash>
-          {(activeTab) => (
-            <>
-              {/* Overview Tab */}
-              {activeTab === 'overview' && (
-                <CompanyOverviewTab
-                  company={company}
-                  canWrite={canWrite}
-                  companyForm={companyForm}
-                  setCompanyForm={setCompanyForm}
-                  tagInput={tagInput}
-                  setTagInput={setTagInput}
-                  tagOptions={tagOptions}
-                  mergedCategories={mergedCategories}
-                  mergedStatuses={mergedStatuses}
-                  companyError={companyError}
-                  isEditing={isEditingOverview}
-                  isSaving={isUpdatingCompany}
-                  onStartEdit={() => {
-                    resetCompanyForm()
-                    setIsEditingOverview(true)
-                  }}
-                  onCancelEdit={handleCancelCompanyEdit}
-                  onSave={handleUpdateCompany}
-                  contactsSection={
-                    <CompanyContactsSection
-                      contacts={contacts}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          {/* Main Tabs Container */}
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <Tabs tabs={tabs} defaultTab="overview" syncWithHash>
+              {(activeTab) => (
+                <>
+                  {/* Overview Tab */}
+                  {activeTab === 'overview' && (
+                    <CompanyOverviewTab
+                      company={company}
                       canWrite={canWrite}
-                      showContactForm={showContactForm}
-                      setShowContactForm={setShowContactForm}
-                      form={form}
-                      setForm={setForm}
-                      contactError={contactError}
-                      contactActionError={contactActionError}
-                      duplicateContactGroups={duplicateContactGroups}
-                      isDedupeWorking={isDedupeWorking}
-                      isReorderWorking={isReorderWorking}
-                      onOpenDedupeConfirm={() => setIsDedupeConfirmOpen(true)}
-                      onAddContact={handleAddContact}
-                      editingContactId={editingContactId}
-                      editContactForm={editContactForm}
-                      setEditContactForm={setEditContactForm}
-                      onStartEditContact={startEditContact}
-                      onCancelEditContact={cancelEditContact}
-                      onSaveContact={handleSaveContact}
-                      onRequestDelete={(contact) =>
-                        setConfirmDelete({ id: contact.id, name: contact.name })
+                      companyForm={companyForm}
+                      setCompanyForm={setCompanyForm}
+                      tagInput={tagInput}
+                      setTagInput={setTagInput}
+                      tagOptions={tagOptions}
+                      mergedCategories={mergedCategories}
+                      mergedStatuses={mergedStatuses}
+                      userOptions={userOptions}
+                      companyError={companyError}
+                      isEditing={isEditingOverview}
+                      isSaving={isUpdatingCompany}
+                      onStartEdit={() => {
+                        resetCompanyForm()
+                        setIsEditingOverview(true)
+                      }}
+                      onCancelEdit={handleCancelCompanyEdit}
+                      onSave={handleUpdateCompany}
+                      contactsSection={
+                        <CompanyContactsSection
+                          contacts={contacts}
+                          canWrite={canWrite}
+                          showContactForm={showContactForm}
+                          setShowContactForm={setShowContactForm}
+                          form={form}
+                          setForm={setForm}
+                          contactError={contactError}
+                          contactActionError={contactActionError}
+                          duplicateContactGroups={duplicateContactGroups}
+                          isDedupeWorking={isDedupeWorking}
+                          isReorderWorking={isReorderWorking}
+                          onOpenDedupeConfirm={() => setIsDedupeConfirmOpen(true)}
+                          onAddContact={handleAddContact}
+                          editingContactId={editingContactId}
+                          editContactForm={editContactForm}
+                          setEditContactForm={setEditContactForm}
+                          onStartEditContact={startEditContact}
+                          onCancelEditContact={cancelEditContact}
+                          onSaveContact={handleSaveContact}
+                          onRequestDelete={(contact) =>
+                            setConfirmDelete({ id: contact.id, name: contact.name })
+                          }
+                          onMoveContact={moveContact}
+                          onCopy={copyToClipboard}
+                        />
                       }
-                      onMoveContact={moveContact}
-                      onCopy={copyToClipboard}
                     />
-                  }
-                />
-              )}
+                  )}
 
-              {/* Timeline Tab */}
-              {activeTab === 'timeline' && (
-                <CompanyTimelineTab
-                  messageFrom={messageFrom}
-                  setMessageFrom={setMessageFrom}
-                  messageTo={messageTo}
-                  setMessageTo={setMessageTo}
-                  messageQuery={messageQuery}
-                  setMessageQuery={setMessageQuery}
-                  messageLabel={messageLabel}
-                  setMessageLabel={setMessageLabel}
-                  labelOptions={labelOptions}
-                  messageError={messageError}
-                  isLoading={isLoadingMessages}
-                  messages={messages}
-                  canWrite={canWrite}
-                  onAddLabel={handleAddLabel}
-                  onRemoveLabel={handleRemoveLabel}
-                  labelInputRefs={labelInputRefs}
-                  pagination={messagePagination}
-                  onPageChange={setMessagePage}
-                  onPageSizeChange={setMessagePageSize}
-                />
+                  {/* Timeline Tab */}
+                  {activeTab === 'timeline' && (
+                    <CompanyTimelineTab
+                      messageFrom={messageFrom}
+                      setMessageFrom={setMessageFrom}
+                      messageTo={messageTo}
+                      setMessageTo={setMessageTo}
+                      messageQuery={messageQuery}
+                      setMessageQuery={setMessageQuery}
+                      messageLabel={messageLabel}
+                      setMessageLabel={setMessageLabel}
+                      labelOptions={labelOptions}
+                      messageError={messageError}
+                      isLoading={isLoadingMessages}
+                      messages={messages}
+                      canWrite={canWrite}
+                      onAddLabel={handleAddLabel}
+                      onRemoveLabel={handleRemoveLabel}
+                      labelInputRefs={labelInputRefs}
+                      pagination={messagePagination}
+                      onPageChange={setMessagePage}
+                      onPageSizeChange={setMessagePageSize}
+                    />
+                  )}
+                </>
               )}
-
-              {/* Tasks Tab */}
-              {activeTab === 'tasks' &&
-                (id ? <CompanyTasksSection companyId={id} canWrite={canWrite} /> : null)}
-            </>
-          )}
-        </Tabs>
+            </Tabs>
+          </div>
+        </div>
+        <aside className="lg:col-span-1">
+          <div className="lg:sticky lg:top-24">
+            {id ? <CompanyTasksSection companyId={id} canWrite={canWrite} /> : null}
+          </div>
+        </aside>
       </div>
       <ConfirmDialog
         isOpen={!!confirmDelete}

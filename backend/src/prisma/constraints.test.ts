@@ -17,15 +17,13 @@ describe('Prisma constraints', () => {
     const users = await prisma.user.findMany({
       where: {
         email: {
-          in: [adminEmail, 'sales@example.com', 'ops@example.com', 'readonly@example.com'],
+          in: [adminEmail, 'employee@example.com'],
         },
       },
     })
 
     const emails = users.map((user) => user.email).sort()
-    expect(emails).toEqual(
-      [adminEmail, 'ops@example.com', 'readonly@example.com', 'sales@example.com'].sort()
-    )
+    expect(emails).toEqual([adminEmail, 'employee@example.com'].sort())
   })
 
   it('prevents duplicate messages by roomId and messageId', async () => {

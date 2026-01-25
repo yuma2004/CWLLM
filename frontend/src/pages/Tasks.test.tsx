@@ -63,6 +63,9 @@ describe('Tasks page', () => {
     mockFetch.mockImplementation((input, init) => {
       const url =
         typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
+      if (url === '/api/users/options') {
+        return buildResponse({ users: [] })
+      }
       if (url === '/api/tasks/t1' && init?.method === 'PATCH') {
         return buildResponse({ task: { id: 't1', status: 'done' } })
       }
@@ -84,7 +87,7 @@ describe('Tasks page', () => {
     if (!row) {
       throw new Error('Task row not found')
     }
-    const statusSelect = within(row).getAllByRole('combobox')[0]
+    const statusSelect = within(row).getByLabelText('Follow up のステータス')
     fireEvent.change(statusSelect, { target: { value: 'done' } })
 
     await waitFor(() => {
@@ -108,6 +111,9 @@ describe('Tasks page', () => {
     mockFetch.mockImplementation((input) => {
       const url =
         typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
+      if (url === '/api/users/options') {
+        return buildResponse({ users: [] })
+      }
       if (url.startsWith('/api/me/tasks')) {
         return buildResponse({
           items: [],
@@ -123,8 +129,8 @@ describe('Tasks page', () => {
       </MemoryRouter>
     )
 
-    const selects = screen.getAllByRole('combobox')
-    fireEvent.change(selects[1], { target: { value: 'company' } })
+    const targetTypeSelect = screen.getByLabelText('対象で絞り込み')
+    fireEvent.change(targetTypeSelect, { target: { value: 'company' } })
 
     await waitFor(() => {
       const hasTargetType = mockFetch.mock.calls.some(([url]) =>

@@ -83,6 +83,8 @@ function WholesaleDetail() {
   const tasks = tasksData?.items ?? []
 
   const wholesaleStatus = wholesale?.status
+  const backPath = wholesale?.projectId ? `/projects/${wholesale.projectId}` : '/projects'
+  const backLabel = wholesale?.project?.name ?? '案件一覧'
 
 
   const buildFormState = (data: Wholesale) => ({
@@ -156,11 +158,14 @@ function WholesaleDetail() {
   const handleDeleteWholesale = async () => {
     if (!id || !canWrite) return
     try {
+      const fallbackPath = wholesale?.projectId
+        ? `/projects/${wholesale.projectId}`
+        : '/projects'
       await deleteWholesale(undefined, {
         url: apiRoutes.wholesales.detail(id),
         errorMessage: '卸情報の削除に失敗しました',
       })
-      navigate('/wholesales')
+      navigate(fallbackPath)
     } catch (err) {
       showToast(err instanceof Error ? err.message : '削除に失敗しました', 'error')
     }
@@ -169,8 +174,8 @@ function WholesaleDetail() {
   return (
     <div className="space-y-4 ">
       <div className="flex items-center gap-2 text-sm text-slate-500">
-        <Link to="/wholesales" className="hover:text-slate-700">
-          卸管理
+        <Link to={backPath} className="hover:text-slate-700">
+          {backLabel}
         </Link>
         <span>/</span>
         <span>詳細</span>
@@ -375,7 +380,7 @@ function WholesaleDetail() {
                     </td>
                     <td className="px-4 py-3 text-slate-600">{formatDate(task.dueDate)}</td>
                     <td className="px-4 py-3 text-slate-600">
-                      {task.assignee?.email || task.assigneeId || '-'}
+                      {task.assignee?.name || task.assignee?.email || task.assigneeId || '-'}
                     </td>
                   </tr>
                 ))}

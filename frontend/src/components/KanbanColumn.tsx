@@ -1,6 +1,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import KanbanCard from './KanbanCard'
-import { Task } from '../types'
+import { Task, User } from '../types'
 import { cn } from '../lib/cn'
 
 type KanbanColumnProps = {
@@ -10,6 +10,8 @@ type KanbanColumnProps = {
   canWrite: boolean
   selectedIdSet: Set<string>
   onToggleSelect: (taskId: string) => void
+  onAssigneeChange: (taskId: string, assigneeId: string) => void
+  userOptions: User[]
   disabled?: boolean
 }
 
@@ -20,6 +22,8 @@ function KanbanColumn({
   canWrite,
   selectedIdSet,
   onToggleSelect,
+  onAssigneeChange,
+  userOptions,
   disabled,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
@@ -49,6 +53,8 @@ function KanbanColumn({
               canWrite={canWrite}
               isSelected={selectedIdSet.has(task.id)}
               onToggleSelect={() => onToggleSelect(task.id)}
+              onAssigneeChange={(assigneeId) => onAssigneeChange(task.id, assigneeId)}
+              userOptions={userOptions}
               disabled={disabled}
             />
           ))

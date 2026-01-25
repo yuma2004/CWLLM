@@ -1,16 +1,20 @@
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
-import { Task } from '../types'
+import { Task, User } from '../types'
 import { formatDate } from '../utils/date'
 import { getTargetPath } from '../utils/routes'
 import { cn } from '../lib/cn'
+import FormSelect from './ui/FormSelect'
+import StatusBadge from './ui/StatusBadge'
 
 type KanbanCardProps = {
   task: Task
   canWrite: boolean
   isSelected: boolean
   onToggleSelect: () => void
+  onAssigneeChange: (assigneeId: string) => void
+  userOptions: User[]
   disabled?: boolean
 }
 
@@ -19,6 +23,8 @@ function KanbanCard({
   canWrite,
   isSelected,
   onToggleSelect,
+  onAssigneeChange,
+  userOptions,
   disabled,
 }: KanbanCardProps) {
   const {
@@ -92,21 +98,40 @@ function KanbanCard({
           />
         </div>
       </div>
-      <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+      <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <StatusBadge status={task.status} kind="task" size="sm" />
         <span>期日: {formatDate(task.dueDate)}</span>
+      </div>
+      <div className="mt-1">
         <Link
           to={getTargetPath(task.targetType, task.targetId)}
-          className="truncate font-medium text-slate-600 hover:text-sky-600"
+          className="truncate text-xs font-medium text-slate-600 hover:text-sky-600"
           onClick={(e) => e.stopPropagation()}
         >
           {task.target?.name || task.targetId}
         </Link>
       </div>
-      {task.assignee && (
-        <div className="mt-1 truncate text-xs text-slate-400">
-          担当: {task.assignee.email}
-        </div>
-      )}
+      <div className="mt-2">
+        {canWrite ? (
+          <FormSelect
+            value={task.assigneeId ?? ''}
+            onChange={(event) => onAssigneeChange(event.target.value)}
+            className="h-7 rounded-full text-[11px]"
+            disabled={disabled}
+          >
+            <option value="">未割当</option>
+            {userOptions.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name || user.email}
+              </option>
+            ))}
+          </FormSelect>
+        ) : (
+          <div className="truncate text-xs text-slate-400">
+            担当: {task.assignee?.name || task.assignee?.email || task.assigneeId || '-'}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

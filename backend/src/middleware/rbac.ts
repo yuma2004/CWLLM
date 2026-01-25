@@ -1,9 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import { JWTUser } from '../types/auth'
 
-type Role = 'admin' | 'sales' | 'ops' | 'readonly'
+type Role = 'admin' | 'employee'
 
-const ALLOWED_ROLES: Role[] = ['admin', 'sales', 'ops', 'readonly']
+const ALLOWED_ROLES: Role[] = ['admin', 'employee']
 
 export function requireAuth(
   allowedRoles?: Role[]
@@ -34,5 +34,5 @@ export function requireAdmin() {
 }
 
 export function requireWriteAccess() {
-  return requireAuth(['admin', 'sales', 'ops'])
+  return requireAuth(['admin', 'employee'])
 }

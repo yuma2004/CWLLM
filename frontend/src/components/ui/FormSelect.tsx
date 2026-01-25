@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn'
 type FormSelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
   label?: string
   hint?: string
+  error?: string
   containerClassName?: string
   noContainer?: boolean
 }
@@ -16,20 +17,31 @@ const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
     {
       label,
       hint,
+      error,
       className,
       containerClassName,
       id,
       noContainer,
       children,
       'aria-label': ariaLabelProp,
+      'aria-describedby': ariaDescribedByProp,
+      'aria-invalid': ariaInvalidProp,
       ...props
     },
     ref
   ) => {
     const generatedId = useId()
-    const selectClassName = cn(BASE_CLASS, className)
-    const selectId = id ?? (label ? generatedId : undefined)
-    const ariaLabel = ariaLabelProp ?? (label ? undefined : undefined)
+    const shouldHaveId = Boolean(label || error || ariaDescribedByProp)
+    const selectId = id ?? (shouldHaveId ? generatedId : undefined)
+    const errorId = error && selectId ? `${selectId}-error` : undefined
+    const selectClassName = cn(
+      BASE_CLASS,
+      error && 'border-rose-300 focus-visible:border-rose-500 focus-visible:ring-rose-500/30',
+      className
+    )
+    const ariaLabel = ariaLabelProp ?? (label ? undefined : '選択してください')
+    const describedBy = [ariaDescribedByProp, errorId].filter(Boolean).join(' ') || undefined
+    const ariaInvalid = ariaInvalidProp ?? Boolean(error)
 
     if (noContainer) {
       return (
@@ -38,6 +50,8 @@ const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
           id={selectId}
           className={selectClassName}
           aria-label={ariaLabel}
+          aria-describedby={describedBy}
+          aria-invalid={ariaInvalid}
           {...props}
         >
           {children}
@@ -52,9 +66,18 @@ const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
             {label}
           </label>
         )}
-        <select ref={ref} id={selectId} className={selectClassName} aria-label={ariaLabel} {...props}>
+        <select
+          ref={ref}
+          id={selectId}
+          className={selectClassName}
+          aria-label={ariaLabel}
+          aria-describedby={describedBy}
+          aria-invalid={ariaInvalid}
+          {...props}
+        >
           {children}
         </select>
+        {error ? <p id={errorId} className="mt-1 text-xs text-rose-600">{error}</p> : null}
         {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
       </div>
     )

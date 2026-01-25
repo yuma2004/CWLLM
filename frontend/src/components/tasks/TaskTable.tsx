@@ -10,7 +10,7 @@ import {
   statusLabel,
   targetTypeLabel,
 } from '../../constants/labels'
-import type { Task } from '../../types'
+import type { Task, User } from '../../types'
 
 export type TaskTableProps = {
   tasks: Task[]
@@ -20,9 +20,11 @@ export type TaskTableProps = {
   onToggleSelected: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onDueDateChange: (taskId: string, dueDate: string) => void
+  onAssigneeChange: (taskId: string, assigneeId: string) => void
   onDelete: (task: Task) => void
   canWrite: boolean
   isBulkUpdating: boolean
+  userOptions: User[]
   emptyStateAction?: React.ReactNode
   emptyStateDescription?: string
 }
@@ -35,9 +37,11 @@ export function TaskTable({
   onToggleSelected,
   onStatusChange,
   onDueDateChange,
+  onAssigneeChange,
   onDelete,
   canWrite,
   isBulkUpdating,
+  userOptions,
   emptyStateAction,
   emptyStateDescription,
 }: TaskTableProps) {
@@ -47,16 +51,22 @@ export function TaskTable({
         <thead className="bg-slate-50 text-left text-xs font-semibold uppercase whitespace-nowrap text-slate-500">
           <tr>
             <th className="px-4 py-3">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={onToggleSelectAll}
-                className="size-4 rounded border-slate-300 accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                disabled={isBulkUpdating}
-              />
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={onToggleSelectAll}
+                  name="select-all"
+                  aria-label="すべてのタスクを選択"
+                  className="size-4 rounded border-slate-300 accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                  disabled={isBulkUpdating}
+                />
+                <span className="sr-only">すべて選択</span>
+              </label>
             </th>
             <th className="px-4 py-3">タイトル</th>
             <th className="px-4 py-3">ステータス</th>
+            <th className="px-4 py-3">担当者</th>
             <th className="px-4 py-3">対象</th>
             <th className="px-4 py-3">期限</th>
             <th className="px-4 py-3">操作</th>
@@ -65,7 +75,7 @@ export function TaskTable({
         <tbody className="divide-y divide-slate-100 bg-white">
           {tasks.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-5 py-12 text-center">
+              <td colSpan={7} className="px-5 py-12 text-center">
                 <EmptyState
                   message="タスクが見つかりません"
                   description={emptyStateDescription}
@@ -92,13 +102,18 @@ export function TaskTable({
             tasks.map((task) => (
               <tr key={task.id} className="group hover:bg-slate-50/80">
                 <td className="px-4 py-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(task.id)}
-                    onChange={() => onToggleSelected(task.id)}
-                    className="size-4 rounded border-slate-300 accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                    disabled={isBulkUpdating}
-                  />
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(task.id)}
+                      onChange={() => onToggleSelected(task.id)}
+                      name={`select-${task.id}`}
+                      aria-label={`${task.title} を選択`}
+                      className="size-4 rounded border-slate-300 accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                      disabled={isBulkUpdating}
+                    />
+                    <span className="sr-only">{`${task.title} を選択`}</span>
+                  </label>
                 </td>
                 <td className="px-4 py-4 min-w-0">
                   <div className="min-w-0">
@@ -118,6 +133,9 @@ export function TaskTable({
                 <td className="px-4 py-4">
                   {canWrite ? (
                     <FormSelect
+                      name={`status-${task.id}`}
+                      aria-label={`${task.title} のステータス`}
+                      autoComplete="off"
                       className="w-auto rounded-full px-3 py-1 text-xs"
                       value={task.status}
                       onChange={(e) => onStatusChange(task.id, e.target.value)}
@@ -130,6 +148,30 @@ export function TaskTable({
                     </FormSelect>
                   ) : (
                     <StatusBadge status={task.status} kind="task" size="sm" />
+                  )}
+                </td>
+                <td className="px-4 py-4">
+                  {canWrite ? (
+                    <FormSelect
+                      name={`assignee-${task.id}`}
+                      aria-label={`${task.title} の担当者`}
+                      autoComplete="off"
+                      className="w-auto rounded-full px-3 py-1 text-xs"
+                      value={task.assigneeId ?? ''}
+                      onChange={(e) => onAssigneeChange(task.id, e.target.value)}
+                      disabled={isBulkUpdating}
+                    >
+                      <option value="">未割当</option>
+                      {userOptions.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name || user.email}
+                        </option>
+                      ))}
+                    </FormSelect>
+                  ) : (
+                    <span className="text-xs text-slate-500">
+                      {task.assignee?.name || task.assignee?.email || task.assigneeId || '-'}
+                    </span>
                   )}
                 </td>
                 <td className="px-4 py-4 min-w-0">
@@ -148,9 +190,13 @@ export function TaskTable({
                 <td className="px-4 py-4 text-slate-600 tabular-nums">
                   {canWrite ? (
                     <DateInput
+                      name={`dueDate-${task.id}`}
+                      aria-label={`${task.title} の期限`}
+                      autoComplete="off"
                       className="w-auto rounded border border-slate-200 px-2 py-1 text-xs"
                       value={task.dueDate ? formatDateInput(task.dueDate) : ''}
                       onChange={(e) => onDueDateChange(task.id, e.target.value)}
+                      placeholder="期限…"
                     />
                   ) : (
                     formatDate(task.dueDate)
@@ -162,7 +208,7 @@ export function TaskTable({
                       to={getTargetPath(task.targetType, task.targetId)}
                       className="text-xs font-semibold text-slate-600 hover:text-slate-900"
                     >
-                      隧ｳ邏ｰ
+                      詳細
                     </Link>
                     {canWrite && (
                       <button
@@ -170,7 +216,7 @@ export function TaskTable({
                         onClick={() => onDelete(task)}
                         className="text-xs font-semibold text-rose-600 hover:text-rose-700"
                       >
-                        蜑企勁
+                        削除
                       </button>
                     )}
                   </div>

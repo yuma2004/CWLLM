@@ -66,7 +66,6 @@ export const apiRoutes = {
     detail: (id: string) => `/api/wholesales/${id}`,
     tasks: (id: string, query: string) => withQuery(`/api/wholesales/${id}/tasks`, query),
   },
-  settings: () => '/api/settings',
   jobs: {
     base: () => '/api/jobs',
     detail: (id: string) => `/api/jobs/${id}`,

@@ -32,7 +32,7 @@ const Toast = ({ message, variant = 'info', onClose, className }: ToastProps) =>
         type="button"
         onClick={onClose}
         className="text-white/80 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-        aria-label="Dismiss notification"
+        aria-label="通知を閉じる"
       >
         <CloseIcon className="size-4" />
       </button>

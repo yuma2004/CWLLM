@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -157,10 +157,16 @@ function ProjectDetail() {
     ProjectUpdatePayload
   >(apiRoutes.projects.base(), 'PATCH')
 
-  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.list(), {
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
     cacheTimeMs: 30_000,
   })
   const userOptions = usersData?.users ?? []
+  const ownerLabel = project
+    ? userOptions.find((user) => user.id === project.ownerId)?.name || userOptions.find((user) => user.id === project.ownerId)?.email ||
+      project.owner?.name || project.owner?.email ||
+      project.ownerId ||
+      '-'
+    : '-'
 
   const handleCancelProjectEdit = () => {
     if (project) {
@@ -391,7 +397,7 @@ function ProjectDetail() {
                   <option value="">未設定</option>
                   {userOptions.map((user) => (
                     <option key={user.id} value={user.id}>
-                      {user.email}
+                      {user.name || user.email}
                     </option>
                   ))}
                 </FormSelect>
@@ -466,7 +472,7 @@ function ProjectDetail() {
             </div>
             <div>
               <dt className="text-xs uppercase  text-slate-400">担当者</dt>
-              <dd className="mt-1 text-slate-800">{project.owner?.email || '-'}</dd>
+              <dd className="mt-1 text-slate-800">{ownerLabel}</dd>
             </div>
             <div>
               <dt className="text-xs uppercase  text-slate-400">期間</dt>

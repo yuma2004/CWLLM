@@ -9,6 +9,7 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
     {
       label,
       hint,
+      error,
       containerClassName,
       className,
       id,
@@ -21,12 +22,14 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
     ref
   ) => {
     const generatedId = useId()
-    const inputId = id ?? (label ? generatedId : undefined)
+    const shouldHaveId = Boolean(label || error)
+    const inputId = id ?? (shouldHaveId ? generatedId : undefined)
+    const errorId = error && inputId ? `${inputId}-error` : undefined
     const inputRef = useRef<HTMLInputElement | null>(null)
     const ariaLabelFallback =
       typeof placeholder === 'string' && placeholder.trim().length > 0
         ? placeholder
-        : 'Choose date'
+        : '日付を選択'
     const ariaLabel = ariaLabelProp ?? (label ? undefined : ariaLabelFallback)
 
     const setRefs = (node: HTMLInputElement | null) => {
@@ -61,12 +64,15 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
           placeholder={placeholder}
           disabled={disabled}
           aria-label={ariaLabel}
+          aria-describedby={errorId}
+          aria-invalid={Boolean(error)}
+          error={error}
           {...props}
         />
         <button
           type="button"
           onClick={handleOpenPicker}
-          aria-label="Open calendar"
+          aria-label="カレンダーを開く"
           disabled={disabled}
           className={cn(
             'absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/30',
@@ -103,6 +109,7 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
           </label>
         )}
         {inputField}
+        {error ? <p id={errorId} className="mt-1 text-xs text-rose-600">{error}</p> : null}
         {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
       </div>
     )

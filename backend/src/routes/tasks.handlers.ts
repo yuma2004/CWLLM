@@ -24,6 +24,7 @@ import {
 
 const normalizeStatus = createEnumNormalizer(new Set(Object.values(TaskStatus)))
 const normalizeTargetType = createEnumNormalizer(new Set(Object.values(TargetType)))
+const canManageAllTasks = (user?: JWTUser) => user?.role === 'admin'
 
 const ensureTargetExists = async (targetType: TargetType, targetId: string) => {
   if (targetType === 'company') {
@@ -87,7 +88,7 @@ const listTasks = async (
       skip,
       take: pageSize,
       include: {
-        assignee: { select: { id: true, email: true } },
+        assignee: { select: { id: true, email: true, name: true } },
       },
     }),
     prisma.task.count({ where }),
@@ -102,7 +103,8 @@ const listTasksForTarget = async (
   request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
+  const user = request.user as JWTUser | undefined
+  const userId = user?.userId
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
@@ -118,7 +120,11 @@ const listTasksForTarget = async (
   const where: Prisma.TaskWhereInput = {
     targetType,
     targetId: request.params.id,
-    assigneeId: userId,
+  }
+  if (!canManageAllTasks(user)) {
+    where.assigneeId = userId
+  } else if (request.query.assigneeId) {
+    where.assigneeId = request.query.assigneeId
   }
   if (status) {
     where.status = status
@@ -131,7 +137,8 @@ export const listTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
+  const user = request.user as JWTUser | undefined
+  const userId = user?.userId
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
@@ -145,7 +152,12 @@ export const listTasksHandler = async (
     request.query.pageSize
   )
 
-  const where: Prisma.TaskWhereInput = { assigneeId: userId }
+  const where: Prisma.TaskWhereInput = {}
+  if (!canManageAllTasks(user)) {
+    where.assigneeId = userId
+  } else if (request.query.assigneeId) {
+    where.assigneeId = request.query.assigneeId
+  }
   if (filters.status) {
     where.status = filters.status
   }
@@ -169,13 +181,18 @@ export const getTaskHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
+  const user = request.user as JWTUser | undefined
+  const userId = user?.userId
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
+  const where: Prisma.TaskWhereInput = { id: request.params.id }
+  if (!canManageAllTasks(user)) {
+    where.assigneeId = userId
+  }
   const task = await prisma.task.findFirst({
-    where: { id: request.params.id, assigneeId: userId },
-    include: { assignee: { select: { id: true, email: true } } },
+    where,
+    include: { assignee: { select: { id: true, email: true, name: true } } },
   })
   if (!task) {
     return reply.code(404).send(notFound('Task'))
@@ -229,7 +246,7 @@ export const createTaskHandler = async (
         title: title.trim(),
         description,
         dueDate: dueDate ?? undefined,
-        assigneeId: userId,
+        assigneeId: assigneeId ?? userId,
         status: status ?? 'todo',
       },
     })
@@ -266,8 +283,8 @@ export const updateTaskHandler = async (
     return reply.code(400).send(badRequest('Invalid dueDate'))
   }
 
-  const existing = await prisma.task.findFirst({
-    where: { id: request.params.id, assigneeId: userId },
+  const existing = await prisma.task.findUnique({
+    where: { id: request.params.id },
   })
   if (!existing) {
     return reply.code(404).send(notFound('Task'))
@@ -330,11 +347,11 @@ export const bulkUpdateTasksHandler = async (
     return reply.code(400).send(badRequest('Invalid dueDate'))
   }
 
-  const ownedTasks = await prisma.task.findMany({
-    where: { id: { in: taskIds }, assigneeId: userId },
+  const existingTasks = await prisma.task.findMany({
+    where: { id: { in: taskIds } },
     select: { id: true },
   })
-  if (ownedTasks.length !== taskIds.length) {
+  if (existingTasks.length !== taskIds.length) {
     return reply.code(404).send(notFound('Task'))
   }
 
@@ -365,8 +382,8 @@ export const deleteTaskHandler = async (
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
-  const existing = await prisma.task.findFirst({
-    where: { id: request.params.id, assigneeId: userId },
+  const existing = await prisma.task.findUnique({
+    where: { id: request.params.id },
   })
   if (!existing) {
     return reply.code(404).send(notFound('Task'))
@@ -385,7 +402,8 @@ export const listMyTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
+  const user = request.user as JWTUser | undefined
+  const userId = user?.userId
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
@@ -399,7 +417,12 @@ export const listMyTasksHandler = async (
     request.query.pageSize
   )
 
-  const where: Prisma.TaskWhereInput = { assigneeId: userId }
+  const where: Prisma.TaskWhereInput = {}
+  if (user?.role !== 'admin') {
+    where.assigneeId = userId
+  } else if (request.query.assigneeId) {
+    where.assigneeId = request.query.assigneeId
+  }
   if (filters.status) {
     where.status = filters.status
   }

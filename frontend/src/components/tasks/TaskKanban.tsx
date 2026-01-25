@@ -1,5 +1,5 @@
 import KanbanBoard from '../KanbanBoard'
-import type { Task } from '../../types'
+import type { Task, User } from '../../types'
 
 export type TaskKanbanProps = {
   tasks: Task[]
@@ -7,10 +7,21 @@ export type TaskKanbanProps = {
   selectedIds: string[]
   onToggleSelect: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => Promise<void>
+  onAssigneeChange: (taskId: string, assigneeId: string) => void
   disabled: boolean
+  userOptions: User[]
 }
 
-export function TaskKanban({ tasks, canWrite, selectedIds, onToggleSelect, onStatusChange, disabled }: TaskKanbanProps) {
+export function TaskKanban({
+  tasks,
+  canWrite,
+  selectedIds,
+  onToggleSelect,
+  onStatusChange,
+  onAssigneeChange,
+  disabled,
+  userOptions,
+}: TaskKanbanProps) {
   return (
     <KanbanBoard
       tasks={tasks}
@@ -18,7 +29,9 @@ export function TaskKanban({ tasks, canWrite, selectedIds, onToggleSelect, onSta
       selectedIds={selectedIds}
       onToggleSelect={onToggleSelect}
       onStatusChange={onStatusChange}
+      onAssigneeChange={onAssigneeChange}
       disabled={disabled}
+      userOptions={userOptions}
     />
   )
 }

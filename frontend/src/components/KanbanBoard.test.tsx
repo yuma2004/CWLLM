@@ -23,6 +23,8 @@ describe('KanbanBoard', () => {
           selectedIds={[]}
           onToggleSelect={vi.fn()}
           onStatusChange={vi.fn().mockResolvedValue(undefined)}
+          onAssigneeChange={vi.fn()}
+          userOptions={[]}
         />
       </MemoryRouter>
     )

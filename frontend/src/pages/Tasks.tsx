@@ -6,6 +6,7 @@ import Button from '../components/ui/Button'
 import FormInput from '../components/ui/FormInput'
 import DateInput from '../components/ui/DateInput'
 import FormTextarea from '../components/ui/FormTextarea'
+import FormSelect from '../components/ui/FormSelect'
 import Card from '../components/ui/Card'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
@@ -14,14 +15,14 @@ import { TaskFilters } from '../components/tasks/TaskFilters'
 import { TaskTable } from '../components/tasks/TaskTable'
 import { TaskKanban } from '../components/tasks/TaskKanban'
 import { TaskBulkActions } from '../components/tasks/TaskBulkActions'
-import { useMutation } from '../hooks/useApi'
+import { useFetch, useMutation } from '../hooks/useApi'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/ui/Toast'
 import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useListPage } from '../hooks/useListPage'
 import { toErrorMessage } from '../utils/errorState'
 import { cn } from '../lib/cn'
-import type { Task, TasksFilters } from '../types'
+import type { Task, TasksFilters, User } from '../types'
 import { apiRoutes } from '../lib/apiRoutes'
 
 const defaultFilters: TasksFilters = {
@@ -35,6 +36,8 @@ function Tasks() {
   const { canWrite } = usePermissions()
   const searchInputRef = useRef<HTMLSelectElement>(null)
   const createFormRef = useRef<HTMLDivElement>(null)
+  const createTitleRef = useRef<HTMLInputElement>(null)
+  const createCompanyRef = useRef<HTMLInputElement>(null)
 
   const {
     filters,
@@ -77,7 +80,13 @@ function Tasks() {
     description: '',
     dueDate: '',
     companyId: '',
+    assigneeId: '',
   })
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [createFieldErrors, setCreateFieldErrors] = useState<{
+    title?: string
+    companyId?: string
+  }>({})
   const [createError, setCreateError] = useState('')
   const { toast, showToast, clearToast } = useToast()
 
@@ -89,6 +98,7 @@ function Tasks() {
       title: string
       description?: string
       dueDate?: string
+      assigneeId?: string
     }
   >(apiRoutes.tasks.base(), 'POST')
 
@@ -99,7 +109,7 @@ function Tasks() {
 
   const { mutate: updateTask } = useMutation<
     Task,
-    { status?: string; dueDate?: string | null }
+    { status?: string; dueDate?: string | null; assigneeId?: string | null }
   >(apiRoutes.tasks.base(), 'PATCH')
 
   const { mutate: bulkUpdateTasks, isLoading: isBulkUpdating } = useMutation<
@@ -112,13 +122,37 @@ function Tasks() {
     'DELETE'
   )
 
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
+    cacheTimeMs: 30_000,
+  })
+  const userOptions = usersData?.users ?? []
+
 
 
   const tasks = useMemo(() => tasksData?.items ?? [], [tasksData])
+  const isCreateDirty = canWrite
+    ? Boolean(
+        createForm.title.trim() ||
+          createForm.description.trim() ||
+          createForm.dueDate ||
+          createForm.companyId ||
+          createForm.assigneeId
+      )
+    : false
 
   useEffect(() => {
     setSelectedIds([])
   }, [tasksData?.items])
+
+  useEffect(() => {
+    if (!isCreateDirty) return undefined
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isCreateDirty])
 
   const shortcuts = useMemo(() => [createSearchShortcut(searchInputRef)], [searchInputRef])
 
@@ -186,18 +220,51 @@ function Tasks() {
     }
   }
 
+  const handleAssigneeChange = async (taskId: string, value: string) => {
+    if (!canWrite) return
+    setError('')
+    const assigneeId = value || null
+    const nextAssignee = assigneeId
+      ? userOptions.find((user) => user.id === assigneeId)
+      : undefined
+    const previousItems = applyOptimisticTaskUpdate(taskId, (task) => ({
+      ...task,
+      assigneeId,
+      assignee: nextAssignee ? { id: nextAssignee.id, email: nextAssignee.email, name: nextAssignee.name } : null,
+    }))
+    try {
+      await updateTask(
+        { assigneeId },
+        { url: apiRoutes.tasks.detail(taskId), errorMessage: '担当者の更新に失敗しました' }
+      )
+      void refetchTasks()
+      showToast('担当者を更新しました', 'success')
+    } catch (err) {
+      restoreOptimisticTasks(previousItems)
+      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
+    }
+  }
+
   const handleCreateTask = async (event: React.FormEvent) => {
     event.preventDefault()
     setCreateError('')
-
+    const nextErrors: { title?: string; companyId?: string } = {}
     if (!createForm.title.trim()) {
-      setCreateError('タスクタイトルを入力してください')
-      return
+      nextErrors.title = 'タスクタイトルを入力してください'
     }
     if (!createForm.companyId) {
-      setCreateError('紐づける企業を選択してください')
+      nextErrors.companyId = '紐づける企業を選択してください'
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setCreateFieldErrors(nextErrors)
+      if (nextErrors.title) {
+        createTitleRef.current?.focus()
+      } else if (nextErrors.companyId) {
+        createCompanyRef.current?.focus()
+      }
       return
     }
+    setCreateFieldErrors({})
 
     try {
       await createTask(
@@ -207,11 +274,13 @@ function Tasks() {
           title: createForm.title.trim(),
           description: createForm.description.trim() || undefined,
           dueDate: createForm.dueDate || undefined,
+          assigneeId: createForm.assigneeId || undefined,
         },
         { errorMessage: 'タスクの作成に失敗しました' }
       )
       showToast('タスクを作成しました', 'success')
       setCreateForm((prev) => ({ ...prev, title: '', description: '', dueDate: '' }))
+      setCreateFieldErrors({})
       void refetchTasks()
     } catch (err) {
       setCreateError(toErrorMessage(err, 'タスクの作成に失敗しました'))
@@ -221,11 +290,11 @@ function Tasks() {
   const handleBulkUpdate = async () => {
     if (!canWrite) return
     if (selectedIds.length === 0) {
-      setError('Select tasks to update')
+      setError('更新するタスクを選択してください')
       return
     }
     if (!bulkStatus && !bulkDueDate && !clearBulkDueDate) {
-      setError('Choose fields to update')
+      setError('更新内容（ステータス/期限）を選択してください')
       return
     }
     setError('')
@@ -282,9 +351,6 @@ function Tasks() {
     )
   }
 
-  const canSubmitCreate = Boolean(createForm.title.trim() && createForm.companyId)
-
-
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage)
   }
@@ -302,20 +368,22 @@ function Tasks() {
   }
 
   const handleScrollToCreate = () => {
+    setIsCreateOpen(true)
     createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
-    <div className="space-y-4 ">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm uppercase  text-slate-400">タスク</p>
-          <h2 className="text-3xl font-bold text-slate-900">マイタスク</h2>
+          <h2 className="text-3xl font-bold text-slate-900 text-balance">マイタスク</h2>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-500">
-            合計件数: <span className="font-semibold text-slate-700">{pagination.total}</span>
+            合計件数:{' '}
+            <span className="font-semibold text-slate-700 tabular-nums">{pagination.total}</span>
           </span>
         </div>
       </div>
@@ -325,6 +393,7 @@ function Tasks() {
           <button
             type="button"
             onClick={() => setExtraParams((prev) => ({ ...prev, view: 'list' }))}
+            aria-pressed={viewMode === 'list'}
             className={cn(
               'rounded-full px-3 py-1',
               viewMode === 'list' ? 'bg-sky-600 text-white' : 'hover:bg-slate-100'
@@ -335,6 +404,7 @@ function Tasks() {
           <button
             type="button"
             onClick={() => setExtraParams((prev) => ({ ...prev, view: 'kanban' }))}
+            aria-pressed={viewMode === 'kanban'}
             className={cn(
               'rounded-full px-3 py-1',
               viewMode === 'kanban' ? 'bg-sky-600 text-white' : 'hover:bg-slate-100'
@@ -345,173 +415,234 @@ function Tasks() {
         </div>
       </div>
 
-      {canWrite && (
-        <div ref={createFormRef}>
-          <Card
-            title="タスク作成"
-            description="タスク管理から企業に紐づけて追加できます。"
-          >
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <FormInput
-                  label="タスクタイトル"
-                  value={createForm.title}
-                  onChange={(event) =>
-                    setCreateForm((prev) => ({ ...prev, title: event.target.value }))
-                  }
-                  placeholder="対応内容を入力"
-                  disabled={isCreating}
-                  containerClassName="md:col-span-2"
-                />
-                <CompanySearchSelect
-                  label="紐づける企業"
-                  value={createForm.companyId}
-                  onChange={(companyId) =>
-                    setCreateForm((prev) => ({ ...prev, companyId }))
-                  }
-                  placeholder="企業名で検索"
-                  disabled={isCreating}
-                />
-                <FormTextarea
-                  label="詳細"
-                  rows={3}
-                  value={createForm.description}
-                  onChange={(event) =>
-                    setCreateForm((prev) => ({ ...prev, description: event.target.value }))
-                  }
-                  placeholder="背景や補足メモ"
-                  disabled={isCreating}
-                  containerClassName="md:col-span-2"
-                />
-                <DateInput
-                  label="期限"
-                  value={createForm.dueDate}
-                  onChange={(event) =>
-                    setCreateForm((prev) => ({ ...prev, dueDate: event.target.value }))
-                  }
-                  disabled={isCreating}
-                />
-              </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          {/* Search & Filter */}
+          <TaskFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            onSubmit={handleSearchSubmit}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilter={handleClearFilter}
+            onClearAll={handleClearAllFilters}
+            searchInputRef={searchInputRef}
+          />
 
-              {createError && (
-                <ErrorAlert message={createError} onClose={() => setCreateError('')} />
-              )}
+          {canWrite && selectedIds.length > 0 && (
+            <TaskBulkActions
+              selectedIds={selectedIds}
+              allSelected={allSelected}
+              onToggleSelectAll={toggleSelectAll}
+              bulkStatus={bulkStatus}
+              onBulkStatusChange={setBulkStatus}
+              bulkDueDate={bulkDueDate}
+              onBulkDueDateChange={setBulkDueDate}
+              clearBulkDueDate={clearBulkDueDate}
+              onClearBulkDueDateChange={setClearBulkDueDate}
+              onBulkUpdate={handleBulkUpdate}
+              isBulkUpdating={isBulkUpdating}
+            />
+          )}
 
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  isLoading={isCreating}
-                  loadingLabel="作成中..."
-                  disabled={!canSubmitCreate}
-                >
-                  タスクを作成
-                </Button>
-              </div>
-            </form>
-          </Card>
+          {/* Readonly Notice */}
+          {!canWrite && (
+            <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+              権限がないため、タスクのステータス変更はできません。
+            </div>
+          )}
+
+          {/* Delete Confirmation */}
+          <ConfirmDialog
+            isOpen={!!deleteTarget}
+            title="タスクの削除"
+            description={`「${deleteTarget?.title}」を削除しますか？この操作は元に戻せません。`}
+            confirmLabel="削除"
+            cancelLabel="キャンセル"
+            isLoading={isDeleting}
+            onConfirm={handleDelete}
+            onCancel={() => setDeleteTarget(null)}
+          />
+
+          {/* Error */}
+          <ErrorAlert message={error} onClose={() => setError('')} />
+
+          {/* Table */}
+          {isLoadingTasks ? (
+            <SkeletonTable rows={5} columns={7} />
+          ) : viewMode === 'list' ? (
+            <TaskTable
+              tasks={tasks}
+              selectedIds={selectedIds}
+              allSelected={allSelected}
+              onToggleSelectAll={toggleSelectAll}
+              onToggleSelected={toggleSelected}
+              onStatusChange={handleStatusChange}
+              onDueDateChange={handleDueDateChange}
+              onAssigneeChange={handleAssigneeChange}
+              onDelete={setDeleteTarget}
+              canWrite={canWrite}
+              isBulkUpdating={isBulkUpdating}
+              userOptions={userOptions}
+              emptyStateDescription={
+                canWrite
+                  ? 'まずはタスクを追加して、対応状況を見える化しましょう。'
+                  : '検索条件をリセットして確認してください。'
+              }
+              emptyStateAction={
+                canWrite ? (
+                  <button
+                    type="button"
+                    onClick={handleScrollToCreate}
+                    className="text-sm font-semibold text-sky-600 hover:text-sky-700"
+                  >
+                    タスクを作成
+                  </button>
+                ) : null
+              }
+            />
+          ) : (
+            <TaskKanban
+              tasks={tasks}
+              canWrite={canWrite}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelected}
+              onStatusChange={handleStatusChange}
+              onAssigneeChange={handleAssigneeChange}
+              disabled={isBulkUpdating}
+              userOptions={userOptions}
+            />
+          )}
+
+          {/* Pagination */}
+          {pagination.total > 0 && (
+            <Pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </div>
-      )}
-
-      {/* Search & Filter */}
-      <TaskFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        onSubmit={handleSearchSubmit}
-        hasActiveFilters={hasActiveFilters}
-        onClearFilter={handleClearFilter}
-        onClearAll={handleClearAllFilters}
-        searchInputRef={searchInputRef}
-      />
-
-      {canWrite && tasks.length > 0 && (
-        <TaskBulkActions
-          selectedIds={selectedIds}
-          allSelected={allSelected}
-          onToggleSelectAll={toggleSelectAll}
-          bulkStatus={bulkStatus}
-          onBulkStatusChange={setBulkStatus}
-          bulkDueDate={bulkDueDate}
-          onBulkDueDateChange={setBulkDueDate}
-          clearBulkDueDate={clearBulkDueDate}
-          onClearBulkDueDateChange={setClearBulkDueDate}
-          onBulkUpdate={handleBulkUpdate}
-          isBulkUpdating={isBulkUpdating}
-        />
-      )}
-
-      {/* Readonly Notice */}
-      {!canWrite && (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-          閲覧専用ロールのため、タスクのステータス変更はできません。
-        </div>
-      )}
-
-      {/* Delete Confirmation */}
-      <ConfirmDialog
-        isOpen={!!deleteTarget}
-        title="タスクの削除"
-        description={`「${deleteTarget?.title}」を削除しますか？この操作は元に戻せません。`}
-        confirmLabel="削除"
-        cancelLabel="キャンセル"
-        isLoading={isDeleting}
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteTarget(null)}
-      />
-
-      {/* Error */}
-      <ErrorAlert message={error} onClose={() => setError('')} />
-
-      {/* Table */}
-      {isLoadingTasks ? (
-        <SkeletonTable rows={5} columns={6} />
-      ) : viewMode === 'list' ? (
-        <TaskTable
-          tasks={tasks}
-          selectedIds={selectedIds}
-          allSelected={allSelected}
-          onToggleSelectAll={toggleSelectAll}
-          onToggleSelected={toggleSelected}
-          onStatusChange={handleStatusChange}
-          onDueDateChange={handleDueDateChange}
-          onDelete={setDeleteTarget}
-          canWrite={canWrite}
-          isBulkUpdating={isBulkUpdating}
-          emptyStateDescription={
-            canWrite ? 'まずはタスクを追加して、対応状況を見える化しましょう。' : '検索条件をリセットして確認してください。'
-          }
-          emptyStateAction={
-            canWrite ? (
-              <button
-                type="button"
-                onClick={handleScrollToCreate}
-                className="text-sm font-semibold text-sky-600 hover:text-sky-700"
+        <aside className="lg:col-span-1">
+          {canWrite && (
+            <div ref={createFormRef} className="lg:sticky lg:top-24">
+              <Card
+                title="タスク作成"
+                description={
+                  isCreateOpen ? '企業に紐づけてタスクを追加できます。' : '必要なときに開いて追加します。'
+                }
+                headerAction={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setIsCreateOpen((prev) => !prev)}
+                  >
+                    {isCreateOpen ? '閉じる' : 'タスク作成'}
+                  </Button>
+                }
               >
-                タスクを作成
-              </button>
-            ) : null
-          }
-        />
-      ) : (
-        <TaskKanban
-          tasks={tasks}
-          canWrite={canWrite}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelected}
-          onStatusChange={handleStatusChange}
-          disabled={isBulkUpdating}
-        />
-      )}
+                <div
+                  className={cn(
+                    'transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden',
+                    isCreateOpen ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'
+                  )}
+                >
+                  {isCreateOpen ? (
+                    <form onSubmit={handleCreateTask} className="space-y-4 pt-2">
+                      <div className="grid gap-4">
+                        <FormInput
+                          label="タスクタイトル"
+                          value={createForm.title}
+                          onChange={(event) => {
+                            const nextValue = event.target.value
+                            setCreateForm((prev) => ({ ...prev, title: nextValue }))
+                            if (createFieldErrors.title) {
+                              setCreateFieldErrors((prev) => ({ ...prev, title: undefined }))
+                            }}}
+                          name="title"
+                          autoComplete="off"
+                          placeholder="対応内容を入力…"
+                          disabled={isCreating}
+                          error={createFieldErrors.title}
+                          ref={createTitleRef}
+                        />
+                        <CompanySearchSelect
+                          label="紐づける企業"
+                          value={createForm.companyId}
+                          onChange={(companyId) => {
+                            setCreateForm((prev) => ({ ...prev, companyId }))
+                            if (createFieldErrors.companyId) {
+                              setCreateFieldErrors((prev) => ({ ...prev, companyId: undefined }))
+                            }
+                          }}
+                          name="companyId"
+                          autoComplete="off"
+                          placeholder="企業名で検索…"
+                          disabled={isCreating}
+                          error={createFieldErrors.companyId}
+                          inputRef={createCompanyRef}
+                        />
+                        <FormSelect
+                          label="担当者"
+                          value={createForm.assigneeId}
+                          onChange={(event) =>
+                            setCreateForm((prev) => ({ ...prev, assigneeId: event.target.value }))
+                          }
+                          name="assigneeId"
+                          autoComplete="off"
+                          disabled={isCreating}
+                        >
+                          <option value="">未割当</option>
+                          {userOptions.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.name || user.email}
+                            </option>
+                          ))}
+                        </FormSelect>
+                        <FormTextarea
+                          label="詳細"
+                          rows={3}
+                          value={createForm.description}
+                          onChange={(event) =>
+                            setCreateForm((prev) => ({ ...prev, description: event.target.value }))
+                          }
+                          name="description"
+                          autoComplete="off"
+                          placeholder="背景や補足メモ…"
+                          disabled={isCreating}
+                        />
+                        <DateInput
+                          label="期限"
+                          value={createForm.dueDate}
+                          onChange={(event) =>
+                            setCreateForm((prev) => ({ ...prev, dueDate: event.target.value }))
+                          }
+                          name="dueDate"
+                          autoComplete="off"
+                          placeholder="期限…"
+                          disabled={isCreating}
+                        />
+                      </div>
 
-      {/* Pagination */}
-      {pagination.total > 0 && (
-        <Pagination
-          page={pagination.page}
-          pageSize={pagination.pageSize}
-          total={pagination.total}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-        />
-      )}
+                      {createError && (
+                        <ErrorAlert message={createError} onClose={() => setCreateError('')} />
+                      )}
+
+                      <div className="flex justify-end">
+                        <Button type="submit" isLoading={isCreating} loadingLabel="作成中…">
+                          タスクを作成
+                        </Button>
+                      </div>
+                    </form>
+                  ) : null}
+                </div>
+              </Card>
+            </div>
+          )}
+        </aside>
+      </div>
 
       {/* Keyboard Shortcuts Hint */}
       <div className="text-center text-xs text-slate-400">
@@ -530,3 +661,13 @@ function Tasks() {
 }
 
 export default Tasks
+
+
+
+
+
+
+
+
+
+

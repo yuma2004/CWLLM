@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -131,7 +131,7 @@ function ProjectsFilters({
             <option value="">担当者</option>
             {userOptions.map((user) => (
               <option key={user.id} value={user.id}>
-                {user.email}
+                {user.name || user.email}
               </option>
             ))}
           </FormSelect>
@@ -270,7 +270,7 @@ function ProjectsCreateForm({
               <option value="">担当者</option>
               {userOptions.map((user) => (
                 <option key={user.id} value={user.id}>
-                  {user.email}
+                  {user.name || user.email}
                 </option>
               ))}
             </FormSelect>
@@ -326,10 +326,21 @@ type ProjectsTableProps = {
   projects: Project[]
   isLoading: boolean
   canWrite: boolean
+  userOptions: User[]
+  isUpdatingOwner: boolean
+  onOwnerChange: (projectId: string, ownerId: string) => void
   onOpenCreateForm: () => void
 }
 
-function ProjectsTable({ projects, isLoading, canWrite, onOpenCreateForm }: ProjectsTableProps) {
+function ProjectsTable({
+  projects,
+  isLoading,
+  canWrite,
+  userOptions,
+  isUpdatingOwner,
+  onOwnerChange,
+  onOpenCreateForm,
+}: ProjectsTableProps) {
   if (isLoading) {
     return <SkeletonTable rows={5} columns={5} />
   }
@@ -420,7 +431,25 @@ function ProjectsTable({ projects, isLoading, canWrite, onOpenCreateForm }: Proj
                   {project.unitPrice ? formatCurrency(project.unitPrice) : '-'}
                 </td>
                 <td className="px-5 py-4 text-slate-600">
-                  {project.owner?.email ?? '-'}
+                  {canWrite ? (
+                    <FormSelect
+                      value={project.ownerId ?? ''}
+                      onChange={(event) => onOwnerChange(project.id, event.target.value)}
+                      className="h-8 rounded-lg text-xs"
+                      disabled={isUpdatingOwner}
+                    >
+                      <option value="">未割当</option>
+                      {userOptions.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name || user.email}
+                        </option>
+                      ))}
+                    </FormSelect>
+                  ) : (
+                    userOptions.find((user) => user.id === project.ownerId)?.name || userOptions.find((user) => user.id === project.ownerId)?.email ||
+                    project.ownerId ||
+                    '-'
+                  )}
                 </td>
               </tr>
             ))
@@ -476,7 +505,7 @@ function Projects() {
     },
   })
 
-  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.list(), {
+  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
     cacheTimeMs: 30_000,
   })
   const userOptions = usersData?.users ?? []
@@ -487,6 +516,11 @@ function Projects() {
     { project: Project },
     ProjectCreatePayload
   >(apiRoutes.projects.base(), 'POST')
+
+  const { mutate: updateProjectOwner, isLoading: isUpdatingOwner } = useMutation<
+    { project: Project },
+    { ownerId?: string | null }
+  >(apiRoutes.projects.base(), 'PATCH')
 
   const shortcuts = useMemo(
     () => [
@@ -551,6 +585,22 @@ function Projects() {
     clearAllFilters()
   }
 
+  const handleOwnerChange = async (projectId: string, ownerId: string) => {
+    if (!canWrite) return
+    setError('')
+    const nextOwnerId = ownerId || null
+    try {
+      await updateProjectOwner(
+        { ownerId: nextOwnerId },
+        { url: apiRoutes.projects.detail(projectId), errorMessage: '担当者の更新に失敗しました' }
+      )
+      void refetchProjects(undefined, { ignoreCache: true })
+      showToast('担当者を更新しました', 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
+    }
+  }
+
   const getCompanyName = (companyId: string) => {
     const project = projects.find((p) => p.companyId === companyId)
     return project?.company?.name ?? companyId
@@ -558,7 +608,7 @@ function Projects() {
 
   const getOwnerName = (ownerId: string) => {
     const user = userOptions.find((u) => u.id === ownerId)
-    return user?.email ?? ownerId
+    return user?.name || user?.email || ownerId
   }
 
   return (
@@ -615,7 +665,7 @@ function Projects() {
       {/* Readonly Notice */}
       {!canWrite && (
         <div className="text-pretty rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-          閲覧専用ロールのため、案件の追加・編集はできません。
+          権限がないため、案件の追加・編集はできません。
         </div>
       )}
 
@@ -627,6 +677,9 @@ function Projects() {
         projects={projects}
         isLoading={isLoadingProjects}
         canWrite={canWrite}
+        userOptions={userOptions}
+        isUpdatingOwner={isUpdatingOwner}
+        onOwnerChange={handleOwnerChange}
         onOpenCreateForm={() => setShowCreateForm(true)}
       />
 

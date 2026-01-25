@@ -1,20 +1,44 @@
 import { Link } from 'react-router-dom'
 import Button from '../ui/Button'
+import FormSelect from '../ui/FormSelect'
 import StatusBadge from '../ui/StatusBadge'
 import { SkeletonTable } from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import { getAvatarColor, getInitials } from '../../utils/string'
 import { cn } from '../../lib/cn'
-import type { Company } from '../../types'
+import type { Company, User } from '../../types'
 
 export type CompanyTableProps = {
   companies: Company[]
   isLoading: boolean
   canWrite: boolean
+  userOptions: User[]
+  isUpdatingOwner: boolean
+  onOwnerChange: (companyId: string, ownerIds: string[]) => void
   onOpenCreateForm: () => void
 }
 
-function CompanyTable({ companies, isLoading, canWrite, onOpenCreateForm }: CompanyTableProps) {
+function CompanyTable({
+  companies,
+  isLoading,
+  canWrite,
+  userOptions,
+  isUpdatingOwner,
+  onOwnerChange,
+  onOpenCreateForm,
+}: CompanyTableProps) {
+  const getOwnerLabels = (ownerIds?: string[]) => {
+    if (!ownerIds || ownerIds.length === 0) return '-'
+    return (
+      ownerIds
+        .map((ownerId) => {
+          const owner = userOptions.find((user) => user.id === ownerId)
+          return owner?.name || owner?.email || ownerId
+        })
+        .filter(Boolean)
+        .join(' / ') || '-'
+    )
+  }
   if (isLoading) {
     return <SkeletonTable rows={5} columns={5} />
   }
@@ -95,7 +119,7 @@ function CompanyTable({ companies, isLoading, canWrite, onOpenCreateForm }: Comp
                 </td>
                 <td className="px-5 py-4 text-slate-600">{company.category || '-'}</td>
                 <td className="px-5 py-4">
-                  <StatusBadge status={company.status} size="sm" />
+                  <StatusBadge status={company.status} kind="company" size="sm" />
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex flex-wrap items-center gap-1">
@@ -118,7 +142,30 @@ function CompanyTable({ companies, isLoading, canWrite, onOpenCreateForm }: Comp
                     )}
                   </div>
                 </td>
-                <td className="px-5 py-4 text-slate-600">{company.ownerId || '-'}</td>
+                <td className="px-5 py-4 text-slate-600">
+                  {canWrite ? (
+                    <FormSelect
+                      multiple
+                      value={company.ownerIds ?? []}
+                      onChange={(event) =>
+                        onOwnerChange(
+                          company.id,
+                          Array.from(event.target.selectedOptions, (option) => option.value)
+                        )
+                      }
+                      className={'h-20 rounded-lg text-xs'}
+                      disabled={isUpdatingOwner}
+                    >
+                      {userOptions.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name || user.email}
+                        </option>
+                      ))}
+                    </FormSelect>
+                  ) : (
+                    getOwnerLabels(company.ownerIds)
+                  )}
+                </td>
               </tr>
             ))
           )}

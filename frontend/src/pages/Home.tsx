@@ -1,14 +1,15 @@
-﻿import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import { useAuth } from '../contexts/AuthContext'
 import { useFetch } from '../hooks/useApi'
 import { apiRoutes } from '../lib/apiRoutes'
 import { cn } from '../lib/cn'
-import { statusLabel, targetTypeLabel } from '../constants/labels'
+import { targetTypeLabel } from '../constants/labels'
 import { DashboardResponse } from '../types'
 import { formatDate } from '../utils/date'
 import { getTargetPath } from '../utils/routes'
+import StatusBadge from '../components/ui/StatusBadge'
 
 function Home() {
   const { user, logout } = useAuth()
@@ -19,7 +20,6 @@ function Home() {
     }
   )
 
-  const latestSummaries = dashboardData?.latestSummaries ?? []
   const recentCompanies = dashboardData?.recentCompanies ?? []
 
   const taskGroups = useMemo(
@@ -129,10 +129,8 @@ function Home() {
                             <span>
                               期限: {formatDate(task.dueDate)}
                             </span>
-                            <span>
-                              状態: {statusLabel('task', task.status)}
-                            </span>
-                            <span>担当: {task.assignee?.email || task.assigneeId || '-'}</span>
+                            <StatusBadge status={task.status} kind="task" size="sm" />
+                            <span>担当: {task.assignee?.name || task.assignee?.email || task.assigneeId || '-'}</span>
                             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
                               {targetTypeLabel(task.targetType)}
                             </span>
@@ -173,66 +171,6 @@ function Home() {
               </Link>
             </div>
           )}
-        </div>
-
-        {/* Latest Summaries Panel */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col h-full shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-balance text-base font-semibold text-slate-900 flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-sky-600"></span>
-              最新の要約
-            </h3>
-          </div>
-
-          <div className="flex-1 space-y-3">
-            {isLoading ? (
-              <div className="space-y-3">
-                 {[1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-50 rounded-lg" />)}
-              </div>
-            ) : latestSummaries.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center text-slate-500">
-                <p className="text-pretty text-sm font-medium text-slate-600">要約はまだありません</p>
-                <Link
-                  to="/companies"
-                  className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
-                >
-                  企業を確認する
-                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
-            ) : (
-              latestSummaries.map((summary) => {
-                const companyId = summary.company?.id ?? summary.companyId
-                const companyName = summary.company?.name ?? summary.companyId
-                return (
-                  <div
-                    key={summary.id}
-                    className="group relative rounded-xl border border-slate-200/60 bg-slate-50/60 p-3 hover:border-slate-200 hover:bg-white"
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="text-xs text-slate-400 tabular-nums">
-                        {new Date(summary.createdAt).toLocaleDateString()}
-                      </div>
-                      <svg className="size-4 text-slate-300 group-hover:text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                    <div className="truncate font-medium text-slate-900 text-sm mb-1">{companyName}</div>
-                    <p className="text-pretty line-clamp-2 text-xs text-slate-500 leading-relaxed">
-                      {summary.content}
-                    </p>
-                    <Link
-                      to={`/companies/${companyId}`}
-                      className="absolute inset-0 rounded-xl"
-                      aria-label={`${companyName} の要約を表示`}
-                    />
-                  </div>
-                )
-              })
-            )}
-          </div>
         </div>
 
         {/* Recent Companies Panel */}

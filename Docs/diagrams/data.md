@@ -1,7 +1,7 @@
-# 繝・・繧ｿ縺ｾ繧上ｊ
+# 繝�E・繧�E�縺�E�繧上ａE
 
-## ER 蝗ｳ・郁ｫ也炊・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝・・繧ｿ縺ｮ繧ｨ繝ｳ繝・ぅ繝・ぅ縺ｨ髢｢菫ゅｒ菫ｯ迸ｰ縺吶ｋ蝗ｳ縺ｧ縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Companies繧剃ｸｭ蠢・↓Projects/Wholesales/Tasks/Chatwork騾｣謳ｺ縺檎ｹ九′繧翫∪縺吶・```mermaid
+## ER 蝗ｳ・郁E��也炊・・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繝�E・繧�E�縺�E�繧�E�繝ｳ繝�EぁE���EぁE���E�髢�E�菫めE��菫�E�迸�E�縺吶�E�蝗�E�縺�E�縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: Companies繧剁E���E�蠢・↓Projects/Wholesales/Tasks/Chatwork騾�E�謳�E�縺檎ｹ九′繧翫∪縺吶・```mermaid
 erDiagram
   USER {
     string id PK
@@ -100,8 +100,8 @@ erDiagram
   USER ||--o{ JOB : created
 ```
 
-## 繝・・繧ｿ繝輔Ο繝ｼ・・FD 繝ｬ繝吶Ν0・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝・・繧ｿ縺後←縺薙°繧峨←縺薙∈豬√ｌ繧九°繧堤､ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝輔Ο繝ｳ繝遺・API竊奪B/Redis竊貞､夜ΚAPI・・hatwork/OpenAI・峨・豬√ｌ縺ｧ縺吶・```mermaid
+## 繝�E・繧�E�繝輔Ο繝ｼ・・FD 繝ｬ繝吶΁E・・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繝�E・繧�E�縺後�E縺薙°繧峨←縺薙�E豬√ｌ繧九°繧堤�E��E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: 繝輔Ο繝ｳ繝遺・API竊奪B/Redis竊貞､夜ΚAPI・・hatwork/OpenAI・峨・豬√ｌ縺�E�縺吶・```mermaid
 flowchart LR
   User[User] --> FE[Frontend]
   FE --> API[Backend API]
@@ -112,38 +112,37 @@ flowchart LR
   Chatwork --> API
 ```
 
-## 繧､繝吶Φ繝・/ 繧ｸ繝ｧ繝悶せ繧ｭ繝ｼ繝橸ｼ育樟迥ｶ・・| JobType | payload | 隱ｬ譏・|
+## 繧�E�繝吶Φ繝�E/ 繧�E�繝ｧ繝悶せ繧�E�繝ｼ繝橸�E�育樟迥�E�・・| JobType | payload | 隱�E�譏�E|
 | --- | --- | --- |
-| `chatwork_rooms_sync` | `{}` | 繝ｫ繝ｼ繝荳隕ｧ蜷梧悄 |
-| `chatwork_messages_sync` | `{ roomId?: string, roomLimit?: number }` | 繝｡繝・そ繝ｼ繧ｸ蜷梧悄 |
-| `summary_draft` | `{ companyId, periodStart, periodEnd }` | 隕∫ｴ・ラ繝ｩ繝輔ヨ逕滓・ |
+| `chatwork_rooms_sync` | `{}` | 繝ｫ繝ｼ繝荳隕ｧ蜷梧悁E|
+| `chatwork_messages_sync` | `{ roomId?: string, roomLimit?: number }` | 繝｡繝�Eそ繝ｼ繧�E�蜷梧悁E|
+| `summary_draft` | `{ companyId, periodStart, periodEnd }` | 隕∫�E�・ラ繝ｩ繝輔ヨ逕滓�E |
 
-## 繝・・繧ｿ霎樊嶌・井ｸｻ隕√お繝ｳ繝・ぅ繝・ぅ・・| 繧ｨ繝ｳ繝・ぅ繝・ぅ | 荳ｻ縺ｪ鬆・岼 | 蛯呵・|
+## 繝�E・繧�E�霎樊嶌�E井ｸ�E�隕�Eお繝ｳ繝�EぁE���EぁE�E・| 繧�E�繝ｳ繝�EぁE���EぁE| 荳�E�縺�E�鬁E�E岼 | 蛯呵・|
 | --- | --- | --- |
-| User | `email`, `role`, `password` | 隱崎ｨｼ繝ｻ讓ｩ髯・|
-| Company | `name`, `normalizedName`, `status`, `tags` | CRM荳ｭ蠢・|
-| Contact | `companyId`, `name`, `role`, `email` | 莨夂､ｾ騾｣邨｡蜈・|
-| Project | `companyId`, `name`, `status`, `periodStart/End` | 譯井ｻｶ |
+| User | `email`, `role`, `password` | 隱崎ｨ�E�繝ｻ讓ｩ髯・|
+| Company | `name`, `normalizedName`, `status`, `tags` | CRM荳�E�蠢・|
+| Contact | `companyId`, `name`, `role`, `email` | 莨夂､�E�騾�E�邨�E�蜈�E|
+| Project | `companyId`, `name`, `status`, `periodStart/End` | 譯井ｻ�E� |
 | Wholesale | `projectId`, `companyId`, `status`, `margin` | 蜊ｸ |
-| ChatworkRoom | `roomId`, `name`, `lastSyncAt`, `isActive` | 騾｣謳ｺ繝ｫ繝ｼ繝 |
-| Message | `roomId`, `messageId`, `sender`, `body`, `sentAt` | 騾｣謳ｺ繝｡繝・そ繝ｼ繧ｸ |
-| Summary | `companyId`, `content`, `type` | 遒ｺ螳夊ｦ∫ｴ・|
-| SummaryDraft | `companyId`, `content`, `expiresAt` | 閾ｪ蜍慕函謌・|
-| Task | `targetType`, `targetId`, `assigneeId`, `status` | 繧ｿ繧ｹ繧ｯ |
-| Job | `type`, `status`, `payload`, `result` | 髱槫酔譛溷・逅・|
-| AppSetting | `key`, `value` | 險ｭ螳・|
+| ChatworkRoom | `roomId`, `name`, `lastSyncAt`, `isActive` | 騾�E�謳�E�繝ｫ繝ｼ繝 |
+| Message | `roomId`, `messageId`, `sender`, `body`, `sentAt` | 騾�E�謳�E�繝｡繝�Eそ繝ｼ繧�E� |
+| Summary | `companyId`, `content`, `type` | 遒ｺ螳夊ｦ∫�E�・|
+| SummaryDraft | `companyId`, `content`, `expiresAt` | 閾�E�蜍�E函謌�E|
+| Task | `targetType`, `targetId`, `assigneeId`, `status` | 繧�E�繧�E�繧�E� |
+| Job | `type`, `status`, `payload`, `result` | 髱槫酔譛溷・送E�E|
 
-## 螳溯｣・ｷｮ蛻・ｼ井ｸｻ隕∬ｿｽ蜉鬆・岼・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: ER蝗ｳ/霎樊嶌縺ｯ荳ｻ隕・・岼縺ｮ謚懃ｲ九〒縺吶ょｮ溯｣・↓縺ｯ莉･荳九・霑ｽ蜉鬆・岼縺後≠繧翫∪縺吶・ 
+## 螳溯�E�・�E��E�蛻・�E�井ｸ�E�隕∬�E��E�蜉鬁E�E岼・・**隱�E�譏趣�E�井ｸ闊ｬ・・*: ER蝗ｳ/霎樊嶌縺�E�荳�E�隕�E�E�・岼縺�E�謚懃�E�九〒縺吶めE��溯�E�・↓縺�E�莉･荳九�E霑ｽ蜉鬁E�E岼縺後≠繧翫∪縺吶・ 
 - Company: `category`, `profile`, `ownerId`
 - Contact: `phone`, `memo`, `sortOrder`
 - Project: `conditions`, `unitPrice`, `periodStart`, `periodEnd`, `ownerId`
 - Wholesale: `conditions`, `unitPrice`, `margin`, `agreedDate`, `ownerId`
 - ChatworkRoom: `description`, `lastMessageId`, `lastErrorAt`, `lastErrorMessage`, `lastErrorStatus`
 - Message: `labels`, `sender`, `sentAt`
-- Summary / SummaryDraft: `periodStart`, `periodEnd`, `sourceLinks`, `model`, `promptVersion`, `sourceMessageCount`, `tokenUsage`, `expiresAt`・・raft縺ｮ縺ｿ・・- Task: `title`, `description`, `dueDate`, `assigneeId`
+- Summary / SummaryDraft: `periodStart`, `periodEnd`, `sourceLinks`, `model`, `promptVersion`, `sourceMessageCount`, `tokenUsage`, `expiresAt`・・raft縺�E�縺�E�・・- Task: `title`, `description`, `dueDate`, `assigneeId`
 - Job: `error`, `startedAt`, `finishedAt`
 
-## CRUD 繝槭ヨ繝ｪ繧ｯ繧ｹ・井ｸｻ隕・ｼ・| 繝ｪ繧ｽ繝ｼ繧ｹ | Create | Read | Update | Delete |
+## CRUD 繝槭ヨ繝ｪ繧�E�繧�E�・井ｸ�E�隕�E�E�・| 繝ｪ繧�E�繝ｼ繧�E� | Create | Read | Update | Delete |
 | --- | --- | --- | --- | --- |
 | Users | 笨・| 笨・| 笨・role) | - |
 | Companies | 笨・| 笨・| 笨・| 笨・|
@@ -157,7 +156,7 @@ flowchart LR
 | Jobs | 笨・enqueue) | 笨・| 笨・cancel) | - |
 | Settings | - | 笨・| 笨・| - |
 
-## 繧､繝ｳ繝・ャ繧ｯ繧ｹ / 蛻ｶ邏・ｼ域栢邊具ｼ・| 繝・・繝悶Ν | 繧､繝ｳ繝・ャ繧ｯ繧ｹ / 繝ｦ繝九・繧ｯ |
+## 繧�E�繝ｳ繝�Eャ繧�E�繧�E� / 蛻�E�邏�E�E�域栢邊�E�E�・| 繝�E・繝悶΁E| 繧�E�繝ｳ繝�Eャ繧�E�繧�E� / 繝ｦ繝九�E繧�E� |
 | --- | --- |
 | companies | `normalizedName` unique |
 | contacts | `(companyId, sortOrder)` |
@@ -169,15 +168,15 @@ flowchart LR
 | summary_drafts | `unique(companyId, periodStart, periodEnd)`, `(companyId, periodStart, periodEnd)` |
 | tasks | `(targetType, targetId)`, `(dueDate, status)`, `(assigneeId)` |
 | jobs | `(type, status)`, `(createdAt)` |
-| app_settings | `key` unique |
 
-## 繧ｭ繝｣繝・す繝･繧ｭ繝ｼ險ｭ險茨ｼ医ヵ繝ｭ繝ｳ繝茨ｼ・| 繧ｭ繝ｼ | TTL | 隱ｬ譏・|
+## 繧�E�繝｣繝�Eす繝･繧�E�繝ｼ險�E�險茨�E�医ヵ繝ｭ繝ｳ繝茨�E�・| 繧�E�繝ｼ | TTL | 隱�E�譏�E|
 | --- | --- | --- |
-| `cacheKey`・域悴謖・ｮ壽凾縺ｯURL・・| `cacheTimeMs` | `useFetch` 縺後Γ繝｢繝ｪ縺ｫ菫晄戟 |
+| `cacheKey`・域悴謖�E�E�壽凾縺�E�URL・・| `cacheTimeMs` | `useFetch` 縺後Γ繝｢繝ｪ縺�E�菫晁E�� |
 
-## 謨ｴ蜷域ｧ繝｢繝・Ν
-- 荳ｻ繝・・繧ｿ・・ostgreSQL・会ｼ壼ｼｷ謨ｴ蜷・- 髱槫酔譛溷・逅・ｼ・ob/Queue・会ｼ夂ｵ先棡謨ｴ蜷茨ｼ医ず繝ｧ繝門ｮ御ｺ・ｒ蠕・▽・・- 隕∫ｴ・ラ繝ｩ繝輔ヨ・壽悄髯蝉ｻ倥″繧ｭ繝｣繝・す繝･・・summary_drafts.expiresAt`・・
-## 繝槭う繧ｰ繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ驕狗畑・育樟迥ｶ・・| 迺ｰ蠅・| 繧ｳ繝槭Φ繝・| 蛯呵・|
+## 謨�E�蜷域�E�繝｢繝�E΁E
+- 荳�E�繝�E・繧�E�・・ostgreSQL・会ｼ壼�E��E�謨�E�蜷・- 髱槫酔譛溷・送E�E�E�・ob/Queue・会ｼ夂ｵ先棡謨�E�蜷茨�E�医ず繝ｧ繝門�E�御�E�・�E�蠕�E▽・・- 隕∫�E�・ラ繝ｩ繝輔ヨ・壽悁E��蝉ｻ倥″繧�E�繝｣繝�Eす繝･・・summary_drafts.expiresAt`・・
+## 繝槭ぁE���E�繝ｬ繝ｼ繧�E�繝ｧ繝ｳ驕狗畑�E育樟迥�E�・・| 迺�E�蠁E�E| 繧�E�繝槭Φ繝�E| 蛯呵・|
 | --- | --- | --- |
 | 髢狗匱 | `npm run migrate:dev` | Prisma migrate dev |
-| 譛ｬ逡ｪ | `npm run migrate:deploy` | Prisma migrate deploy |
+| 譛ｬ逡�E� | `npm run migrate:deploy` | Prisma migrate deploy |
+

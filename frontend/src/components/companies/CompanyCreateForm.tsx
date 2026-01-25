@@ -3,12 +3,13 @@ import FormInput from '../ui/FormInput'
 import FormSelect from '../ui/FormSelect'
 import FormTextarea from '../ui/FormTextarea'
 import { cn } from '../../lib/cn'
-import type { ChatworkRoom } from '../../types'
+import type { ChatworkRoom, User } from '../../types'
 
 export type CompanyFormState = {
   name: string
   category: string
   status: string
+  ownerIds: string[]
   tags: string
   profile: string
 }
@@ -32,6 +33,7 @@ export type CompanyCreateFormProps = {
   mergedCategories: string[]
   mergedStatuses: string[]
   tagOptions: string[]
+  userOptions: User[]
 }
 
 function CompanyCreateForm({
@@ -53,6 +55,7 @@ function CompanyCreateForm({
   mergedCategories,
   mergedStatuses,
   tagOptions,
+  userOptions,
 }: CompanyCreateFormProps) {
   if (!isOpen) return null
 
@@ -198,24 +201,20 @@ function CompanyCreateForm({
               required
             />
             <FormSelect
-              value={form.category}
-              onChange={(event) => onFormChange({ ...form, category: event.target.value })}
+              label="担当者"
+              hint="複数選択できます"
+              multiple
+              value={form.ownerIds}
+              onChange={(event) =>
+                onFormChange({
+                  ...form,
+                  ownerIds: Array.from(event.target.selectedOptions, (option) => option.value),
+                })
+              }
             >
-              <option value="">区分</option>
-              {mergedCategories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </FormSelect>
-            <FormSelect
-              value={form.status}
-              onChange={(event) => onFormChange({ ...form, status: event.target.value })}
-            >
-              <option value="">ステータス</option>
-              {mergedStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
+              {userOptions.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name || user.email}
                 </option>
               ))}
             </FormSelect>

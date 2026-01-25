@@ -1,11 +1,11 @@
-# 繧｢繝ｼ繧ｭ繝・け繝√Ε / 讒矩
+# 繧�E�繝ｼ繧�E�繝�Eけ繝�E΁E/ 讒矩�E�
 
-## 繧ｷ繧ｹ繝・Β繧ｳ繝ｳ繝・く繧ｹ繝茨ｼ・4 Context・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 蛻ｩ逕ｨ閠・・螟夜Κ繧ｷ繧ｹ繝・Β繝ｻ閾ｪ繧ｷ繧ｹ繝・Β縺ｮ髢｢菫ゅ→蠅・阜繧偵＊縺｣縺上ｊ謗ｴ繧蝗ｳ縺ｧ縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝悶Λ繧ｦ繧ｶ蛻ｩ逕ｨ閠・′繝輔Ο繝ｳ繝育ｵ檎罰縺ｧAPI繧剃ｽｿ縺・，hatwork/OpenAI縺ｨ騾｣謳ｺ縺励∪縺吶・```mermaid
+## 繧�E�繧�E�繝�EΒ繧�E�繝ｳ繝�Eく繧�E�繝茨�E�・4 Context・・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 蛻�E�逕ｨ閠・・螟夜Κ繧�E�繧�E�繝�EΒ繝ｻ閾�E�繧�E�繧�E�繝�EΒ縺�E�髢�E�菫めE�E蠁E�E阜繧偵�E�縺�E�縺上ｊ謗ｴ繧蝗ｳ縺�E�縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: 繝悶Λ繧�E�繧�E�蛻�E�逕ｨ閠・′繝輔Ο繝ｳ繝育�E�檎罰縺�E�API繧剁E���E�縺・�E�hatwork/OpenAI縺�E�騾�E�謳�E�縺励∪縺吶・```mermaid
 flowchart TB
-  subgraph Users[蛻ｩ逕ｨ閠・
-    Admin[邂｡逅・・
-    Staff["荳闊ｬ繝ｦ繝ｼ繧ｶ繝ｼ sales/ops/readonly"]
+  subgraph Users[蛻�E�逕ｨ閠・
+    Admin[邂｡送E�E・
+    Staff["荳闊ｬ繝ｦ繝ｼ繧�E�繝ｼ employee"]
   end
 
   subgraph System[CWLLM]
@@ -29,8 +29,8 @@ flowchart TB
 ```
 
 ## C4 Container
-**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 荳ｻ隕√↑螳溯｡悟腰菴搾ｼ・I/API/繝ｯ繝ｼ繧ｫ繝ｼ/DB/繧ｭ繝｣繝・す繝･・峨ｒ縺ｾ縺ｨ繧√※遉ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: API縺ｨBullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺訓ostgreSQL縺ｨRedis繧貞・譛峨＠縲∝､夜ΚAPI縺ｸ繧｢繧ｯ繧ｻ繧ｹ縺励∪縺吶・```mermaid
+**隱�E�譏趣�E�井ｸ闊ｬ・・*: 荳�E�隕�E↑螳溯�E�悟�E菴搾�E�・I/API/繝ｯ繝ｼ繧�E�繝ｼ/DB/繧�E�繝｣繝�Eす繝･・峨�E�縺�E�縺�E�繧√※遉ｺ縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: API縺�E�BullMQ繝ｯ繝ｼ繧�E�繝ｼ縺訓ostgreSQL縺�E�Redis繧貞�E譛峨�E�縲∝､夜ΚAPI縺�E�繧�E�繧�E�繧�E�繧�E�縺励∪縺吶・```mermaid
 flowchart LR
   User[Browser]
   FE["Frontend SPA React + Vite"]
@@ -53,8 +53,8 @@ flowchart LR
   Worker -->|HTTPS| OpenAI
 ```
 
-## 繝舌ャ繧ｯ繧ｨ繝ｳ繝峨・繧ｳ繝ｳ繝昴・繝阪Φ繝亥峙・・ML Component 逶ｸ蠖難ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝舌ャ繧ｯ繧ｨ繝ｳ繝牙・驛ｨ縺ｮ讒区・隕∫ｴ縺ｨ萓晏ｭ倬未菫ゅｒ遉ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes竊辿andlers竊担ervices竊単risma縺ｮ豬√ｌ縺ｧ縲∝酔譛・隕∫ｴ・↑縺ｩ縺ｮ讖溯・縺悟ｮ溯｣・＆繧後※縺・∪縺吶・```mermaid
+## 繝�Eャ繧�E�繧�E�繝ｳ繝峨・繧�E�繝ｳ繝昴・繝阪Φ繝亥峙�E・ML Component 逶�E�蠖難�E�・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繝�Eャ繧�E�繧�E�繝ｳ繝牙・驛ｨ縺�E�讒区・隕∫�E��E�縺�E�萓晏�E�倬未菫めE��遉�E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: Routes竊辿andlers竊担ervices竊単risma縺�E�豬√ｌ縺�E�縲∝�E譛�E隕∫�E�・↑縺�E�縺�E�讖溯・縺悟ｮ溯�E�・�E�E��後※縺・∪縺吶・```mermaid
 flowchart TB
   subgraph FastifyApp[Fastify App]
     Routes[Routes]
@@ -86,8 +86,8 @@ flowchart TB
   LLMClient --> OpenAI[OpenAI API]
 ```
 
-## 隲也炊繧｢繝ｼ繧ｭ繝・け繝√Ε・亥ｱ､繝ｻ雋ｬ蜍呻ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 螻､縺斐→縺ｮ雋ｬ蜍吶→萓晏ｭ俶婿蜷代ｒ謨ｴ逅・☆繧句峙縺ｧ縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: UI竊但PI竊担ervice竊棚nfra縺ｮ荳譁ｹ蜷代〒縲．B/Redis/螟夜ΚAPI縺ｯInfra蛛ｴ縺ｫ髮・ｴ・＠縺ｦ縺・∪縺吶・```mermaid
+## 隲也炊繧�E�繝ｼ繧�E�繝�Eけ繝�EΕ�E亥�E��E�繝ｻ雋ｬ蜍呻�E�・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 螻�E�縺斐�E縺�E�雋ｬ蜍吶→萓晏ｭ俶婿蜷代�E�謨�E�送E�E☁E��句峙縺�E�縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: UI竊佁EI竊担ervice竊棚nfra縺�E�荳譁E��蜷代〒縲�E�B/Redis/螟夜ΚAPI縺�E�Infra蛛ｴ縺�E�髮・�E�・�E�縺�E�縺・∪縺吶・```mermaid
 flowchart TB
   subgraph Presentation[Presentation]
     UI[React UI]
@@ -111,8 +111,8 @@ flowchart TB
   Domain --> External
 ```
 
-## 迚ｩ逅・い繝ｼ繧ｭ繝・け繝√Ε・・ev / Prod・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 螳溯｡檎腸蠅・〒縺ｮ驟咲ｽｮ・医・繝ｭ繧ｻ繧ｹ/繧ｳ繝ｳ繝・リ/繧ｵ繝ｼ繝薙せ・峨ｒ遉ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 髢狗匱縺ｯVite+Fastify縺ｨDocker縺ｮDB/Redis縲・°逕ｨ縺ｯRender縺ｾ縺溘・Docker讒区・縺ｧ縺吶・```mermaid
+## 迚ｩ送E�EぁE��ｼ繧�E�繝�Eけ繝�EΕ�E・ev / Prod・・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 螳溯�E�檎�E蠁E�E〒縺�E�驟咲�E��E�・医・繝ｭ繧�E�繧�E�/繧�E�繝ｳ繝�Eリ/繧�E�繝ｼ繝薙せ�E峨�E�遉�E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: 髢狗匱縺�E�Vite+Fastify縺�E�Docker縺�E�DB/Redis縲・°逕ｨ縺�E�Render縺�E�縺溘�EDocker讒区・縺�E�縺吶・```mermaid
 flowchart TB
   subgraph Dev[Local Dev]
     BrowserDev[Browser]
@@ -137,9 +137,9 @@ flowchart TB
   end
 ```
 
-## 繝阪ャ繝医Ρ繝ｼ繧ｯ讒区・ / 繝医Λ繝輔ぅ繝・け繝輔Ο繝ｼ
-**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｪ繧ｯ繧ｨ繧ｹ繝医・蜈･蜿｣縺九ｉ蜀・Κ繝ｻ螟夜Κ騾｣謳ｺ縺ｾ縺ｧ縺ｮ騾壻ｿ｡邨瑚ｷｯ繧堤､ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝悶Λ繧ｦ繧ｶ竊偵ヵ繝ｭ繝ｳ繝遺・API竊奪B/Redis竊貞､夜ΚAPI縺ｮ豬√ｌ縺ｫ縺ｪ繧翫∪縺吶・```mermaid
+## 繝阪ャ繝医Ρ繝ｼ繧�E�讒区・ / 繝医Λ繝輔ぅ繝�Eけ繝輔Ο繝ｼ
+**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繝ｪ繧�E�繧�E�繧�E�繝医・蜈･蜿�E�縺九ｉ蜀・Κ繝ｻ螟夜Κ騾�E�謳�E�縺�E�縺�E�縺�E�騾壻�E��E�邨瑚ｷ�E�繧堤�E��E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: 繝悶Λ繧�E�繧�E�竊�Eヵ繝ｭ繝ｳ繝遺・API竊奪B/Redis竊貞､夜ΚAPI縺�E�豬√ｌ縺�E�縺�E�繧翫∪縺吶・```mermaid
 flowchart LR
   User[Browser]
   FE["Frontend static"]
@@ -158,8 +158,8 @@ flowchart LR
   Chatwork -->|Webhook| API
 ```
 
-## 隱崎ｨｼ繝ｻ隱榊庄蠅・阜・・rust Boundary・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 縺ｩ縺薙〒隱崎ｨｼ繝ｻ隱榊庄縺瑚｡後ｏ繧後ｋ縺九∽ｿ｡鬆ｼ蠅・阜繧堤､ｺ縺吝峙縺ｧ縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: JWT讀懆ｨｼ縺ｨRBAC縺ｯ繝舌ャ繧ｯ繧ｨ繝ｳ繝牙・縺ｧ螳滓命縺励√け繝ｩ繧､繧｢繝ｳ繝医・譛ｪ菫｡鬆ｼ蜑肴署縺ｧ縺吶・```mermaid
+## 隱崎ｨ�E�繝ｻ隱榊庁E��E�E阜�E・rust Boundary・・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 縺�E�縺薙〒隱崎ｨ�E�繝ｻ隱榊庁E��瑚｡後ｏ繧後ｋ縺九∽�E��E�鬁E��蠁E�E阜繧堤�E��E�縺吝峙縺�E�縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: JWT讀懁E���E�縺�E�RBAC縺�E�繝�Eャ繧�E�繧�E�繝ｳ繝牙・縺�E�螳滓命縺励√け繝ｩ繧�E�繧�E�繝ｳ繝医・譛ｪ菫�E�鬁E��蜑肴署縺�E�縺吶・```mermaid
 flowchart TB
   subgraph Client[Untrusted Client]
     Browser
@@ -173,9 +173,9 @@ flowchart TB
   API2 --> DB2[(PostgreSQL)]
 ```
 
-## 繧ｹ繝医Ξ繝ｼ繧ｸ / 繧ｭ繝｣繝・す繝･驟咲ｽｮ
-**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝・・繧ｿ縺ｮ菫晏ｭ伜・繝ｻ繧ｭ繝｣繝・す繝･縺ｮ驟咲ｽｮ繧堤､ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: 繝輔Ο繝ｳ繝医・useFetch縺ｮ繝｡繝｢繝ｪ繧ｭ繝｣繝・す繝･縲√ヰ繝・け縺ｯPostgreSQL/Redis繧貞茜逕ｨ縺励∪縺吶・```mermaid
+## 繧�E�繝医Ξ繝ｼ繧�E� / 繧�E�繝｣繝�Eす繝･驟咲�E��E�
+**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繝�E・繧�E�縺�E�菫晏ｭ伜�E繝ｻ繧�E�繝｣繝�Eす繝･縺�E�驟咲�E��E�繧堤�E��E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: 繝輔Ο繝ｳ繝医・useFetch縺�E�繝｡繝｢繝ｪ繧�E�繝｣繝�Eす繝･縲√ヰ繝�Eけ縺�E�PostgreSQL/Redis繧貞茜逕ｨ縺励∪縺吶・```mermaid
 flowchart LR
   FECache["Frontend In-Memory Cache useFetch cacheKey"]
   API3[Backend API]
@@ -187,8 +187,8 @@ flowchart LR
   API3 --> Redis3
 ```
 
-## 繧ｸ繝ｧ繝門渕逶､ / 繧､繝吶Φ繝磯ｧ・虚縺ｮ蜈ｨ菴・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 髱槫酔譛溷・逅・・豬√ｌ縺ｨ繧ｭ繝･繝ｼ/繝ｯ繝ｼ繧ｫ繝ｼ縺ｮ髢｢菫ゅｒ遉ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Chatwork蜷梧悄繧・ｦ∫ｴ・函謌舌・繧ｸ繝ｧ繝門喧縺輔ｌ縲。ullMQ繝ｯ繝ｼ繧ｫ繝ｼ縺悟・逅・＠縺ｾ縺吶・```mermaid
+## 繧�E�繝ｧ繝門渕逶�E� / 繧�E�繝吶Φ繝磯�E�・虚縺�E�蜈ｨ菴・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 髱槫酔譛溷・送E�E・豬√ｌ縺�E�繧�E�繝･繝ｼ/繝ｯ繝ｼ繧�E�繝ｼ縺�E�髢�E�菫めE��遉�E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: Chatwork蜷梧悁E��・�E�∫�E�・函謌�E・繧�E�繝ｧ繝門喧縺輔ｌ縲。ullMQ繝ｯ繝ｼ繧�E�繝ｼ縺悟�E送E�E�E�縺�E�縺吶・```mermaid
 flowchart TB
   UI[Frontend] -->|POST chatwork sync| API4[Backend API]
   API4 -->|create Job| DB4[(PostgreSQL)]
@@ -199,8 +199,8 @@ flowchart TB
   Worker -->|update status result| DB4
 ```
 
-## 萓晏ｭ倬未菫ゅげ繝ｩ繝包ｼ医Δ繧ｸ繝･繝ｼ繝ｫ萓晏ｭ假ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝｢繧ｸ繝･繝ｼ繝ｫ髢薙・萓晏ｭ俶婿蜷代ｒ菫ｯ迸ｰ縺吶ｋ蝗ｳ縺ｧ縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes/Handlers/Services縺御ｸｭ蠢・〒縲￣risma/Redis/螟夜ΚAPI縺ｸ萓晏ｭ倥＠縺ｾ縺吶・```mermaid
+## 萓晏�E�倬未菫めE��繝ｩ繝包�E�医Δ繧�E�繝･繝ｼ繝ｫ萓晏�E�偁E��・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繝｢繧�E�繝･繝ｼ繝ｫ髢薙�E萓晏�E�俶婿蜷代�E�菫�E�迸�E�縺吶�E�蝗�E�縺�E�縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: Routes/Handlers/Services縺御�E��E�蠢・〒縲�E�risma/Redis/螟夜ΚAPI縺�E�萓晏�E�倥�E�縺�E�縺吶・```mermaid
 flowchart TB
   Routes3[Routes] --> Handlers3[Handlers] --> Services3[Services] --> Utils[Utils]
   Services3 --> Prisma3["Prisma Client"] --> DB5[(PostgreSQL)]
@@ -209,8 +209,8 @@ flowchart TB
   Middleware2[Middleware] --> Services3
 ```
 
-## 繝｢繧ｸ繝･繝ｼ繝ｫ讒区・・医Μ繝昴ず繝医Μ・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝ｪ繝昴ず繝医Μ縺ｮ荳ｻ隕√ョ繧｣繝ｬ繧ｯ繝医Μ讒区・繧堤､ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: frontend/backend/infra/Docs縺ｫ蛻・牡縺励※雋ｬ蜍吶ｒ譏守｢ｺ蛹悶＠縺ｦ縺・∪縺吶・```mermaid
+## 繝｢繧�E�繝･繝ｼ繝ｫ讒区・・医Μ繝昴ず繝医Μ�E・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繝ｪ繝昴ず繝医Μ縺�E�荳�E�隕�Eョ繧�E�繝ｬ繧�E�繝医Μ讒区・繧堤�E��E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: frontend/backend/infra/Docs縺�E�蛻・牡縺励※雋ｬ蜍吶�E�譏守｢�E�蛹悶�E�縺�E�縺・∪縺吶・```mermaid
 flowchart TB
   Repo["CWLLM Repo"]
   Repo --> Frontend["frontend/"]
@@ -238,8 +238,8 @@ flowchart TB
   Backend --> Worker["worker.ts"]
 ```
 
-## 繝ｬ繧､繝､繝ｼ蝗ｳ・・resentation / Domain / Infra・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繝励Ξ繧ｼ繝ｳ繝・・繧ｷ繝ｧ繝ｳ/繝峨Γ繧､繝ｳ/繧､繝ｳ繝輔Λ縺ｮ謚ｽ雎｡螻､繧堤､ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Routes/Services縺後ラ繝｡繧､繝ｳ逶ｸ蠖薙￣risma/Redis/螟夜ΚAPI縺後う繝ｳ繝輔Λ逶ｸ蠖薙〒縺吶・```mermaid
+## 繝ｬ繧�E�繝､繝ｼ蝗ｳ・・resentation / Domain / Infra・・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繝励Ξ繧�E�繝ｳ繝�E・繧�E�繝ｧ繝ｳ/繝峨Γ繧�E�繝ｳ/繧�E�繝ｳ繝輔Λ縺�E�謚ｽ雎｡螻�E�繧堤�E��E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: Routes/Services縺後ラ繝｡繧�E�繝ｳ逶�E�蠖薙�E�risma/Redis/螟夜ΚAPI縺後う繝ｳ繝輔Λ逶�E�蠖薙〒縺吶・```mermaid
 flowchart TB
   PresentationLayer[Presentation]
   DomainLayer[Domain / Use-Case]
@@ -248,8 +248,8 @@ flowchart TB
   PresentationLayer --> DomainLayer --> InfraLayer
 ```
 
-## Hexagonal・・orts & Adapters・・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 繧ｳ繧｢縺ｨ螟夜Κ繧｢繝繝励ち縺ｮ蠅・阜繧堤､ｺ縺呵ｨｭ險亥峙縺ｧ縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Inbound縺ｯHTTP/Scheduler縲＾utbound縺ｯDB/Redis/Chatwork/OpenAI縺ｧ縺吶・```mermaid
+## Hexagonal・・orts & Adapters・・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 繧�E�繧�E�縺�E�螟夜Κ繧�E�繝繝励ち縺�E�蠁E�E阜繧堤�E��E�縺呵�E��E�險亥峙縺�E�縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: Inbound縺�E�HTTP/Scheduler縲�E�utbound縺�E�DB/Redis/Chatwork/OpenAI縺�E�縺吶・```mermaid
 flowchart LR
   subgraph Core[Core / Use-Case]
     UseCases[Services]
@@ -272,8 +272,8 @@ flowchart LR
   UseCases --> LLMAdapter
 ```
 
-## DDD Context Map・亥｢・阜縺･縺托ｼ・**隱ｬ譏趣ｼ井ｸ闊ｬ・・*: 讌ｭ蜍咎伜沺・医さ繝ｳ繝・く繧ｹ繝茨ｼ蛾俣縺ｮ髢｢菫ゅｒ遉ｺ縺励∪縺吶・ 
-**縺薙・繝励Ο繧ｸ繧ｧ繧ｯ繝医〒縺ｯ**: Companies繧剃ｸｭ蠢・↓Projects/Wholesales/Tasks縺碁｣謳ｺ縺励∪縺吶・```mermaid
+## DDD Context Map・亥�E�・阜縺�E�縺托ｼ・**隱�E�譏趣�E�井ｸ闊ｬ・・*: 讌ｭ蜍咎�E�伜沺・医さ繝ｳ繝�Eく繧�E�繝茨�E�蛾俣縺�E�髢�E�菫めE��遉�E�縺励∪縺吶・ 
+**縺薙�E繝励Ο繧�E�繧�E�繧�E�繝医〒縺�E�**: Companies繧剁E���E�蠢・↓Projects/Wholesales/Tasks縺碁E��E�謳�E�縺励∪縺吶・```mermaid
 flowchart LR
   Accounts["Accounts Users"]
   CRM["CRM Companies Contacts"]
@@ -292,19 +292,19 @@ flowchart LR
   Summaries --> Tasks
 ```
 
-## 4+1 繝薙Η繝ｼ・亥ｯｾ蠢懆｡ｨ・・| View | 蟇ｾ蠢懷峙 |
+## 4+1 繝薙Η繝ｼ・亥�E��E�蠢懁E���E�・・| View | 蟁E��蠢懷峁E|
 | --- | --- |
-| Logical | 隲也炊繧｢繝ｼ繧ｭ繝・け繝√Ε / 繝ｬ繧､繝､繝ｼ蝗ｳ |
-| Process | 繧ｸ繝ｧ繝門渕逶､ / 繧､繝吶Φ繝磯ｧ・虚 / 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ |
-| Development | 繝｢繧ｸ繝･繝ｼ繝ｫ讒区・ / 萓晏ｭ倬未菫・|
-| Physical | 迚ｩ逅・い繝ｼ繧ｭ繝・け繝√Ε / 繝阪ャ繝医Ρ繝ｼ繧ｯ |
-| Scenarios | 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ蝗ｳ・医Ο繧ｰ繧､繝ｳ繝ｻ蜷梧悄繝ｻ隕∫ｴ・ｼ・|
+| Logical | 隲也炊繧�E�繝ｼ繧�E�繝�Eけ繝�E΁E/ 繝ｬ繧�E�繝､繝ｼ蝗ｳ |
+| Process | 繧�E�繝ｧ繝門渕逶�E� / 繧�E�繝吶Φ繝磯�E�・虁E/ 繧�E�繝ｼ繧�E�繝ｳ繧�E� |
+| Development | 繝｢繧�E�繝･繝ｼ繝ｫ讒区・ / 萓晏�E�倬未菫・|
+| Physical | 迚ｩ送E�EぁE��ｼ繧�E�繝�Eけ繝�E΁E/ 繝阪ャ繝医Ρ繝ｼ繧�E� |
+| Scenarios | 繧�E�繝ｼ繧�E�繝ｳ繧�E�蝗ｳ・医Ο繧�E�繧�E�繝ｳ繝ｻ蜷梧悁E��ｻ隕∫�E�・�E�・|
 
-## 雋ｬ蜍吝・蜑ｲ・医し繝槭Μ・・| 鬆伜沺 | 荳ｻ諡・ｽ・| 蠖ｹ蜑ｲ |
+## 雋ｬ蜍吝・蜑ｲ・医し繝槭Μ�E・| 鬁E��沺 | 荳�E�諡・�E�・| 蠖ｹ蜑ｲ |
 | --- | --- | --- |
-| 逕ｻ髱｢/UI | Frontend | 逕ｻ髱｢陦ｨ遉ｺ縲∝・蜉帙、PI蜻ｼ縺ｳ蜃ｺ縺・|
-| 隱崎ｨｼ/隱榊庄 | Backend | JWT逋ｺ陦後ヽBAC縲√い繧ｯ繧ｻ繧ｹ蛻ｶ蠕｡ |
-| 讌ｭ蜍吶Ο繧ｸ繝・け | Backend Services | 蜷梧悄/隕∫ｴ・繧ｿ繧ｹ繧ｯ蛹也ｭ・|
-| 豌ｸ邯壼喧 | PostgreSQL + Prisma | 荳ｻ隕√ョ繝ｼ繧ｿ縺ｮ豌ｸ邯壼喧 |
-| 髱槫酔譛溷・逅・| Redis + BullMQ | Chatwork蜷梧悄繝ｻ隕∫ｴ・函謌舌・螳溯｡・|
-| 螟夜Κ騾｣謳ｺ | Chatwork/OpenAI | 繝｡繝・そ繝ｼ繧ｸ蜿門ｾ励・隕∫ｴ・函謌・|
+| 逕ｻ髱�E�/UI | Frontend | 逕ｻ髱�E�陦�E�遉ｺ縲∝�E蜉帙、PI蜻�E�縺�E�蜁E��縺・|
+| 隱崎ｨ�E�/隱榊庁E| Backend | JWT逋ｺ陦後ヽBAC縲√い繧�E�繧�E�繧�E�蛻�E�蠕｡ |
+| 讌ｭ蜍吶Ο繧�E�繝�EぁE| Backend Services | 蜷梧悁E隕∫�E�・繧�E�繧�E�繧�E�蛹也ｭ・|
+| 豌ｸ邯壼喧 | PostgreSQL + Prisma | 荳�E�隕�Eョ繝ｼ繧�E�縺�E�豌ｸ邯壼喧 |
+| 髱槫酔譛溷・送E�E| Redis + BullMQ | Chatwork蜷梧悁E��ｻ隕∫�E�・函謌�E・螳溯�E�・|
+| 螟夜Κ騾�E�謳�E� | Chatwork/OpenAI | 繝｡繝�Eそ繝ｼ繧�E�蜿門�E�励・隕∫�E�・函謌�E|

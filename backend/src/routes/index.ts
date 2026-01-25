@@ -6,7 +6,6 @@ import { dashboardRoutes } from './dashboard'
 import { messageRoutes } from './messages'
 import { projectRoutes } from './projects'
 import { searchRoutes } from './search'
-import { settingRoutes } from './settings'
 import { summaryRoutes } from './summaries'
 import { taskRoutes } from './tasks'
 import { userRoutes } from './users'
@@ -26,7 +25,6 @@ const ROUTES = [
   searchRoutes,
   summaryRoutes,
   dashboardRoutes,
-  settingRoutes,
 ]
 
 export const registerRoutes = (fastify: FastifyInstance) => {
