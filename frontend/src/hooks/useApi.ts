@@ -14,6 +14,8 @@ type FetchOptions<T> = {
   onError?: (message: string, error?: unknown) => void
   cacheKey?: string
   cacheTimeMs?: number
+  authMode?: 'bearer'
+  authToken?: string | null
 }
 
 type MutationOptions<T> = {
@@ -22,6 +24,8 @@ type MutationOptions<T> = {
   url?: string
   onSuccess?: (data: T) => void
   onError?: (message: string, error?: unknown) => void
+  authMode?: 'bearer'
+  authToken?: string | null
 }
 
 export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
@@ -34,6 +38,8 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
     onError,
     cacheKey,
     cacheTimeMs = 0,
+    authMode,
+    authToken,
   } = options
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
@@ -93,6 +99,8 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
           body: mergedInit.body,
           headers: mergedInit.headers,
           signal: controller.signal,
+          authMode,
+          authToken,
         })
         if (responseData !== null) {
           if (!controller.signal.aborted && requestId === requestIdRef.current) {
@@ -169,6 +177,8 @@ export function useMutation<T, D>(url: string, method: HttpMethod) {
           body: payload ?? options.init?.body,
           headers: options.init?.headers,
           signal: controller.signal,
+          authMode: options.authMode,
+          authToken: options.authToken,
         })
         if (responseData !== null) {
           options.onSuccess?.(responseData)

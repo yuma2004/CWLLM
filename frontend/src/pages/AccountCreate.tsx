@@ -38,7 +38,7 @@ function AccountCreate() {
     error: usersError,
     isLoading: isUsersLoading,
     refetch: refetchUsers,
-  } = useFetch<{ users: User[] }>(apiRoutes.users.list())
+  } = useFetch<{ users: User[] }>(apiRoutes.users.list(), { authMode: 'bearer' })
 
   const { mutate: createUser, isLoading } = useMutation<{ user: { id: string } }, CreateUserPayload>(
     apiRoutes.users.create(),
@@ -94,7 +94,7 @@ function AccountCreate() {
           password: form.password,
           role: form.role,
         },
-        { errorMessage: 'アカウントの作成に失敗しました' }
+        { errorMessage: 'アカウントの作成に失敗しました', authMode: 'bearer' }
       )
       showToast('アカウントを作成しました', 'success')
       setForm((prev) => ({ ...prev, email: '', name: '', password: '' }))
