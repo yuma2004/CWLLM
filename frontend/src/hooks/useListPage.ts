@@ -31,6 +31,8 @@ type UseListPageOptions<
     onError?: (message: string, error?: unknown) => void
     cacheKey?: string
     cacheTimeMs?: number
+    authMode?: 'bearer'
+    authToken?: string | null
   }
 }
 

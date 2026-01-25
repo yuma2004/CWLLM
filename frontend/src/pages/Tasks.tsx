@@ -77,6 +77,7 @@ function Tasks() {
     buildUrl: buildTaskUrl,
     debounce: { key: 'q', delayMs: 300 },
     fetchOptions: {
+      authMode: 'bearer',
       errorMessage: 'タスクの読み込みに失敗しました',
     },
   })
@@ -134,6 +135,7 @@ function Tasks() {
   )
 
   const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
+    authMode: 'bearer',
     cacheTimeMs: 30_000,
   })
   const userOptions = usersData?.users ?? []
@@ -211,7 +213,7 @@ function Tasks() {
     try {
       await updateTaskStatus(
         { status: nextStatus },
-        { url: apiRoutes.tasks.detail(taskId), errorMessage: 'ステータスの更新に失敗しました' }
+        { authMode: 'bearer', url: apiRoutes.tasks.detail(taskId), errorMessage: 'ステータスの更新に失敗しました' }
       )
       void refetchTasks()
       showToast('ステータスを更新しました', 'success')
@@ -233,7 +235,7 @@ function Tasks() {
     try {
       await updateTask(
         { dueDate },
-        { url: apiRoutes.tasks.detail(taskId), errorMessage: '期限の更新に失敗しました' }
+        { authMode: 'bearer', url: apiRoutes.tasks.detail(taskId), errorMessage: '期限の更新に失敗しました' }
       )
       void refetchTasks()
       showToast('期限を更新しました', 'success')
@@ -258,7 +260,7 @@ function Tasks() {
     try {
       await updateTask(
         { assigneeId },
-        { url: apiRoutes.tasks.detail(taskId), errorMessage: '担当者の更新に失敗しました' }
+        { authMode: 'bearer', url: apiRoutes.tasks.detail(taskId), errorMessage: '担当者の更新に失敗しました' }
       )
       void refetchTasks()
       showToast('担当者を更新しました', 'success')
@@ -299,7 +301,7 @@ function Tasks() {
           dueDate: createForm.dueDate || undefined,
           assigneeId: createForm.assigneeId || undefined,
         },
-        { errorMessage: 'タスクの作成に失敗しました' }
+        { authMode: 'bearer', errorMessage: 'タスクの作成に失敗しました' }
       )
       showToast('タスクを作成しました', 'success')
       setCreateForm((prev) => ({ ...prev, title: '', description: '', dueDate: '' }))
@@ -330,7 +332,7 @@ function Tasks() {
       if (bulkStatus) payload.status = bulkStatus
       if (bulkDueDate) payload.dueDate = bulkDueDate
       if (clearBulkDueDate) payload.dueDate = null
-      await bulkUpdateTasks(payload, { errorMessage: '一括更新に失敗しました' })
+      await bulkUpdateTasks(payload, { authMode: 'bearer', errorMessage: '一括更新に失敗しました' })
       setSelectedIds([])
       setBulkStatus('')
       setBulkDueDate('')
@@ -346,8 +348,7 @@ function Tasks() {
     if (!deleteTarget || !canWrite) return
     setError('')
     try {
-      await deleteTask(undefined, {
-        url: apiRoutes.tasks.detail(deleteTarget.id),
+      await deleteTask(undefined, { authMode: 'bearer', url: apiRoutes.tasks.detail(deleteTarget.id),
         errorMessage: 'タスクの削除に失敗しました',
       })
       setDeleteTarget(null)

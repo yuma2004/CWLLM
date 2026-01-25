@@ -53,18 +53,15 @@ const prepareRequest = (
   { method = 'GET', body, headers, signal, authMode, authToken }: ApiRequestOptions
 ): { fullUrl: string; init: RequestInit } => {
   const isAbsoluteInput = isAbsoluteUrl(url)
-  if (isAbsoluteInput && !isAllowedAbsoluteUrl(url)) {
+  const isAllowedAbsolute = isAbsoluteInput && isAllowedAbsoluteUrl(url)
+  if (isAbsoluteInput && !isAllowedAbsolute) {
     throw new Error('Absolute URL requests are not allowed in apiClient.')
   }
   const fullUrl = buildUrl(url)
   const requestHeaders = new Headers(headers)
   const hasBody = body !== undefined
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
-
-  if (isAbsoluteInput && requestHeaders.has('Authorization')) {
-    requestHeaders.delete('Authorization')
-  }
-  if (!isAbsoluteInput && authMode === 'bearer' && !requestHeaders.has('Authorization')) {
+  if (authMode === 'bearer' && !requestHeaders.has('Authorization')) {
     const token = authToken ?? getAuthToken()
     if (token) {
       requestHeaders.set('Authorization', `Bearer ${token}`)
