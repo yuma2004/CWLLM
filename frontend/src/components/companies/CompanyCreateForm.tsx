@@ -30,8 +30,6 @@ export type CompanyCreateFormProps = {
   form: CompanyFormState
   onFormChange: (next: CompanyFormState) => void
   onSubmit: (event: React.FormEvent) => void
-  mergedCategories: string[]
-  mergedStatuses: string[]
   tagOptions: string[]
   userOptions: User[]
 }
@@ -52,8 +50,6 @@ function CompanyCreateForm({
   form,
   onFormChange,
   onSubmit,
-  mergedCategories,
-  mergedStatuses,
   tagOptions,
   userOptions,
 }: CompanyCreateFormProps) {

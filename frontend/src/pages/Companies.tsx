@@ -29,7 +29,7 @@ const defaultFilters: CompaniesFilters = {
   category: '',
   status: '',
   tag: '',
-  ownerIds: [],
+  ownerId: '',
 }
 
 function Companies() {
@@ -335,8 +335,6 @@ function Companies() {
         form={form}
         onFormChange={setForm}
         onSubmit={handleCreate}
-        mergedCategories={mergedCategories}
-        mergedStatuses={mergedStatuses}
         tagOptions={options.tags}
         userOptions={userOptions}
       />
