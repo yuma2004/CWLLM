@@ -278,12 +278,12 @@ function Companies() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase  text-slate-400">企業</p>
-          <h2 className="text-3xl font-bold text-slate-900">企業一覧</h2>
+          <p className="text-xs uppercase text-notion-text-tertiary">企業</p>
+          <h2 className="text-3xl font-semibold text-notion-text text-balance">企業一覧</h2>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-500">
-            登録数: <span className="font-semibold text-slate-700">{pagination.total}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-notion-text-secondary">
+            登録数: <span className="font-semibold text-notion-text tabular-nums">{pagination.total}</span>
           </span>
           {canWrite && (
             <Button
@@ -337,11 +337,13 @@ function Companies() {
         onSubmit={handleCreate}
         tagOptions={options.tags}
         userOptions={userOptions}
+        categoryOptions={mergedCategories}
+        statusOptions={mergedStatuses}
       />
 
       {/* Readonly Notice */}
       {!canWrite && (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-notion-border p-4 text-sm text-notion-text-secondary">
           権限がないため、企業の追加・編集はできません。
         </div>
       )}
@@ -372,12 +374,12 @@ function Companies() {
       )}
 
       {/* Keyboard Shortcuts Hint */}
-      <div className="text-center text-xs text-slate-400">
-        <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">/</kbd> 検索
+      <div className="text-center text-xs text-notion-text-tertiary">
+        <kbd className="rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">/</kbd> 検索
         {canWrite && (
           <>
             {' '}
-            <kbd className="ml-2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">n</kbd> 新規追加
+            <kbd className="ml-2 rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">n</kbd> 新規追加
           </>
         )}
       </div>

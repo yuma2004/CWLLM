@@ -131,7 +131,7 @@ function SearchSelect<T extends BaseOption>({
       {value && (
         <button
           type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/30"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/30"
           onClick={handleClear}
           aria-label="選択をクリア"
         >

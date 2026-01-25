@@ -10,6 +10,9 @@ type ModalProps = {
   children: React.ReactNode
   footer?: React.ReactNode
   className?: string
+  placement?: 'center' | 'right'
+  overlayClassName?: string
+  wrapperClassName?: string
 }
 
 const Modal = ({
@@ -20,6 +23,9 @@ const Modal = ({
   children,
   footer,
   className,
+  placement = 'center',
+  overlayClassName,
+  wrapperClassName,
 }: ModalProps) => {
   const dialogId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -98,19 +104,33 @@ const Modal = ({
 
   if (!isOpen) return null
 
+  const wrapperClasses = cn(
+    'fixed inset-0 z-50 flex overscroll-contain',
+    placement === 'right'
+      ? 'items-stretch justify-end'
+      : 'items-center justify-center px-4 safe-area-top safe-area-bottom',
+    wrapperClassName
+  )
+  const panelClasses = cn(
+    placement === 'right'
+      ? 'relative z-10 h-dvh w-full max-w-md bg-white shadow-xl'
+      : 'relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl',
+    className
+  )
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 overscroll-contain safe-area-top safe-area-bottom">
+    <div className={wrapperClasses}>
       <button
         type="button"
-        className="absolute inset-0 border-0 bg-black/50 p-0 hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        className={cn(
+          'absolute inset-0 border-0 bg-black/50 p-0 hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
+          overlayClassName
+        )}
         aria-label="Close dialog"
         onClick={onClose}
       />
       <div
-        className={cn(
-          'relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl',
-          className
-        )}
+        className={panelClasses}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? dialogId : undefined}
@@ -126,7 +146,7 @@ const Modal = ({
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+              className="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
               aria-label="Close dialog"
             >
               <CloseIcon className="size-4" />

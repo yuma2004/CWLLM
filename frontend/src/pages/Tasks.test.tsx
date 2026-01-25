@@ -87,7 +87,9 @@ describe('Tasks page', () => {
     if (!row) {
       throw new Error('Task row not found')
     }
-    const statusSelect = within(row).getByLabelText('Follow up のステータス')
+    const statusTrigger = within(row).getByText('未対応')
+    fireEvent.click(statusTrigger)
+    const statusSelect = within(row).getByLabelText('ステータス')
     fireEvent.change(statusSelect, { target: { value: 'done' } })
 
     await waitFor(() => {
@@ -129,6 +131,8 @@ describe('Tasks page', () => {
       </MemoryRouter>
     )
 
+    const filterButton = screen.getByText('フィルター')
+    fireEvent.click(filterButton)
     const targetTypeSelect = screen.getByLabelText('対象で絞り込み')
     fireEvent.change(targetTypeSelect, { target: { value: 'company' } })
 

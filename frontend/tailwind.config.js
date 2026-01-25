@@ -10,6 +10,17 @@ export default {
         sans: ['"Zen Kaku Gothic New"', 'sans-serif'],
       },
       colors: {
+        notion: {
+          bg: '#ffffff',
+          'bg-hover': '#f7f6f3',
+          'bg-secondary': '#fbfbfa',
+          border: '#e4e4e4',
+          'border-light': '#ebebea',
+          text: '#37352f',
+          'text-secondary': '#787774',
+          'text-tertiary': '#9b9a97',
+          accent: '#2383e2',
+        },
         brand: {
           50: '#f0f9ff',
           100: '#e0f2fe',

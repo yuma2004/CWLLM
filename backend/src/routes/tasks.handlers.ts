@@ -46,6 +46,7 @@ type TaskListFilterResult =
     }
   | {
       ok: true
+      q?: string
       status?: TaskStatus
       targetType?: TargetType
       dueFrom?: Date | null
@@ -53,6 +54,7 @@ type TaskListFilterResult =
     }
 
 const parseTaskListFilters = (query: TaskListQuery): TaskListFilterResult => {
+  const q = query.q?.trim()
   const status = normalizeStatus(query.status)
   if (status === null) {
     return { ok: false, error: 'Invalid status' }
@@ -72,7 +74,7 @@ const parseTaskListFilters = (query: TaskListQuery): TaskListFilterResult => {
     return { ok: false, error: 'Invalid dueTo date' }
   }
 
-  return { ok: true, status, targetType, dueFrom, dueTo }
+  return { ok: true, q: q && q.length > 0 ? q : undefined, status, targetType, dueFrom, dueTo }
 }
 
 const listTasks = async (
@@ -129,6 +131,12 @@ const listTasksForTarget = async (
   if (status) {
     where.status = status
   }
+  if (request.query.q?.trim()) {
+    where.OR = [
+      { title: { contains: request.query.q.trim(), mode: 'insensitive' } },
+      { description: { contains: request.query.q.trim(), mode: 'insensitive' } },
+    ]
+  }
 
   return listTasks(where, page, pageSize, skip)
 }
@@ -157,6 +165,12 @@ export const listTasksHandler = async (
     where.assigneeId = userId
   } else if (request.query.assigneeId) {
     where.assigneeId = request.query.assigneeId
+  }
+  if (filters.q) {
+    where.OR = [
+      { title: { contains: filters.q, mode: 'insensitive' } },
+      { description: { contains: filters.q, mode: 'insensitive' } },
+    ]
   }
   if (filters.status) {
     where.status = filters.status
@@ -422,6 +436,12 @@ export const listMyTasksHandler = async (
     where.assigneeId = userId
   } else if (request.query.assigneeId) {
     where.assigneeId = request.query.assigneeId
+  }
+  if (filters.q) {
+    where.OR = [
+      { title: { contains: filters.q, mode: 'insensitive' } },
+      { description: { contains: filters.q, mode: 'insensitive' } },
+    ]
   }
   if (filters.status) {
     where.status = filters.status

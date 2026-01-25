@@ -85,7 +85,7 @@ export default function Pagination({
               id="pageSize"
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus-visible:border-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/30"
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus-visible:border-notion-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/30"
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
@@ -103,7 +103,7 @@ export default function Pagination({
             onClick={() => onPageChange(page - 1)}
             disabled={page === 1}
             className={cn(
-              'flex size-8 items-center justify-center rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40',
+              'flex size-8 items-center justify-center rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40',
               page === 1
                 ? 'cursor-not-allowed text-slate-300'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -126,9 +126,9 @@ export default function Pagination({
                 key={pageNum}
                 onClick={() => onPageChange(pageNum)}
                 className={cn(
-                  'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40',
+                  'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40',
                   page === pageNum
-                    ? 'bg-sky-600 text-white'
+                    ? 'bg-notion-accent text-white'
                     : 'text-slate-600 hover:bg-slate-100'
                 )}
                 aria-current={page === pageNum ? 'page' : undefined}
@@ -143,7 +143,7 @@ export default function Pagination({
             onClick={() => onPageChange(page + 1)}
             disabled={page === totalPages}
             className={cn(
-              'flex size-8 items-center justify-center rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40',
+              'flex size-8 items-center justify-center rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40',
               page === totalPages
                 ? 'cursor-not-allowed text-slate-300'
                 : 'text-slate-600 hover:bg-slate-100'

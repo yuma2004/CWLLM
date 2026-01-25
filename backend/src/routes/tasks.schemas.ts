@@ -34,6 +34,7 @@ export interface TaskBulkUpdateBody {
 }
 
 export interface TaskListQuery {
+  q?: string
   status?: string
   assigneeId?: string
   targetType?: string
@@ -75,6 +76,7 @@ export const taskSchema = z
 
 export const taskListQuerySchema = z
   .object({
+    q: z.string().optional(),
     status: z.nativeEnum(TaskStatus).optional(),
     assigneeId: z.string().optional(),
     targetType: z.nativeEnum(TargetType).optional(),
@@ -119,4 +121,3 @@ export const taskListResponseSchema = z
   })
   .passthrough()
 export const taskBulkUpdateResponseSchema = z.object({ updated: z.number() }).passthrough()
-

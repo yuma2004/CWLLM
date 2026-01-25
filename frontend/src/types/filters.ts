@@ -7,6 +7,7 @@
 }
 
 export type TasksFilters = {
+  q: string
   status: string
   targetType: string
   dueFrom: string

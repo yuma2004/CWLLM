@@ -7,7 +7,7 @@ import FormInput from '../components/ui/FormInput'
 import DateInput from '../components/ui/DateInput'
 import FormTextarea from '../components/ui/FormTextarea'
 import FormSelect from '../components/ui/FormSelect'
-import Card from '../components/ui/Card'
+import SlidePanel from '../components/ui/SlidePanel'
 import Pagination from '../components/ui/Pagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { CompanySearchSelect } from '../components/SearchSelect'
@@ -26,6 +26,7 @@ import type { Task, TasksFilters, User } from '../types'
 import { apiRoutes } from '../lib/apiRoutes'
 
 const defaultFilters: TasksFilters = {
+  q: '',
   status: '',
   targetType: '',
   dueFrom: '',
@@ -34,8 +35,7 @@ const defaultFilters: TasksFilters = {
 
 function Tasks() {
   const { canWrite } = usePermissions()
-  const searchInputRef = useRef<HTMLSelectElement>(null)
-  const createFormRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const createTitleRef = useRef<HTMLInputElement>(null)
   const createCompanyRef = useRef<HTMLInputElement>(null)
 
@@ -65,6 +65,7 @@ function Tasks() {
       resetPageOnFilterChange: false,
     },
     buildUrl: apiRoutes.tasks.myList,
+    debounce: { key: 'q', delayMs: 300 },
     fetchOptions: {
       errorMessage: 'タスクの読み込みに失敗しました',
     },
@@ -369,7 +370,6 @@ function Tasks() {
 
   const handleScrollToCreate = () => {
     setIsCreateOpen(true)
-    createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
@@ -377,26 +377,34 @@ function Tasks() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase  text-slate-400">タスク</p>
-          <h2 className="text-3xl font-bold text-slate-900 text-balance">マイタスク</h2>
+          <p className="text-xs uppercase text-notion-text-tertiary">タスク</p>
+          <h2 className="text-3xl font-semibold text-notion-text text-balance">マイタスク</h2>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-500">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-notion-text-secondary">
             合計件数:{' '}
-            <span className="font-semibold text-slate-700 tabular-nums">{pagination.total}</span>
+            <span className="font-semibold text-notion-text tabular-nums">{pagination.total}</span>
           </span>
+          {canWrite && (
+            <Button onClick={() => setIsCreateOpen(true)} className="inline-flex items-center gap-2">
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              新規作成
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold text-slate-600 shadow-sm">
+        <div className="inline-flex rounded-full border border-notion-border bg-notion-bg p-1 text-xs font-semibold text-notion-text-secondary shadow-sm">
           <button
             type="button"
             onClick={() => setExtraParams((prev) => ({ ...prev, view: 'list' }))}
             aria-pressed={viewMode === 'list'}
             className={cn(
               'rounded-full px-3 py-1',
-              viewMode === 'list' ? 'bg-sky-600 text-white' : 'hover:bg-slate-100'
+              viewMode === 'list' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
             )}
           >
             リスト
@@ -407,7 +415,7 @@ function Tasks() {
             aria-pressed={viewMode === 'kanban'}
             className={cn(
               'rounded-full px-3 py-1',
-              viewMode === 'kanban' ? 'bg-sky-600 text-white' : 'hover:bg-slate-100'
+              viewMode === 'kanban' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
             )}
           >
             カンバン
@@ -415,238 +423,209 @@ function Tasks() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          {/* Search & Filter */}
-          <TaskFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            onSubmit={handleSearchSubmit}
-            hasActiveFilters={hasActiveFilters}
-            onClearFilter={handleClearFilter}
-            onClearAll={handleClearAllFilters}
-            searchInputRef={searchInputRef}
-          />
+      {/* Search & Filter */}
+      <TaskFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        onSubmit={handleSearchSubmit}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilter={handleClearFilter}
+        onClearAll={handleClearAllFilters}
+        searchInputRef={searchInputRef}
+      />
 
-          {canWrite && selectedIds.length > 0 && (
-            <TaskBulkActions
-              selectedIds={selectedIds}
-              allSelected={allSelected}
-              onToggleSelectAll={toggleSelectAll}
-              bulkStatus={bulkStatus}
-              onBulkStatusChange={setBulkStatus}
-              bulkDueDate={bulkDueDate}
-              onBulkDueDateChange={setBulkDueDate}
-              clearBulkDueDate={clearBulkDueDate}
-              onClearBulkDueDateChange={setClearBulkDueDate}
-              onBulkUpdate={handleBulkUpdate}
-              isBulkUpdating={isBulkUpdating}
-            />
-          )}
+      {canWrite && selectedIds.length > 0 && (
+        <TaskBulkActions
+          selectedIds={selectedIds}
+          allSelected={allSelected}
+          onToggleSelectAll={toggleSelectAll}
+          bulkStatus={bulkStatus}
+          onBulkStatusChange={setBulkStatus}
+          bulkDueDate={bulkDueDate}
+          onBulkDueDateChange={setBulkDueDate}
+          clearBulkDueDate={clearBulkDueDate}
+          onClearBulkDueDateChange={setClearBulkDueDate}
+          onBulkUpdate={handleBulkUpdate}
+          isBulkUpdating={isBulkUpdating}
+        />
+      )}
 
-          {/* Readonly Notice */}
-          {!canWrite && (
-            <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-              権限がないため、タスクのステータス変更はできません。
-            </div>
-          )}
-
-          {/* Delete Confirmation */}
-          <ConfirmDialog
-            isOpen={!!deleteTarget}
-            title="タスクの削除"
-            description={`「${deleteTarget?.title}」を削除しますか？この操作は元に戻せません。`}
-            confirmLabel="削除"
-            cancelLabel="キャンセル"
-            isLoading={isDeleting}
-            onConfirm={handleDelete}
-            onCancel={() => setDeleteTarget(null)}
-          />
-
-          {/* Error */}
-          <ErrorAlert message={error} onClose={() => setError('')} />
-
-          {/* Table */}
-          {isLoadingTasks ? (
-            <SkeletonTable rows={5} columns={7} />
-          ) : viewMode === 'list' ? (
-            <TaskTable
-              tasks={tasks}
-              selectedIds={selectedIds}
-              allSelected={allSelected}
-              onToggleSelectAll={toggleSelectAll}
-              onToggleSelected={toggleSelected}
-              onStatusChange={handleStatusChange}
-              onDueDateChange={handleDueDateChange}
-              onAssigneeChange={handleAssigneeChange}
-              onDelete={setDeleteTarget}
-              canWrite={canWrite}
-              isBulkUpdating={isBulkUpdating}
-              userOptions={userOptions}
-              emptyStateDescription={
-                canWrite
-                  ? 'まずはタスクを追加して、対応状況を見える化しましょう。'
-                  : '検索条件をリセットして確認してください。'
-              }
-              emptyStateAction={
-                canWrite ? (
-                  <button
-                    type="button"
-                    onClick={handleScrollToCreate}
-                    className="text-sm font-semibold text-sky-600 hover:text-sky-700"
-                  >
-                    タスクを作成
-                  </button>
-                ) : null
-              }
-            />
-          ) : (
-            <TaskKanban
-              tasks={tasks}
-              canWrite={canWrite}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelected}
-              onStatusChange={handleStatusChange}
-              onAssigneeChange={handleAssigneeChange}
-              disabled={isBulkUpdating}
-              userOptions={userOptions}
-            />
-          )}
-
-          {/* Pagination */}
-          {pagination.total > 0 && (
-            <Pagination
-              page={pagination.page}
-              pageSize={pagination.pageSize}
-              total={pagination.total}
-              onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
-            />
-          )}
+      {/* Readonly Notice */}
+      {!canWrite && (
+        <div className="rounded-2xl border border-dashed border-notion-border p-4 text-sm text-notion-text-secondary">
+          権限がないため、タスクのステータス変更はできません。
         </div>
-        <aside className="lg:col-span-1">
-          {canWrite && (
-            <div ref={createFormRef} className="lg:sticky lg:top-24">
-              <Card
-                title="タスク作成"
-                description={
-                  isCreateOpen ? '企業に紐づけてタスクを追加できます。' : '必要なときに開いて追加します。'
-                }
-                headerAction={
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setIsCreateOpen((prev) => !prev)}
-                  >
-                    {isCreateOpen ? '閉じる' : 'タスク作成'}
-                  </Button>
-                }
+      )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="タスクの削除"
+        description={`「${deleteTarget?.title}」を削除しますか？この操作は元に戻せません。`}
+        confirmLabel="削除"
+        cancelLabel="キャンセル"
+        isLoading={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Error */}
+      <ErrorAlert message={error} onClose={() => setError('')} />
+
+      {/* Table */}
+      {isLoadingTasks ? (
+        <SkeletonTable rows={5} columns={5} />
+      ) : viewMode === 'list' ? (
+        <TaskTable
+          tasks={tasks}
+          selectedIds={selectedIds}
+          allSelected={allSelected}
+          onToggleSelectAll={toggleSelectAll}
+          onToggleSelected={toggleSelected}
+          onStatusChange={handleStatusChange}
+          onDueDateChange={handleDueDateChange}
+          onAssigneeChange={handleAssigneeChange}
+          onDelete={setDeleteTarget}
+          canWrite={canWrite}
+          isBulkUpdating={isBulkUpdating}
+          userOptions={userOptions}
+          emptyStateDescription={
+            canWrite
+              ? 'まずはタスクを追加して、対応状況を見える化しましょう。'
+              : '検索条件をリセットして確認してください。'
+          }
+          emptyStateAction={
+            canWrite ? (
+              <button
+                type="button"
+                onClick={handleScrollToCreate}
+                className="text-sm font-semibold text-notion-accent hover:text-notion-accent/80"
               >
-                <div
-                  className={cn(
-                    'transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden',
-                    isCreateOpen ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'
-                  )}
-                >
-                  {isCreateOpen ? (
-                    <form onSubmit={handleCreateTask} className="space-y-4 pt-2">
-                      <div className="grid gap-4">
-                        <FormInput
-                          label="タスクタイトル"
-                          value={createForm.title}
-                          onChange={(event) => {
-                            const nextValue = event.target.value
-                            setCreateForm((prev) => ({ ...prev, title: nextValue }))
-                            if (createFieldErrors.title) {
-                              setCreateFieldErrors((prev) => ({ ...prev, title: undefined }))
-                            }}}
-                          name="title"
-                          autoComplete="off"
-                          placeholder="対応内容を入力…"
-                          disabled={isCreating}
-                          error={createFieldErrors.title}
-                          ref={createTitleRef}
-                        />
-                        <CompanySearchSelect
-                          label="紐づける企業"
-                          value={createForm.companyId}
-                          onChange={(companyId) => {
-                            setCreateForm((prev) => ({ ...prev, companyId }))
-                            if (createFieldErrors.companyId) {
-                              setCreateFieldErrors((prev) => ({ ...prev, companyId: undefined }))
-                            }
-                          }}
-                          name="companyId"
-                          autoComplete="off"
-                          placeholder="企業名で検索…"
-                          disabled={isCreating}
-                          error={createFieldErrors.companyId}
-                          inputRef={createCompanyRef}
-                        />
-                        <FormSelect
-                          label="担当者"
-                          value={createForm.assigneeId}
-                          onChange={(event) =>
-                            setCreateForm((prev) => ({ ...prev, assigneeId: event.target.value }))
-                          }
-                          name="assigneeId"
-                          autoComplete="off"
-                          disabled={isCreating}
-                        >
-                          <option value="">未割当</option>
-                          {userOptions.map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.name || user.email}
-                            </option>
-                          ))}
-                        </FormSelect>
-                        <FormTextarea
-                          label="詳細"
-                          rows={3}
-                          value={createForm.description}
-                          onChange={(event) =>
-                            setCreateForm((prev) => ({ ...prev, description: event.target.value }))
-                          }
-                          name="description"
-                          autoComplete="off"
-                          placeholder="背景や補足メモ…"
-                          disabled={isCreating}
-                        />
-                        <DateInput
-                          label="期限"
-                          value={createForm.dueDate}
-                          onChange={(event) =>
-                            setCreateForm((prev) => ({ ...prev, dueDate: event.target.value }))
-                          }
-                          name="dueDate"
-                          autoComplete="off"
-                          placeholder="期限…"
-                          disabled={isCreating}
-                        />
-                      </div>
+                タスクを作成
+              </button>
+            ) : null
+          }
+        />
+      ) : (
+        <TaskKanban
+          tasks={tasks}
+          canWrite={canWrite}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelected}
+          onStatusChange={handleStatusChange}
+          onAssigneeChange={handleAssigneeChange}
+          disabled={isBulkUpdating}
+          userOptions={userOptions}
+        />
+      )}
 
-                      {createError && (
-                        <ErrorAlert message={createError} onClose={() => setCreateError('')} />
-                      )}
+      {/* Pagination */}
+      {pagination.total > 0 && (
+        <Pagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      )}
 
-                      <div className="flex justify-end">
-                        <Button type="submit" isLoading={isCreating} loadingLabel="作成中…">
-                          タスクを作成
-                        </Button>
-                      </div>
-                    </form>
-                  ) : null}
-                </div>
-              </Card>
-            </div>
-          )}
-        </aside>
-      </div>
+      <SlidePanel
+        isOpen={canWrite && isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="タスク作成"
+        description="企業に紐づけてタスクを追加できます。"
+        size="md"
+      >
+        <form onSubmit={handleCreateTask} className="space-y-4">
+          <div className="grid gap-4">
+            <FormInput
+              label="タスクタイトル"
+              value={createForm.title}
+              onChange={(event) => {
+                const nextValue = event.target.value
+                setCreateForm((prev) => ({ ...prev, title: nextValue }))
+                if (createFieldErrors.title) {
+                  setCreateFieldErrors((prev) => ({ ...prev, title: undefined }))
+                }}}
+              name="title"
+              autoComplete="off"
+              placeholder="対応内容を入力…"
+              disabled={isCreating}
+              error={createFieldErrors.title}
+              ref={createTitleRef}
+            />
+            <CompanySearchSelect
+              label="紐づける企業"
+              value={createForm.companyId}
+              onChange={(companyId) => {
+                setCreateForm((prev) => ({ ...prev, companyId }))
+                if (createFieldErrors.companyId) {
+                  setCreateFieldErrors((prev) => ({ ...prev, companyId: undefined }))
+                }
+              }}
+              name="companyId"
+              autoComplete="off"
+              placeholder="企業名で検索…"
+              disabled={isCreating}
+              error={createFieldErrors.companyId}
+              inputRef={createCompanyRef}
+            />
+            <FormSelect
+              label="担当者"
+              value={createForm.assigneeId}
+              onChange={(event) =>
+                setCreateForm((prev) => ({ ...prev, assigneeId: event.target.value }))
+              }
+              name="assigneeId"
+              autoComplete="off"
+              disabled={isCreating}
+            >
+              <option value="">未割当</option>
+              {userOptions.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name || user.email}
+                </option>
+              ))}
+            </FormSelect>
+            <FormTextarea
+              label="詳細"
+              rows={3}
+              value={createForm.description}
+              onChange={(event) =>
+                setCreateForm((prev) => ({ ...prev, description: event.target.value }))
+              }
+              name="description"
+              autoComplete="off"
+              placeholder="背景や補足メモ…"
+              disabled={isCreating}
+            />
+            <DateInput
+              label="期限"
+              value={createForm.dueDate}
+              onChange={(event) =>
+                setCreateForm((prev) => ({ ...prev, dueDate: event.target.value }))
+              }
+              name="dueDate"
+              autoComplete="off"
+              placeholder="期限…"
+              disabled={isCreating}
+            />
+          </div>
+
+          {createError && <ErrorAlert message={createError} onClose={() => setCreateError('')} />}
+
+          <div className="flex justify-end">
+            <Button type="submit" isLoading={isCreating} loadingLabel="作成中…">
+              タスクを作成
+            </Button>
+          </div>
+        </form>
+      </SlidePanel>
 
       {/* Keyboard Shortcuts Hint */}
-      <div className="text-center text-xs text-slate-400">
-        <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">/</kbd> フィルターにフォーカス
+      <div className="text-center text-xs text-notion-text-tertiary">
+        <kbd className="rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">/</kbd> フィルターにフォーカス
       </div>
       {toast && (
         <Toast

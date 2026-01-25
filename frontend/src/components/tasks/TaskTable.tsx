@@ -1,10 +1,12 @@
-import { Link } from 'react-router-dom'
+﻿import { Link } from 'react-router-dom'
 import EmptyState from '../ui/EmptyState'
 import DateInput from '../ui/DateInput'
 import FormSelect from '../ui/FormSelect'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/Popover'
 import StatusBadge from '../ui/StatusBadge'
 import { formatDate, formatDateInput } from '../../utils/date'
 import { getTargetPath } from '../../utils/routes'
+import { cn } from '../../lib/cn'
 import {
   TASK_STATUS_OPTIONS,
   statusLabel,
@@ -46,36 +48,34 @@ export function TaskTable({
   emptyStateDescription,
 }: TaskTableProps) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full divide-y divide-slate-100 text-sm text-slate-600">
-        <thead className="bg-slate-50 text-left text-xs font-semibold uppercase whitespace-nowrap text-slate-500">
+    <div className="overflow-x-auto rounded-2xl border border-notion-border bg-notion-bg shadow-sm">
+      <table className="min-w-full divide-y divide-notion-border text-sm text-notion-text-secondary">
+        <thead className="bg-notion-bg-secondary text-left text-xs font-semibold uppercase whitespace-nowrap text-notion-text-tertiary">
           <tr>
             <th className="px-4 py-3">
-              <label className="inline-flex items-center">
+              <label className="inline-flex items-center gap-2 text-xs">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={onToggleSelectAll}
                   name="select-all"
                   aria-label="すべてのタスクを選択"
-                  className="size-4 rounded border-slate-300 accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                  className="size-4 rounded border-slate-300 accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
                   disabled={isBulkUpdating}
                 />
-                <span className="sr-only">すべて選択</span>
+                タスク
               </label>
             </th>
-            <th className="px-4 py-3">タイトル</th>
             <th className="px-4 py-3">ステータス</th>
             <th className="px-4 py-3">担当者</th>
-            <th className="px-4 py-3">対象</th>
             <th className="px-4 py-3">期限</th>
-            <th className="px-4 py-3">操作</th>
+            <th className="px-4 py-3 text-right">操作</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 bg-white">
+        <tbody className="divide-y divide-notion-border bg-notion-bg">
           {tasks.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-5 py-12 text-center">
+              <td colSpan={5} className="px-5 py-12 text-center">
                 <EmptyState
                   message="タスクが見つかりません"
                   description={emptyStateDescription}
@@ -100,113 +100,160 @@ export function TaskTable({
             </tr>
           ) : (
             tasks.map((task) => (
-              <tr key={task.id} className="group hover:bg-slate-50/80">
-                <td className="px-4 py-4">
-                  <label className="inline-flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(task.id)}
-                      onChange={() => onToggleSelected(task.id)}
-                      name={`select-${task.id}`}
-                      aria-label={`${task.title} を選択`}
-                      className="size-4 rounded border-slate-300 accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                      disabled={isBulkUpdating}
-                    />
-                    <span className="sr-only">{`${task.title} を選択`}</span>
-                  </label>
-                </td>
+              <tr key={task.id} className="group hover:bg-notion-bg-hover">
                 <td className="px-4 py-4 min-w-0">
-                  <div className="min-w-0">
-                    <Link
-                      to={`/tasks/${task.id}`}
-                      className="block truncate font-semibold text-slate-900 hover:text-sky-600"
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={cn(
+                        'pt-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
+                        selectedIds.includes(task.id) && 'opacity-100'
+                      )}
                     >
-                      {task.title}
-                    </Link>
-                    {task.description && (
-                      <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">
-                        {task.description}
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(task.id)}
+                        onChange={() => onToggleSelected(task.id)}
+                        name={`select-${task.id}`}
+                        aria-label={`${task.title} を選択`}
+                        className="size-4 rounded border-slate-300 accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                        disabled={isBulkUpdating}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Link
+                        to={`/tasks/${task.id}`}
+                        className="block truncate font-semibold text-notion-text hover:text-notion-accent"
+                      >
+                        {task.title}
+                      </Link>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-notion-text-secondary">
+                        <span className="rounded bg-notion-bg-hover px-2 py-0.5">
+                          {targetTypeLabel(task.targetType)}
+                        </span>
+                        <Link
+                          to={getTargetPath(task.targetType, task.targetId)}
+                          className="truncate hover:text-notion-text"
+                        >
+                          {task.target?.name || task.targetId}
+                        </Link>
                       </div>
-                    )}
+                      {task.description && (
+                        <div className="mt-1 line-clamp-1 text-xs text-notion-text-tertiary">
+                          {task.description}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-4">
                   {canWrite ? (
-                    <FormSelect
-                      name={`status-${task.id}`}
-                      aria-label={`${task.title} のステータス`}
-                      autoComplete="off"
-                      className="w-auto rounded-full px-3 py-1 text-xs"
-                      value={task.status}
-                      onChange={(e) => onStatusChange(task.id, e.target.value)}
-                    >
-                      {TASK_STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {statusLabel('task', status)}
-                        </option>
-                      ))}
-                    </FormSelect>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-full bg-notion-bg-hover px-2 py-1 text-xs text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                        >
+                          {statusLabel('task', task.status)}
+                          <svg className="size-3 text-notion-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" sideOffset={6} className="w-64">
+                        <FormSelect
+                          label="ステータス"
+                          name={`status-${task.id}`}
+                          aria-label={`${task.title} のステータス`}
+                          autoComplete="off"
+                          value={task.status}
+                          onChange={(e) => onStatusChange(task.id, e.target.value)}
+                        >
+                          {TASK_STATUS_OPTIONS.map((status) => (
+                            <option key={status} value={status}>
+                              {statusLabel('task', status)}
+                            </option>
+                          ))}
+                        </FormSelect>
+                      </PopoverContent>
+                    </Popover>
                   ) : (
                     <StatusBadge status={task.status} kind="task" size="sm" />
                   )}
                 </td>
                 <td className="px-4 py-4">
                   {canWrite ? (
-                    <FormSelect
-                      name={`assignee-${task.id}`}
-                      aria-label={`${task.title} の担当者`}
-                      autoComplete="off"
-                      className="w-auto rounded-full px-3 py-1 text-xs"
-                      value={task.assigneeId ?? ''}
-                      onChange={(e) => onAssigneeChange(task.id, e.target.value)}
-                      disabled={isBulkUpdating}
-                    >
-                      <option value="">未割当</option>
-                      {userOptions.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.name || user.email}
-                        </option>
-                      ))}
-                    </FormSelect>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-full bg-notion-bg-hover px-2 py-1 text-xs text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                        >
+                          {task.assignee?.name || task.assignee?.email || task.assigneeId || '未割当'}
+                          <svg className="size-3 text-notion-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" sideOffset={6} className="w-64">
+                        <FormSelect
+                          label="担当者"
+                          name={`assignee-${task.id}`}
+                          aria-label={`${task.title} の担当者`}
+                          autoComplete="off"
+                          value={task.assigneeId ?? ''}
+                          onChange={(e) => onAssigneeChange(task.id, e.target.value)}
+                          disabled={isBulkUpdating}
+                        >
+                          <option value="">未割当</option>
+                          {userOptions.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.name || user.email}
+                            </option>
+                          ))}
+                        </FormSelect>
+                      </PopoverContent>
+                    </Popover>
                   ) : (
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-notion-text-secondary">
                       {task.assignee?.name || task.assignee?.email || task.assigneeId || '-'}
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-4 min-w-0">
-                  <Link
-                    to={getTargetPath(task.targetType, task.targetId)}
-                    className="inline-flex min-w-0 flex-col items-start gap-1 text-slate-600 hover:text-sky-600"
-                  >
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">
-                      {targetTypeLabel(task.targetType)}
-                    </span>
-                    <span className="truncate text-xs text-slate-500">
-                      {task.target?.name || task.targetId}
-                    </span>
-                  </Link>
-                </td>
-                <td className="px-4 py-4 text-slate-600 tabular-nums">
+                <td className="px-4 py-4 text-notion-text tabular-nums">
                   {canWrite ? (
-                    <DateInput
-                      name={`dueDate-${task.id}`}
-                      aria-label={`${task.title} の期限`}
-                      autoComplete="off"
-                      className="w-auto rounded border border-slate-200 px-2 py-1 text-xs"
-                      value={task.dueDate ? formatDateInput(task.dueDate) : ''}
-                      onChange={(e) => onDueDateChange(task.id, e.target.value)}
-                      placeholder="期限…"
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-full bg-notion-bg-hover px-2 py-1 text-xs text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                        >
+                          {task.dueDate ? formatDate(task.dueDate) : '未設定'}
+                          <svg className="size-3 text-notion-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" sideOffset={6} className="w-64">
+                        <DateInput
+                          label="期限"
+                          name={`dueDate-${task.id}`}
+                          aria-label={`${task.title} の期限`}
+                          autoComplete="off"
+                          value={task.dueDate ? formatDateInput(task.dueDate) : ''}
+                          onChange={(e) => onDueDateChange(task.id, e.target.value)}
+                          placeholder="期限…"
+                        />
+                      </PopoverContent>
+                    </Popover>
                   ) : (
                     formatDate(task.dueDate)
                   )}
                 </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-2">
+                <td className="px-4 py-4 text-right">
+                  <div className="inline-flex items-center gap-2 text-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
                     <Link
                       to={getTargetPath(task.targetType, task.targetId)}
-                      className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                      className="font-semibold text-notion-text-secondary hover:text-notion-text"
                     >
                       詳細
                     </Link>
@@ -214,7 +261,7 @@ export function TaskTable({
                       <button
                         type="button"
                         onClick={() => onDelete(task)}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                        className="font-semibold text-rose-600 hover:text-rose-700"
                       >
                         削除
                       </button>

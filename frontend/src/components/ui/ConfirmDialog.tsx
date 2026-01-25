@@ -30,7 +30,7 @@ const ConfirmDialog = ({
         <>
           <button
             type="button"
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
             onClick={onCancel}
             disabled={isLoading}
           >
