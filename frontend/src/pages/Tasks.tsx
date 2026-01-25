@@ -35,7 +35,8 @@ const defaultFilters: TasksFilters = {
 
 function Tasks() {
   const { canWrite, isAdmin } = usePermissions()
-  const [taskScope, setTaskScope] = useState<'mine' | 'all'>('mine')
+  const [taskScope, setTaskScope] = useState<'mine' | 'all'>(() => (isAdmin ? 'all' : 'mine'))
+  const [hasTouchedScope, setHasTouchedScope] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const createTitleRef = useRef<HTMLInputElement>(null)
   const createCompanyRef = useRef<HTMLInputElement>(null)
@@ -159,6 +160,12 @@ function Tasks() {
       setTaskScope('mine')
     }
   }, [isAdmin, taskScope])
+
+  useEffect(() => {
+    if (isAdmin && !hasTouchedScope && taskScope !== 'all') {
+      setTaskScope('all')
+    }
+  }, [hasTouchedScope, isAdmin, taskScope])
 
   useEffect(() => {
     if (!isCreateDirty) return undefined
@@ -389,6 +396,7 @@ function Tasks() {
 
   const handleScopeChange = (nextScope: 'mine' | 'all') => {
     if (!isAdmin) return
+    setHasTouchedScope(true)
     setTaskScope(nextScope)
     setPage(1)
   }

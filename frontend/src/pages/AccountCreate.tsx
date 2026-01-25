@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
@@ -13,6 +13,7 @@ import { apiRoutes } from '../lib/apiRoutes'
 import { formatDate } from '../utils/date'
 import { toErrorMessage } from '../utils/errorState'
 import type { User } from '../types'
+import { useAuth } from '../contexts/AuthContext'
 
 type CreateUserPayload = {
   email: string
@@ -31,6 +32,7 @@ function AccountCreate() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [error, setError] = useState('')
   const { toast, showToast, clearToast } = useToast()
+  const { user: currentUser } = useAuth()
   const {
     data: usersData,
     error: usersError,
@@ -104,6 +106,22 @@ function AccountCreate() {
   }
 
   const users = usersData?.users ?? []
+  const mergedUsers = useMemo(() => {
+    if (!currentUser) return users
+    const exists = users.some(
+      (userItem) => userItem.id === currentUser.id || userItem.email === currentUser.email
+    )
+    if (exists) return users
+    return [
+      {
+        id: currentUser.id,
+        email: currentUser.email,
+        name: null,
+        role: currentUser.role,
+      },
+      ...users,
+    ]
+  }, [currentUser, users])
 
   return (
     <div className="space-y-4">
@@ -233,7 +251,7 @@ function AccountCreate() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-notion-border bg-notion-bg">
-                {users.length === 0 ? (
+                {mergedUsers.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-4 py-10 text-center">
                       <EmptyState
@@ -243,18 +261,32 @@ function AccountCreate() {
                     </td>
                   </tr>
                 ) : (
-                  users.map((user) => (
-                    <tr key={user.id} className="hover:bg-notion-bg-hover">
-                      <td className="px-4 py-3 font-medium text-notion-text">{user.email}</td>
-                      <td className="px-4 py-3">{user.name || '-'}</td>
-                      <td className="px-4 py-3">
-                        {user.role === 'admin' ? '管理者' : '一般社員'}
-                      </td>
-                      <td className="px-4 py-3 text-notion-text-tertiary">
-                        {formatDate(user.createdAt)}
-                      </td>
-                    </tr>
-                  ))
+                  mergedUsers.map((user) => {
+                    const isCurrentUser =
+                      currentUser &&
+                      (user.id === currentUser.id || user.email === currentUser.email)
+                    return (
+                      <tr key={user.id} className="hover:bg-notion-bg-hover">
+                        <td className="px-4 py-3 font-medium text-notion-text">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{user.email}</span>
+                            {isCurrentUser && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                ログイン中
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">{user.name || '-'}</td>
+                        <td className="px-4 py-3">
+                          {user.role === 'admin' ? '管理者' : '一般社員'}
+                        </td>
+                        <td className="px-4 py-3 text-notion-text-tertiary">
+                          {formatDate(user.createdAt)}
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
