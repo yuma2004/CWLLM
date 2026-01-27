@@ -35,7 +35,7 @@ function Login() {
     setIsLoading(true)
 
     try {
-      await login(email, password)
+      await login(email.trim(), password)
       const nextPath = from?.pathname
         ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
         : '/'

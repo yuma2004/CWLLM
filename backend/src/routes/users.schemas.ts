@@ -41,8 +41,8 @@ export const userOptionsResponseSchema = z.object({
 })
 
 export const createUserBodySchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(1),
+  email: z.string().trim().email(),
+  name: z.string().trim().min(1),
   password: z.string().min(8),
   role: z.nativeEnum(UserRole),
 })

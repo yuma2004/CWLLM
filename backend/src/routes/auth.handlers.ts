@@ -7,15 +7,55 @@ import type { LoginBody } from './auth.schemas'
 export const buildLoginHandler =
   (fastify: FastifyInstance) =>
   async (request: FastifyRequest<{ Body: LoginBody }>, reply: FastifyReply) => {
-    const { email, password } = request.body
+    const startedAt = Date.now()
+    let dbMs: number | null = null
+    let bcryptMs: number | null = null
+    let userFound = false
 
-    const user = await prisma.user.findUnique({ where: { email } })
-    if (!user) {
-      return reply.code(401).send(buildErrorPayload(401, 'Invalid credentials'))
+    const logTiming = (statusCode: number) => {
+      const totalMs = Date.now() - startedAt
+      request.log.info(
+        {
+          event: 'auth.login',
+          statusCode,
+          dbMs,
+          bcryptMs,
+          totalMs,
+          userFound,
+          requestId: request.id,
+        },
+        'auth.login timing'
+      )
     }
 
+    const { email, password } = request.body
+    const normalizedEmail = email.trim()
+
+    const dbStart = Date.now()
+    const user =
+      (await prisma.user.findUnique({ where: { email: normalizedEmail } })) ??
+      (await prisma.user.findFirst({
+        where: {
+          email: {
+            equals: normalizedEmail,
+            mode: 'insensitive',
+          },
+        },
+      }))
+    dbMs = Date.now() - dbStart
+
+    if (!user) {
+      logTiming(401)
+      return reply.code(401).send(buildErrorPayload(401, 'Invalid credentials'))
+    }
+    userFound = true
+
+    const bcryptStart = Date.now()
     const isValid = await bcrypt.compare(password, user.password)
+    bcryptMs = Date.now() - bcryptStart
+
     if (!isValid) {
+      logTiming(401)
       return reply.code(401).send(buildErrorPayload(401, 'Invalid credentials'))
     }
 
@@ -26,6 +66,8 @@ export const buildLoginHandler =
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
     })
+
+    logTiming(200)
 
     return {
       token,

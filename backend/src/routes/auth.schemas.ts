@@ -6,6 +6,6 @@ export interface LoginBody {
 }
 
 export const loginBodySchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(1),
 })

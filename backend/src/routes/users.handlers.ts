@@ -19,6 +19,8 @@ export const createUserHandler = async (
   reply: FastifyReply
 ) => {
   const { email, name, password, role } = request.body
+  const normalizedEmail = email.trim()
+  const normalizedName = name.trim()
 
   const validRoles = new Set(Object.values(UserRole))
   if (!validRoles.has(role)) {
@@ -35,8 +37,8 @@ export const createUserHandler = async (
   try {
     const user = await prisma.user.create({
       data: {
-        email,
-        name: name.trim(),
+        email: normalizedEmail,
+        name: normalizedName,
         password: hashedPassword,
         role,
       },

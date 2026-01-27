@@ -124,6 +124,54 @@ describe('Auth endpoints', () => {
     await prisma.user.delete({ where: { id: testUser.id } })
   })
 
+  it('should login with case-insensitive email', async () => {
+    const hashedPassword = await bcrypt.hash('password123', 10)
+    const testUser = await prisma.user.create({
+      data: {
+        email: 'CaseUser@Example.com',
+        password: hashedPassword,
+        role: 'admin',
+      },
+    })
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: {
+        email: 'caseuser@example.com',
+        password: 'password123',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+
+    await prisma.user.delete({ where: { id: testUser.id } })
+  })
+
+  it('should login with trimmed email input', async () => {
+    const hashedPassword = await bcrypt.hash('password123', 10)
+    const testUser = await prisma.user.create({
+      data: {
+        email: 'spacey@example.com',
+        password: hashedPassword,
+        role: 'admin',
+      },
+    })
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: {
+        email: '  spacey@example.com  ',
+        password: 'password123',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+
+    await prisma.user.delete({ where: { id: testUser.id } })
+  })
+
   it('should logout successfully', async () => {
     const response = await fastify.inject({
       method: 'POST',
