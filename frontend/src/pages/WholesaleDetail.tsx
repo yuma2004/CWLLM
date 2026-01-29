@@ -189,6 +189,41 @@ function WholesaleDetail() {
         {wholesaleStatus && <StatusBadge status={wholesaleStatus} kind="wholesale" />}
       </div>
 
+      {wholesale && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="text-xs text-slate-500">卸先企業</div>
+            <Link
+              to={`/companies/${wholesale.companyId}`}
+              className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700"
+            >
+              {wholesale.company?.name || wholesale.companyId}
+            </Link>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="text-xs text-slate-500">案件</div>
+            <Link
+              to={`/projects/${wholesale.projectId}`}
+              className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700"
+            >
+              {wholesale.project?.name || wholesale.projectId}
+            </Link>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="text-xs text-slate-500">単価</div>
+            <div className="mt-1 text-sm font-semibold text-slate-900">
+              {formatCurrency(wholesale.unitPrice)}
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="text-xs text-slate-500">合意日</div>
+            <div className="mt-1 text-sm font-semibold text-slate-900">
+              {formatDate(wholesale.agreedDate)}
+            </div>
+          </div>
+        </div>
+      )}
+
       {wholesaleError && <ErrorAlert message={wholesaleError} />}
 
       <Card className="space-y-4">

@@ -20,13 +20,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// モチE��モーチE チE��イン確認用�E�バチE��エンド不要で全ペ�Eジアクセス可能�E�E
+// モックログイン用。バックエンド不要で全ページアクセス可能
 const MOCK_AUTH =
   !import.meta.env.PROD && (import.meta.env.VITE_MOCK_AUTH ?? 'false') === 'true'
 const MOCK_USER: User = {
   id: 'mock-user-1',
   email: 'admin@example.com',
-  role: 'admin', // admin権限で全ペ�Eジアクセス可能
+  role: 'admin', // admin権限で全ページアクセス可能
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cacheTimeMs: 0,
       authMode: 'bearer',
       onError: (_message, error) => {
-        // 401エラーは認証されてぁE��ぁE��態では正常な動作なので、エラー状態をクリア
+        // 401エラーは認証切れの想定なので、エラー状態をクリア
         if (error instanceof ApiRequestError && error.status === 401) {
           setAuthError('')
         }
@@ -83,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setHasToken(true)
     }
     if (data?.user) {
-      // エラー状態をクリアしてからユーザーを設宁E      // �E��E回ロード時のauthErrorが残ってぁE��と useEffect で user ぁEnull に戻される！E      setAuthError('')
+      // エラー状態をクリアしてからユーザーを設定
+      // 初回ロード時の authError が残ると useEffect で user が null に戻されるため
+      setAuthError('')
       setUser(data.user)
     }
   }

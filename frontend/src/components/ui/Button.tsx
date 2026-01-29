@@ -13,9 +13,9 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-notion-accent text-white hover:bg-notion-accent/90',
-  secondary: 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50',
+  secondary: 'bg-notion-bg text-notion-text border border-notion-border hover:bg-notion-bg-hover',
   danger: 'bg-rose-600 text-white hover:bg-rose-500',
-  ghost: 'bg-transparent text-slate-600 hover:bg-slate-100',
+  ghost: 'bg-transparent text-notion-text-secondary hover:bg-notion-bg-hover',
 }
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

@@ -50,7 +50,7 @@ export function TaskTable({
   return (
     <div className="overflow-x-auto rounded-2xl border border-notion-border bg-notion-bg shadow-sm">
       <table className="min-w-full divide-y divide-notion-border text-sm text-notion-text-secondary">
-        <thead className="bg-notion-bg-secondary text-left text-xs font-semibold uppercase whitespace-nowrap text-notion-text-tertiary">
+        <thead className="sticky top-0 z-10 bg-notion-bg-secondary text-left text-xs font-semibold uppercase whitespace-nowrap text-notion-text-tertiary">
           <tr>
             <th className="px-4 py-3">
               <label className="inline-flex items-center gap-2 text-xs">
@@ -60,7 +60,7 @@ export function TaskTable({
                   onChange={onToggleSelectAll}
                   name="select-all"
                   aria-label="すべてのタスクを選択"
-                  className="size-4 rounded border-slate-300 accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                  className="size-4 rounded border-notion-border accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
                   disabled={isBulkUpdating}
                 />
                 タスク
@@ -105,7 +105,7 @@ export function TaskTable({
                   <div className="flex items-start gap-3">
                     <div
                       className={cn(
-                        'pt-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
+                        'pt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
                         selectedIds.includes(task.id) && 'opacity-100'
                       )}
                     >
@@ -115,7 +115,7 @@ export function TaskTable({
                         onChange={() => onToggleSelected(task.id)}
                         name={`select-${task.id}`}
                         aria-label={`${task.title} を選択`}
-                        className="size-4 rounded border-slate-300 accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                        className="size-4 rounded border-notion-border accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
                         disabled={isBulkUpdating}
                       />
                     </div>
@@ -250,7 +250,7 @@ export function TaskTable({
                   )}
                 </td>
                 <td className="px-4 py-4 text-right">
-                  <div className="inline-flex items-center gap-2 text-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                  <div className="inline-flex items-center gap-2 text-xs opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                     <Link
                       to={getTargetPath(task.targetType, task.targetId)}
                       className="font-semibold text-notion-text-secondary hover:text-notion-text"

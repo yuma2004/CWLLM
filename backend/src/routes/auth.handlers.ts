@@ -32,16 +32,14 @@ export const buildLoginHandler =
     const normalizedEmail = email.trim()
 
     const dbStart = Date.now()
-    const user =
-      (await prisma.user.findUnique({ where: { email: normalizedEmail } })) ??
-      (await prisma.user.findFirst({
-        where: {
-          email: {
-            equals: normalizedEmail,
-            mode: 'insensitive',
-          },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: 'insensitive',
         },
-      }))
+      },
+    })
     dbMs = Date.now() - dbStart
 
     if (!user) {

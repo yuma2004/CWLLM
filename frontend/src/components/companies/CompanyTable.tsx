@@ -77,7 +77,7 @@ function CompanyTable({
   return (
     <div className="overflow-x-auto rounded-2xl border border-notion-border bg-notion-bg shadow-sm">
       <table className="min-w-full divide-y divide-notion-border text-sm text-notion-text-secondary">
-        <thead className="bg-notion-bg-secondary text-left text-xs font-semibold uppercase whitespace-nowrap text-notion-text-tertiary">
+        <thead className="sticky top-0 z-10 bg-notion-bg-secondary text-left text-xs font-semibold uppercase whitespace-nowrap text-notion-text-tertiary">
           <tr>
             <th className="px-5 py-3">企業名</th>
             <th className="px-5 py-3">区分</th>
@@ -150,7 +150,7 @@ function CompanyTable({
                     </Link>
                     <Link
                       to={`/companies/${company.id}`}
-                      className="text-xs font-semibold text-notion-text-secondary opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:text-notion-text"
+                      className="text-xs font-semibold text-notion-text-secondary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 hover:text-notion-text"
                     >
                       詳細
                     </Link>

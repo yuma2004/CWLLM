@@ -335,6 +335,42 @@ function ProjectDetail() {
         </Link>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">ステータス</div>
+          <div className="mt-1">
+            <StatusBadge status={project.status ?? '-'} kind="project" />
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">企業</div>
+          <Link
+            to={`/companies/${project.companyId}`}
+            className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700"
+          >
+            {project.company?.name || project.companyId}
+          </Link>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">担当者</div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">{ownerLabel}</div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">期間</div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">
+            {project.periodStart || project.periodEnd
+              ? `${formatDate(project.periodStart)} 〜 ${formatDate(project.periodEnd)}`
+              : '-'}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">単価</div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">
+            {formatCurrency(project.unitPrice)}
+          </div>
+        </div>
+      </div>
+
       {deleteError && <ErrorAlert message={deleteError} />}
 
       <Card className="space-y-4">

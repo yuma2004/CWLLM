@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CompanyContactsSection from '../components/companies/CompanyContactsSection'
 import CompanyOverviewTab from '../components/companies/CompanyOverviewTab'
@@ -43,7 +43,6 @@ function CompanyDetail() {
   const [messageError, setMessageError] = useState('')
   const labelInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const [showContactForm, setShowContactForm] = useState(false)
-  const hasOpenedContactForm = useRef(false)
   const [isEditingOverview, setIsEditingOverview] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -263,14 +262,6 @@ function CompanyDetail() {
 
   const isLoading = isLoadingCompany || isLoadingContacts
   const pageError = companyFetchError || contactsFetchError
-
-  useEffect(() => {
-    if (!hasOpenedContactForm.current && canWrite && contacts.length === 0) {
-      setShowContactForm(true)
-      hasOpenedContactForm.current = true
-    }
-  }, [canWrite, contacts.length])
-
 
   useEffect(() => {
     setMessagePage(1)
@@ -621,6 +612,13 @@ function CompanyDetail() {
     return <div className="text-slate-500">企業が見つかりませんでした。</div>
   }
 
+  const ownerLabels =
+    company.ownerIds?.map((ownerId) => {
+      const owner = userOptions.find((user) => user.id === ownerId)
+      return owner?.name || owner?.email || ownerId
+    }) ?? []
+  const visibleTags = company.tags?.slice(0, 3) ?? []
+
 
   return (
     <div className="space-y-4">
@@ -659,6 +657,51 @@ function CompanyDetail() {
           </svg>
           一覧に戻る
         </Link>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">区分</div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">
+            {company.category || '-'}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">ステータス</div>
+          <div className="mt-1">
+            <StatusBadge status={company.status} kind="company" />
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">担当者</div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">
+            {ownerLabels.length > 0 ? ownerLabels.join(', ') : '未設定'}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-xs text-slate-500">タグ</div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {visibleTags.length > 0 ? (
+              <>
+                {visibleTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-600"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {company.tags.length > visibleTags.length && (
+                  <span className="text-xs text-slate-400">
+                    +{company.tags.length - visibleTags.length}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-slate-400">-</span>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

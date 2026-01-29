@@ -8,6 +8,8 @@ import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import Pagination from '../components/ui/Pagination'
 import EmptyState from '../components/ui/EmptyState'
+import ActiveFilters from '../components/ui/ActiveFilters'
+import FilterBadge from '../components/ui/FilterBadge'
 import { useFetch, useMutation } from '../hooks/useApi'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from '../hooks/useToast'
@@ -184,6 +186,15 @@ function ChatworkSettings() {
   const selectedRoomSet = useMemo(() => new Set(selectedRoomIds), [selectedRoomIds])
   const allFilteredSelected =
     filteredRooms.length > 0 && filteredRooms.every((room) => selectedRoomSet.has(room.id))
+  const hasRoomFilters = roomQuery.trim().length > 0 || roomFilter !== 'all'
+  const roomFilterLabel =
+    roomFilter === 'active'
+      ? '有効'
+      : roomFilter === 'inactive'
+        ? '無効'
+        : roomFilter === 'error'
+          ? 'エラーあり'
+          : 'すべて'
 
   const { mutate: queueRoomSync, isLoading: isQueueingRooms } = useMutation<
     { jobId: string; status: JobRecord['status'] },
@@ -450,6 +461,39 @@ function ChatworkSettings() {
             </button>
           </div>
         </div>
+
+        <ActiveFilters isActive={hasRoomFilters} className="border-t border-slate-100 pt-3">
+          <span className="text-xs text-slate-500">絞り込み:</span>
+          {roomQuery.trim() && (
+            <FilterBadge
+              label={`検索: ${roomQuery.trim()}`}
+              onRemove={() => {
+                setRoomQuery('')
+                setRoomPage(1)
+                setSelectedRoomIds([])
+              }}
+            />
+          )}
+          {roomFilter !== 'all' && (
+            <FilterBadge
+              label={`状態: ${roomFilterLabel}`}
+              onRemove={() => {
+                setRoomFilter('all')
+                setRoomPage(1)
+                setSelectedRoomIds([])
+              }}
+            />
+          )}
+          {hasRoomFilters && (
+            <button
+              type="button"
+              onClick={handleClearRoomFilters}
+              className="text-xs text-rose-600 hover:text-rose-700"
+            >
+              すべて解除
+            </button>
+          )}
+        </ActiveFilters>
 
         {selectedRoomIds.length > 0 && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs">

@@ -19,6 +19,7 @@ const prismaErrorOverrides = {
 
 const webhookEventTypes = new Set(['message_created', 'message_updated', 'mention_to_me'])
 const webhookRoomCooldowns = new Map<string, number>()
+let lastCooldownCleanupAt = 0
 
 const getHeaderValue = (value: string | string[] | undefined) => {
   if (!value) return undefined
@@ -71,6 +72,15 @@ const isValidWebhookSignature = (rawBody: string, token: string, signature: stri
 const shouldEnqueueWebhook = (roomId: string, now: number) => {
   const cooldownMs = env.chatworkWebhookCooldownMs
   if (cooldownMs <= 0) return true
+  if (now - lastCooldownCleanupAt > Math.max(cooldownMs, 60_000)) {
+    const cutoff = now - Math.max(cooldownMs * 2, 60_000)
+    for (const [key, timestamp] of webhookRoomCooldowns.entries()) {
+      if (timestamp < cutoff) {
+        webhookRoomCooldowns.delete(key)
+      }
+    }
+    lastCooldownCleanupAt = now
+  }
   const lastSeen = webhookRoomCooldowns.get(roomId)
   if (lastSeen && now - lastSeen < cooldownMs) {
     return false

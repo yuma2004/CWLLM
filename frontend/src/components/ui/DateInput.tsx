@@ -75,8 +75,8 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
           aria-label="カレンダーを開く"
           disabled={disabled}
           className={cn(
-            'absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/30',
-            disabled && 'cursor-not-allowed text-slate-300 hover:text-slate-300'
+            'absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-notion-text-tertiary hover:text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/30',
+            disabled && 'cursor-not-allowed text-notion-text-tertiary hover:text-notion-text-tertiary'
           )}
         >
           <svg

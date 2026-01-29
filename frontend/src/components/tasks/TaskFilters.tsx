@@ -73,7 +73,7 @@ export function TaskFilters({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-notion-text shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                className="inline-flex items-center gap-2 rounded-full border border-notion-border bg-notion-bg px-3 py-2 text-sm text-notion-text shadow-sm hover:bg-notion-bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
               >
                 フィルター
                 {activeFilterCount > 0 && (

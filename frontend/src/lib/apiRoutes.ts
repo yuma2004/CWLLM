@@ -6,6 +6,11 @@ export const apiRoutes = {
     login: () => '/api/auth/login',
     logout: () => '/api/auth/logout',
   },
+  feedback: {
+    base: () => '/api/feedback',
+    list: (query: string) => withQuery('/api/feedback', query),
+    detail: (id: string) => `/api/feedback/${id}`,
+  },
   dashboard: () => '/api/dashboard',
   companies: {
     base: () => '/api/companies',

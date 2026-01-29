@@ -264,6 +264,61 @@ describe('Message endpoints', () => {
     expect(removed?.labels).not.toContain('VIP')
   })
 
+  it('refreshes message label cache after update', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const uniqueLabel = `cache-label-${Date.now()}`
+
+    const company = await prisma.company.create({
+      data: {
+        name: 'Cache Label Co',
+        normalizedName: `cachelabelco-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+    const room = await prisma.chatworkRoom.create({
+      data: {
+        roomId: `room-${Date.now()}`,
+        name: 'Room',
+      },
+    })
+    const message = await prisma.message.create({
+      data: {
+        chatworkRoomId: room.id,
+        roomId: room.roomId,
+        messageId: 'cache-1',
+        sender: 'sender',
+        body: 'cache label target',
+        sentAt: new Date(),
+        companyId: company.id,
+      },
+    })
+
+    await fastify.inject({
+      method: 'GET',
+      url: '/api/messages/labels',
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    const addLabel = await fastify.inject({
+      method: 'POST',
+      url: `/api/messages/${message.id}/labels`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { label: uniqueLabel },
+    })
+    expect(addLabel.statusCode).toBe(200)
+
+    const labelsResponse = await fastify.inject({
+      method: 'GET',
+      url: '/api/messages/labels',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(labelsResponse.statusCode).toBe(200)
+    const labelsBody = JSON.parse(labelsResponse.body)
+    const labels = labelsBody.items.map((item: { label: string }) => item.label)
+    expect(labels).toContain(uniqueLabel)
+  })
+
   it('returns unassigned messages and allows assigning company', async () => {
     const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
     const company = await prisma.company.create({

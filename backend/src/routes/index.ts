@@ -11,6 +11,7 @@ import { taskRoutes } from './tasks'
 import { userRoutes } from './users'
 import { wholesaleRoutes } from './wholesales'
 import { jobRoutes } from './jobs'
+import { feedbackRoutes } from './feedback'
 
 const ROUTES = [
   authRoutes,
@@ -25,6 +26,7 @@ const ROUTES = [
   searchRoutes,
   summaryRoutes,
   dashboardRoutes,
+  feedbackRoutes,
 ]
 
 export const registerRoutes = (fastify: FastifyInstance) => {

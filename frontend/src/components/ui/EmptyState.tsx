@@ -20,11 +20,14 @@ const EmptyState = ({
   return (
     <div
       {...rest}
-      className={cn('flex flex-col items-center gap-2 text-center text-slate-500', className)}
+      className={cn(
+        'flex flex-col items-center gap-2 text-center text-notion-text-secondary',
+        className
+      )}
     >
       {icon}
-      <p className="text-sm font-medium text-slate-600">{message}</p>
-      {description && <p className="text-xs text-slate-400">{description}</p>}
+      <p className="text-sm font-medium text-notion-text">{message}</p>
+      {description && <p className="text-xs text-notion-text-tertiary">{description}</p>}
       {action}
     </div>
   )

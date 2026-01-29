@@ -6,6 +6,7 @@ import {
   CACHE_TTLS_MS,
   badRequest,
   buildPaginatedResponse,
+  deleteCacheByPrefix,
   getCache,
   handlePrismaError,
   notFound,
@@ -365,6 +366,7 @@ export const addMessageLabelHandler = async (
     where: { id: request.params.id },
     data: { labels: nextLabels },
   })
+  deleteCacheByPrefix('messages:labels:')
   return { message: updated }
 }
 
@@ -389,6 +391,7 @@ export const removeMessageLabelHandler = async (
     where: { id: request.params.id },
     data: { labels: nextLabels },
   })
+  deleteCacheByPrefix('messages:labels:')
   return { message: updated }
 }
 
@@ -417,6 +420,7 @@ export const bulkAddLabelsHandler = async (
   })
 
   await prisma.$transaction(updates)
+  deleteCacheByPrefix('messages:labels:')
 
   return { updated: updates.length }
 }
@@ -446,6 +450,7 @@ export const bulkRemoveLabelsHandler = async (
   })
 
   await prisma.$transaction(updates)
+  deleteCacheByPrefix('messages:labels:')
 
   return { updated: updates.length }
 }

@@ -1,4 +1,4 @@
-import { getAuthToken } from './authToken'
+﻿import { getAuthToken } from './authToken'
 import { ApiError } from '../types'
 
 type ApiRequestOptions = {
@@ -101,7 +101,7 @@ export const apiRequest = async <T,>(
     const message =
       typeof apiError?.error === 'string'
         ? apiError.error
-        : apiError?.error?.message ?? '繝阪ャ繝医Ρ繝ｼ繧�E�繧�E�繝ｩ繝ｼ'
+        : apiError?.error?.message ?? 'ネットワークエラー'
     throw new ApiRequestError(message, response.status)
   }
 

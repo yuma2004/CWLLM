@@ -28,7 +28,10 @@ function Layout({ children }: LayoutProps) {
     !route.allowedRoles || (role ? route.allowedRoles.includes(role) : false)
 
   const navItems = protectedRoutes.filter(
-    (route) => route.section === 'main' && route.label && canShow(route)
+    (route) => route.section === 'main' && route.label && route.path !== '/feedback' && canShow(route)
+  )
+  const feedbackItem = protectedRoutes.find(
+    (route) => route.path === '/feedback' && route.label && canShow(route)
   )
   const settingsItems = protectedRoutes.filter(
     (route) => route.section === 'settings' && route.label && canShow(route)
@@ -71,7 +74,7 @@ function Layout({ children }: LayoutProps) {
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="p-5">
+        <div className="p-5 flex h-full flex-col">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
             <h1 className="text-balance text-base font-semibold text-slate-800">CW管理システム</h1>
             <button
@@ -129,6 +132,25 @@ function Layout({ children }: LayoutProps) {
                   </NavLink>
                 ))}
               </nav>
+            </div>
+          )}
+
+          {feedbackItem && (
+            <div className="mt-auto pt-6">
+              <NavLink
+                to={feedbackItem.path}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2',
+                    isActive
+                      ? 'bg-emerald-50 text-slate-900 border-emerald-600 shadow-sm'
+                      : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-slate-50'
+                  )
+                }
+              >
+                {feedbackItem.icon}
+                {feedbackItem.label}
+              </NavLink>
             </div>
           )}
         </div>

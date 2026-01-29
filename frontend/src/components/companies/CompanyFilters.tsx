@@ -4,7 +4,7 @@ import FilterBadge from '../ui/FilterBadge'
 import FormInput from '../ui/FormInput'
 import FormSelect from '../ui/FormSelect'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/Popover'
-import type { CompaniesFilters } from '../../types'
+import type { CompaniesFilters, User } from '../../types'
 
 export type CompanyFiltersProps = {
   filters: CompaniesFilters
@@ -16,6 +16,7 @@ export type CompanyFiltersProps = {
   mergedCategories: string[]
   mergedStatuses: string[]
   tagOptions: string[]
+  userOptions: User[]
   searchInputRef: React.RefObject<HTMLInputElement>
 }
 
@@ -29,9 +30,17 @@ function CompanyFilters({
   mergedCategories,
   mergedStatuses,
   tagOptions,
+  userOptions,
   searchInputRef,
 }: CompanyFiltersProps) {
-  const activeFilterCount = [filters.category, filters.status, filters.tag].filter(Boolean).length
+  const activeFilterCount = [filters.category, filters.status, filters.tag, filters.ownerId].filter(
+    Boolean
+  ).length
+  const ownerLabel = filters.ownerId
+    ? userOptions.find((user) => user.id === filters.ownerId)?.name ||
+      userOptions.find((user) => user.id === filters.ownerId)?.email ||
+      filters.ownerId
+    : ''
 
   return (
     <div className="rounded-2xl border border-notion-border bg-notion-bg p-4 shadow-sm">
@@ -66,7 +75,7 @@ function CompanyFilters({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-notion-text shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                className="inline-flex items-center gap-2 rounded-full border border-notion-border bg-notion-bg px-3 py-2 text-sm text-notion-text shadow-sm hover:bg-notion-bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
               >
                 フィルター
                 {activeFilterCount > 0 && (
@@ -104,6 +113,19 @@ function CompanyFilters({
                 {mergedStatuses.map((status) => (
                   <option key={status} value={status}>
                     {status}
+                  </option>
+                ))}
+              </FormSelect>
+              <FormSelect
+                value={filters.ownerId}
+                onChange={(event) => {
+                  onFiltersChange({ ...filters, ownerId: event.target.value })
+                }}
+              >
+                <option value="">担当者</option>
+                {userOptions.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name || user.email}
                   </option>
                 ))}
               </FormSelect>
@@ -161,7 +183,7 @@ function CompanyFilters({
           )}
           {filters.ownerId && (
             <FilterBadge
-              label={`担当者: ${filters.ownerId}`}
+              label={`担当者: ${ownerLabel}`}
               onRemove={() => onClearFilter('ownerId')}
             />
           )}

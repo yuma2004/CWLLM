@@ -1,6 +1,7 @@
 import { env } from './config/env'
-import { startChatworkAutoSync } from './services/chatworkScheduler'
-import { initJobQueue } from './services/jobQueue'
+import { startChatworkAutoSync, stopChatworkAutoSync } from './services/chatworkScheduler'
+import { closeJobQueue, initJobQueue } from './services/jobQueue'
+import { prisma } from './utils'
 
 const queue = initJobQueue(console, { enableQueue: true, enableWorker: true })
 
@@ -11,4 +12,19 @@ if (!queue) {
 
 console.log(`Job worker started (${env.nodeEnv})`)
 
-startChatworkAutoSync(console)
+const chatworkTimer = startChatworkAutoSync(console)
+
+const shutdown = async (signal: string) => {
+  console.log(`Worker received shutdown signal: ${signal}`)
+  stopChatworkAutoSync(chatworkTimer)
+  await closeJobQueue()
+  await prisma.$disconnect()
+  process.exit(0)
+}
+
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM')
+})
+process.on('SIGINT', () => {
+  void shutdown('SIGINT')
+})

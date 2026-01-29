@@ -59,6 +59,12 @@ enum JobType {
   summary_draft
 }
 
+enum FeedbackType {
+  bug
+  improvement
+  other
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -72,6 +78,7 @@ model User {
   wholesales Wholesale[]
   tasks      Task[]
   jobs       Job[]
+  feedbacks  Feedback[]
 
   @@map("users")
 }
@@ -282,6 +289,23 @@ model SummaryDraft {
   @@unique([companyId, periodStart, periodEnd])
   @@index([companyId, periodStart, periodEnd])
   @@map("summary_drafts")
+}
+
+model Feedback {
+  id        String       @id @default(cuid())
+  userId    String
+  type      FeedbackType @default(improvement)
+  title     String?
+  message   String
+  pageUrl   String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type, createdAt])
+  @@map("feedbacks")
 }
 
 model Job {

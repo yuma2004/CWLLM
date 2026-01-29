@@ -190,6 +190,49 @@ describe('Company endpoints', () => {
     expect(searchBody.items.length).toBe(1)
   })
 
+  it('refreshes company options cache after create', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const uniqueCategory = `cache-category-${Date.now()}`
+    const uniqueTag = `cache-tag-${Date.now()}`
+
+    await fastify.inject({
+      method: 'GET',
+      url: '/api/companies/options',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/companies',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        name: 'Cache Co',
+        category: uniqueCategory,
+        status: 'active',
+        tags: [uniqueTag],
+      },
+    })
+
+    expect(createResponse.statusCode).toBe(201)
+
+    const optionsResponse = await fastify.inject({
+      method: 'GET',
+      url: '/api/companies/options',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(optionsResponse.statusCode).toBe(200)
+    const optionsBody = JSON.parse(optionsResponse.body)
+    expect(optionsBody.categories).toContain(uniqueCategory)
+    expect(optionsBody.tags).toContain(uniqueTag)
+  })
+
   it('rejects duplicate normalizedName', async () => {
     const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
 

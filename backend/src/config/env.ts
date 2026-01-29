@@ -11,6 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') })
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  RUN_MODE: z.enum(['web', 'worker']).optional(),
   PORT: z.coerce.number().int().positive().optional(),
   BACKEND_PORT: z.coerce.number().int().positive().default(3000),
   JWT_SECRET: z.string().min(16).optional(),
@@ -76,6 +77,7 @@ const corsOrigins = (raw.CORS_ORIGINS ?? '')
 
 export const env = {
   nodeEnv: raw.NODE_ENV,
+  runMode: raw.RUN_MODE ?? 'web',
   port: raw.PORT ?? raw.BACKEND_PORT,
   jwtSecret: raw.JWT_SECRET,
   corsOrigins,

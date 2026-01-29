@@ -5,6 +5,7 @@ import {
   CACHE_TTLS_MS,
   badRequest,
   buildPaginatedResponse,
+  deleteCache,
   getCache,
   handlePrismaError,
   isNonEmptyString,
@@ -139,6 +140,7 @@ export const createCompanyHandler = async (
         tags: tags ?? [],
       },
     })
+    deleteCache(CACHE_KEYS.companyOptions)
     return reply.code(201).send({ company })
   } catch (error) {
     return handlePrismaError(reply, error, prismaErrorOverrides)
@@ -216,6 +218,7 @@ export const updateCompanyHandler = async (
       where: { id: request.params.id },
       data,
     })
+    deleteCache(CACHE_KEYS.companyOptions)
     return { company }
   } catch (error) {
     return handlePrismaError(reply, error, prismaErrorOverrides)
@@ -237,6 +240,7 @@ export const deleteCompanyHandler = async (
     await prisma.company.delete({
       where: { id: request.params.id },
     })
+    deleteCache(CACHE_KEYS.companyOptions)
     return reply.code(204).send()
   } catch (error) {
     return handlePrismaError(reply, error, prismaErrorOverrides)

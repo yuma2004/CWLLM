@@ -186,21 +186,59 @@ export const syncChatworkMessages = async (
       }))
 
       if (data.length > 0) {
-        await prisma.message.createMany({
-          data,
-          skipDuplicates: true,
+        const messageIds = data.map((message) => message.messageId)
+        const existing = await prisma.message.findMany({
+          where: {
+            roomId: room.roomId,
+            messageId: { in: messageIds },
+          },
+          select: {
+            id: true,
+            messageId: true,
+            body: true,
+            sender: true,
+            sentAt: true,
+          },
         })
-        const updates = data.map((message) =>
-          prisma.message.updateMany({
-            where: { roomId: message.roomId, messageId: message.messageId },
-            data: {
-              body: message.body,
-              sender: message.sender,
-              sentAt: message.sentAt,
-            },
+        const existingMap = new Map(existing.map((item) => [item.messageId, item]))
+        const createData: typeof data = []
+        const updates: Array<ReturnType<typeof prisma.message.update>> = []
+
+        for (const message of data) {
+          const saved = existingMap.get(message.messageId)
+          if (!saved) {
+            createData.push(message)
+            continue
+          }
+
+          const needsUpdate =
+            saved.body !== message.body ||
+            saved.sender !== message.sender ||
+            saved.sentAt.getTime() !== message.sentAt.getTime()
+          if (!needsUpdate) continue
+
+          updates.push(
+            prisma.message.update({
+              where: { id: saved.id },
+              data: {
+                body: message.body,
+                sender: message.sender,
+                sentAt: message.sentAt,
+              },
+            })
+          )
+        }
+
+        if (createData.length > 0) {
+          await prisma.message.createMany({
+            data: createData,
+            skipDuplicates: true,
           })
-        )
-        await prisma.$transaction(updates)
+        }
+
+        if (updates.length > 0) {
+          await prisma.$transaction(updates)
+        }
       }
 
       const latestMessageId = pickLatestMessageId(

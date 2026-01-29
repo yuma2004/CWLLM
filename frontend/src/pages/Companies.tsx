@@ -310,6 +310,7 @@ function Companies() {
         mergedCategories={mergedCategories}
         mergedStatuses={mergedStatuses}
         tagOptions={options.tags}
+        userOptions={userOptions}
         searchInputRef={searchInputRef}
       />
 

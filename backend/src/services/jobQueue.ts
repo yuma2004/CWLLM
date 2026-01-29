@@ -8,10 +8,16 @@ import { JobCanceledError, syncChatworkMessages, syncChatworkRooms } from './cha
 
 const QUEUE_NAME = 'cwllm-jobs'
 
+type JobQueueLogger = {
+  info?: (obj: unknown, msg?: string) => void
+  warn?: (obj: unknown, msg?: string) => void
+  error?: (obj: unknown, msg?: string) => void
+}
+
 let queue: Queue | null = null
 let worker: Worker | null = null
-// BullMQでは maxRetriesPerRequest: null が必須
-const connection = env.redisUrl
+// BullMQ requires maxRetriesPerRequest: null for long-running jobs.
+let connection: IORedis | null = env.redisUrl
   ? new IORedis(env.redisUrl, { maxRetriesPerRequest: null })
   : null
 
@@ -51,19 +57,21 @@ const updateProgress = async (jobId: string, result: Prisma.InputJsonValue) => {
   })
 }
 
-const handleChatworkRoomsSync = async (
-  jobId: string,
-  logger?: { warn: (message: string) => void }
-) => {
-  const syncResult = await syncChatworkRooms(() => isCanceled(jobId), logger)
+const buildSyncLogger = (logger?: JobQueueLogger) =>
+  logger?.warn ? { warn: (message: string) => logger.warn?.(message) } : undefined
+
+const handleChatworkRoomsSync = async (jobId: string, logger?: JobQueueLogger) => {
+  const syncLogger = buildSyncLogger(logger)
+  const syncResult = await syncChatworkRooms(() => isCanceled(jobId), syncLogger)
   return toJsonInput(syncResult)
 }
 
 const handleChatworkMessagesSync = async (
   jobId: string,
   payload: Prisma.JsonValue,
-  logger?: { warn: (message: string) => void }
+  logger?: JobQueueLogger
 ) => {
+  const syncLogger = buildSyncLogger(logger)
   const parsedPayload = payload as ChatworkMessagesPayload | null
   const roomId = parsedPayload?.roomId
   const roomLimit = parsedPayload?.roomLimit
@@ -79,7 +87,7 @@ const handleChatworkMessagesSync = async (
       const canceled = await isCanceled(jobId)
       return canceled
     },
-    logger,
+    syncLogger,
     { roomLimit }
   )
   const processed = data.rooms.length + data.errors.length
@@ -117,7 +125,7 @@ const executeJob = async (
   jobId: string,
   type: JobType,
   payload: Prisma.JsonValue,
-  logger?: { warn: (message: string) => void }
+  logger?: JobQueueLogger
 ) => {
   if (await isCanceled(jobId)) {
     return null
@@ -176,7 +184,7 @@ const executeJob = async (
   }
 }
 
-const processBullJob = async (job: BullJob, logger?: { warn: (message: string) => void }) => {
+const processBullJob = async (job: BullJob, logger?: JobQueueLogger) => {
   const jobId = (job.data as { jobId?: string }).jobId
   if (!jobId) return null
 
@@ -188,21 +196,61 @@ const processBullJob = async (job: BullJob, logger?: { warn: (message: string) =
 }
 
 export const initJobQueue = (
-  logger?: { warn: (message: string) => void },
+  logger?: JobQueueLogger,
   options: JobQueueOptions = {}
 ) => {
   const { enableQueue = true, enableWorker = true } = options
+  if (!connection && env.redisUrl) {
+    connection = new IORedis(env.redisUrl, { maxRetriesPerRequest: null })
+  }
   if (!connection) return null
   const connectionOptions = connection as unknown as ConnectionOptions
   if (enableQueue && !queue) {
     queue = new Queue(QUEUE_NAME, { connection: connectionOptions })
+    queue.on('error', (err) => {
+      logger?.error?.({ err }, 'job queue error')
+    })
   }
   if (enableWorker && !worker) {
     worker = new Worker(QUEUE_NAME, (job) => processBullJob(job, logger), {
       connection: connectionOptions,
     })
+    worker.on('completed', (job) => {
+      logger?.info?.({ jobId: job.id, jobName: job.name }, 'job completed')
+    })
+    worker.on('failed', (job, err) => {
+      logger?.error?.(
+        { jobId: job?.id, jobName: job?.name, attemptsMade: job?.attemptsMade, err },
+        'job failed'
+      )
+    })
+    worker.on('stalled', (jobId) => {
+      logger?.warn?.({ jobId }, 'job stalled')
+    })
+    worker.on('error', (err) => {
+      logger?.error?.({ err }, 'job worker error')
+    })
   }
   return queue
+}
+
+export const closeJobQueue = async () => {
+  const tasks: Array<Promise<unknown>> = []
+  if (worker) {
+    tasks.push(worker.close())
+  }
+  if (queue) {
+    tasks.push(queue.close())
+  }
+  if (connection) {
+    tasks.push(
+      connection.quit().catch(() => undefined)
+    )
+  }
+  await Promise.allSettled(tasks)
+  worker = null
+  queue = null
+  connection = null
 }
 
 export const enqueueJob = async (
@@ -220,7 +268,24 @@ export const enqueueJob = async (
   })
 
   if (queue) {
-    await queue.add(type, { jobId: job.id }, { jobId: job.id, attempts: 1 })
+    try {
+      await queue.add(type, { jobId: job.id }, {
+        jobId: job.id,
+        attempts: 1,
+        removeOnComplete: 100,
+        removeOnFail: 500,
+      })
+    } catch (error) {
+      await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: JobStatus.failed,
+          error: toJsonInput(serializeError(error)),
+          finishedAt: new Date(),
+        },
+      })
+      throw error
+    }
   } else {
     if (env.nodeEnv === 'production') {
       throw new Error('Job queue is not available')

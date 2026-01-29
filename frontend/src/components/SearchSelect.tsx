@@ -105,7 +105,7 @@ function SearchSelect<T extends BaseOption>({
   return (
     <div ref={containerRef} className="relative">
       {label && (
-        <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-slate-600">
+        <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-notion-text-secondary">
           {label}
         </label>
       )}
@@ -131,7 +131,7 @@ function SearchSelect<T extends BaseOption>({
       {value && (
         <button
           type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/30"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-notion-text-tertiary hover:text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/30"
           onClick={handleClear}
           aria-label="選択をクリア"
         >
@@ -139,18 +139,18 @@ function SearchSelect<T extends BaseOption>({
         </button>
       )}
       {isOpen && (
-        <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-lg">
+        <div className="absolute z-20 mt-2 w-full rounded-xl border border-notion-border bg-notion-bg shadow-lg">
           {isSearching ? (
-            <div className="px-3 py-2 text-xs text-slate-500">検索中…</div>
+            <div className="px-3 py-2 text-xs text-notion-text-tertiary">検索中…</div>
           ) : options.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-slate-500">候補がありません</div>
+            <div className="px-3 py-2 text-xs text-notion-text-tertiary">候補がありません</div>
           ) : (
             <ul className="max-h-48 overflow-auto py-1 text-sm">
               {options.map((option) => (
                 <li key={option.id}>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                    className="w-full px-3 py-2 text-left text-notion-text hover:bg-notion-bg-hover"
                     onClick={() => {
                       setSelected(option)
                       setQuery(option.name)

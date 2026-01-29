@@ -82,7 +82,7 @@ function ProjectsFilters({
   return (
     <Card className="p-5">
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-4">
           <div className="relative md:col-span-2">
             <svg
               className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
@@ -105,6 +105,15 @@ function ProjectsFilters({
               onChange={(event) => {
                 onFiltersChange({ ...filters, q: event.target.value })
               }}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <CompanySearchSelect
+              value={filters.companyId}
+              onChange={(companyId) => {
+                onFiltersChange({ ...filters, companyId })
+              }}
+              placeholder="企業で絞り込み"
             />
           </div>
           <FormSelect
@@ -348,7 +357,7 @@ function ProjectsTable({
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
       <table className="min-w-full divide-y divide-slate-100 text-sm text-slate-600">
-        <thead className="bg-slate-50 text-left text-xs font-semibold uppercase whitespace-nowrap text-slate-500">
+        <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase whitespace-nowrap text-slate-500">
           <tr>
             <th className="px-5 py-3">案件名</th>
             <th className="px-5 py-3">企業</th>
@@ -435,7 +444,7 @@ function ProjectsTable({
                     <FormSelect
                       value={project.ownerId ?? ''}
                       onChange={(event) => onOwnerChange(project.id, event.target.value)}
-                      className="h-8 rounded-lg text-xs"
+                      className="w-full rounded-lg text-sm leading-6"
                       disabled={isUpdatingOwner}
                     >
                       <option value="">未割当</option>

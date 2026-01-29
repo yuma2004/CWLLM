@@ -38,7 +38,7 @@ export function TaskBulkActions({
             checked={allSelected}
             onChange={onToggleSelectAll}
             name="selectAll"
-            className="size-4 rounded border-slate-300 accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+            className="size-4 rounded border-notion-border accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
             disabled={isBulkUpdating}
           />
           全選択
@@ -77,7 +77,7 @@ export function TaskBulkActions({
             checked={clearBulkDueDate}
             onChange={(e) => onClearBulkDueDateChange(e.target.checked)}
             name="clearBulkDueDate"
-            className="size-4 rounded border-slate-300 accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+            className="size-4 rounded border-notion-border accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
           />
           期限をクリア
         </label>

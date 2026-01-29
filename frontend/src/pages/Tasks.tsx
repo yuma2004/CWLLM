@@ -143,6 +143,7 @@ function Tasks() {
 
 
   const tasks = useMemo(() => tasksData?.items ?? [], [tasksData])
+  const hasBulkActions = canWrite && selectedIds.length > 0
   const isCreateDirty = canWrite
     ? Boolean(
         createForm.title.trim() ||
@@ -495,7 +496,7 @@ function Tasks() {
         searchInputRef={searchInputRef}
       />
 
-      {canWrite && selectedIds.length > 0 && (
+      {hasBulkActions && (
         <TaskBulkActions
           selectedIds={selectedIds}
           allSelected={allSelected}
@@ -533,65 +534,72 @@ function Tasks() {
       {/* Error */}
       <ErrorAlert message={error} onClose={() => setError('')} />
 
-      {/* Table */}
-      {isLoadingTasks ? (
-        <SkeletonTable rows={5} columns={5} />
-      ) : viewMode === 'list' ? (
-        <TaskTable
-          tasks={tasks}
-          selectedIds={selectedIds}
-          allSelected={allSelected}
-          onToggleSelectAll={toggleSelectAll}
-          onToggleSelected={toggleSelected}
-          onStatusChange={handleStatusChange}
-          onDueDateChange={handleDueDateChange}
-          onAssigneeChange={handleAssigneeChange}
-          onDelete={setDeleteTarget}
-          canWrite={canWrite}
-          isBulkUpdating={isBulkUpdating}
-          userOptions={userOptions}
-          emptyStateDescription={
-            canWrite
-              ? isAdmin && taskScope === 'all'
-                ? '全員分のタスクがまだありません。'
-                : 'まずはタスクを追加して、対応状況を見える化しましょう。'
-              : '検索条件をリセットして確認してください。'
-          }
-          emptyStateAction={
-            canWrite ? (
-              <button
-                type="button"
-                onClick={handleScrollToCreate}
-                className="text-sm font-semibold text-notion-accent hover:text-notion-accent/80"
-              >
-                タスクを作成
-              </button>
-            ) : null
-          }
-        />
-      ) : (
-        <TaskKanban
-          tasks={tasks}
-          canWrite={canWrite}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelected}
-          onStatusChange={handleStatusChange}
-          onAssigneeChange={handleAssigneeChange}
-          disabled={isBulkUpdating}
-          userOptions={userOptions}
-        />
-      )}
+      <div className={cn('space-y-4', hasBulkActions && 'pb-24')}>
+        {/* Table */}
+        {isLoadingTasks ? (
+          <SkeletonTable rows={5} columns={5} />
+        ) : viewMode === 'list' ? (
+          <TaskTable
+            tasks={tasks}
+            selectedIds={selectedIds}
+            allSelected={allSelected}
+            onToggleSelectAll={toggleSelectAll}
+            onToggleSelected={toggleSelected}
+            onStatusChange={handleStatusChange}
+            onDueDateChange={handleDueDateChange}
+            onAssigneeChange={handleAssigneeChange}
+            onDelete={setDeleteTarget}
+            canWrite={canWrite}
+            isBulkUpdating={isBulkUpdating}
+            userOptions={userOptions}
+            emptyStateDescription={
+              canWrite
+                ? isAdmin && taskScope === 'all'
+                  ? '全員分のタスクがまだありません。'
+                  : 'まずはタスクを追加して、対応状況を見える化しましょう。'
+                : '検索条件をリセットして確認してください。'
+            }
+            emptyStateAction={
+              canWrite ? (
+                <button
+                  type="button"
+                  onClick={handleScrollToCreate}
+                  className="text-sm font-semibold text-notion-accent hover:text-notion-accent/80"
+                >
+                  タスクを作成
+                </button>
+              ) : null
+            }
+          />
+        ) : (
+          <TaskKanban
+            tasks={tasks}
+            canWrite={canWrite}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelected}
+            onStatusChange={handleStatusChange}
+            onAssigneeChange={handleAssigneeChange}
+            disabled={isBulkUpdating}
+            userOptions={userOptions}
+          />
+        )}
 
-      {/* Pagination */}
-      {pagination.total > 0 && (
-        <Pagination
-          page={pagination.page}
-          pageSize={pagination.pageSize}
-          total={pagination.total}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-        />
-      )}
+        {/* Pagination */}
+        {pagination.total > 0 && (
+          <Pagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        )}
+
+        {/* Keyboard Shortcuts Hint */}
+        <div className="text-center text-xs text-notion-text-tertiary">
+          <kbd className="rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">/</kbd> フィルターにフォーカス
+        </div>
+      </div>
 
       <SlidePanel
         isOpen={canWrite && isCreateOpen}
@@ -686,16 +694,15 @@ function Tasks() {
         </form>
       </SlidePanel>
 
-      {/* Keyboard Shortcuts Hint */}
-      <div className="text-center text-xs text-notion-text-tertiary">
-        <kbd className="rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">/</kbd> フィルターにフォーカス
-      </div>
       {toast && (
         <Toast
           message={toast.message}
           variant={toast.variant === 'error' ? 'error' : toast.variant === 'success' ? 'success' : 'info'}
           onClose={clearToast}
-          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+          className={cn(
+            'fixed right-6 z-50 safe-area-bottom',
+            hasBulkActions ? 'bottom-24' : 'bottom-6'
+          )}
         />
       )}
     </div>

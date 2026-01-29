@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "pretest": "npm run prisma:generate",
     "dev": "tsx watch src/index.ts",
     "dev:e2e": "npm run prisma:generate && npm run dev",
     "dev:worker": "tsx watch src/worker.ts",

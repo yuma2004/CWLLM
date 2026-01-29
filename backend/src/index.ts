@@ -16,8 +16,8 @@ import { registerRoutes } from './routes'
 import { env } from './config/env'
 import { normalizeErrorPayload } from './utils/errors'
 import { JWTUser } from './types/auth'
-import { initJobQueue } from './services/jobQueue'
-import { startChatworkAutoSync } from './services/chatworkScheduler'
+import { closeJobQueue, initJobQueue } from './services/jobQueue'
+import { startChatworkAutoSync, stopChatworkAutoSync } from './services/chatworkScheduler'
 import { GLOBAL_PRISMA_ERROR_MAP, mapPrismaError, prisma } from './utils/prisma'
 
 const fastify = Fastify({
@@ -41,6 +41,7 @@ const fastify = Fastify({
 
 fastify.log.info(
   {
+    runMode: env.runMode,
     chatworkAutoSyncEnabled: env.chatworkAutoSyncEnabled,
     chatworkAutoSyncIntervalMinutes: env.chatworkAutoSyncIntervalMinutes,
     chatworkAutoSyncRoomLimit: env.chatworkAutoSyncRoomLimit ?? null,
@@ -170,13 +171,16 @@ fastify.addHook('preSerialization', async (_request, reply, payload) => {
 registerRoutes(fastify)
 
 initJobQueue(fastify.log, { enableWorker: env.jobWorkerEnabled, enableQueue: true })
-startChatworkAutoSync(fastify.log)
+const chatworkTimer =
+  env.runMode === 'worker' ? startChatworkAutoSync(fastify.log) : null
 
 fastify.get('/healthz', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() }
 })
 
 fastify.addHook('onClose', async () => {
+  stopChatworkAutoSync(chatworkTimer)
+  await closeJobQueue()
   await prisma.$disconnect()
 })
 

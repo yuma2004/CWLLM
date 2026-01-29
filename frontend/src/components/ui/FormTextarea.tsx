@@ -10,7 +10,7 @@ type FormTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
 }
 
 const BASE_CLASS =
-  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 hover:border-slate-300 focus-visible:border-notion-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/30'
+  'w-full rounded-xl border border-notion-border bg-notion-bg px-3 py-2 text-sm text-notion-text placeholder:text-notion-text-tertiary hover:border-notion-border focus-visible:border-notion-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/30 disabled:cursor-not-allowed disabled:bg-notion-bg-secondary disabled:text-notion-text-tertiary'
 
 const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
   (
@@ -61,7 +61,7 @@ const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
     return (
       <div className={containerClassName}>
         {label && (
-          <label htmlFor={textareaId} className="mb-1 block text-xs font-medium text-slate-600">
+          <label htmlFor={textareaId} className="mb-1 block text-xs font-medium text-notion-text-secondary">
             {label}
           </label>
         )}
@@ -76,7 +76,7 @@ const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
           {...props}
         />
         {error ? <p id={errorId} className="mt-1 text-xs text-rose-600">{error}</p> : null}
-        {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+        {hint && <p className="mt-1 text-xs text-notion-text-tertiary">{hint}</p>}
       </div>
     )
   }
