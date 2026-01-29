@@ -125,7 +125,7 @@ export const updateFeedbackHandler = async (
       data: {
         title:
           hasTitle
-            ? trimmedTitle.length > 0
+            ? (trimmedTitle?.length ?? 0) > 0
               ? trimmedTitle
               : null
             : undefined,
