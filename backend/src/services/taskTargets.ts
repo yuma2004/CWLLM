@@ -12,6 +12,8 @@ type TaskTargetInfo = {
   name: string
 }
 
+const GENERAL_TARGET_LABEL = '未紐づけ'
+
 export const attachTargetInfo = async <T extends TaskTarget>(
   items: T[]
 ): Promise<Array<T & { target: TaskTargetInfo }>> => {
@@ -56,11 +58,13 @@ export const attachTargetInfo = async <T extends TaskTarget>(
 
   return items.map((task) => {
     const targetName =
-      task.targetType === 'company'
-        ? companyMap.get(task.targetId)
-        : task.targetType === 'project'
-          ? projectMap.get(task.targetId)
-          : wholesaleMap.get(task.targetId)
+      task.targetType === 'general'
+        ? GENERAL_TARGET_LABEL
+        : task.targetType === 'company'
+          ? companyMap.get(task.targetId)
+          : task.targetType === 'project'
+            ? projectMap.get(task.targetId)
+            : wholesaleMap.get(task.targetId)
 
     return {
       ...task,

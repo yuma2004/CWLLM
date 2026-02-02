@@ -73,8 +73,10 @@ export const createWholesaleHandler = async (
   reply: FastifyReply
 ) => {
   const { projectId, companyId, conditions, ownerId } = request.body
-  const unitPrice = parseNumber(request.body.unitPrice)
-  const margin = parseNumber(request.body.margin)
+  const unitPriceInput = request.body.unitPrice
+  const marginInput = request.body.margin
+  const unitPrice = parseNumber(unitPriceInput)
+  const margin = parseNumber(marginInput)
   const agreedDate = parseDate(request.body.agreedDate)
   const status = normalizeStatus(request.body.status)
 
@@ -84,10 +86,10 @@ export const createWholesaleHandler = async (
   if (!isNonEmptyString(companyId)) {
     return reply.code(400).send(badRequest('companyId is required'))
   }
-  if (unitPrice === null) {
+  if (unitPrice === null && unitPriceInput !== null) {
     return reply.code(400).send(badRequest('Invalid unitPrice'))
   }
-  if (margin === null) {
+  if (margin === null && marginInput !== null) {
     return reply.code(400).send(badRequest('Invalid margin'))
   }
   if (request.body.agreedDate && !agreedDate) {
@@ -99,6 +101,9 @@ export const createWholesaleHandler = async (
   if (ownerId !== undefined && !isNonEmptyString(ownerId)) {
     return reply.code(400).send(badRequest('Invalid ownerId'))
   }
+
+  const normalizedUnitPrice = unitPriceInput === null ? undefined : unitPrice
+  const normalizedMargin = marginInput === null ? undefined : margin
 
   const [project, company] = await Promise.all([
     prisma.project.findUnique({ where: { id: projectId } }),
@@ -117,8 +122,8 @@ export const createWholesaleHandler = async (
         projectId,
         companyId,
         conditions,
-        unitPrice: unitPrice ?? undefined,
-        margin: margin ?? undefined,
+        unitPrice: normalizedUnitPrice ?? undefined,
+        margin: normalizedMargin ?? undefined,
         status: status ?? undefined,
         agreedDate: agreedDate ?? undefined,
         ownerId,
@@ -157,8 +162,10 @@ export const updateWholesaleHandler = async (
   reply: FastifyReply
 ) => {
   const { projectId, companyId, conditions, ownerId } = request.body
-  const unitPrice = parseNumber(request.body.unitPrice)
-  const margin = parseNumber(request.body.margin)
+  const unitPriceInput = request.body.unitPrice
+  const marginInput = request.body.margin
+  const unitPrice = parseNumber(unitPriceInput)
+  const margin = parseNumber(marginInput)
   const agreedDate = parseDate(request.body.agreedDate)
   const status = normalizeStatus(request.body.status)
 
@@ -171,10 +178,10 @@ export const updateWholesaleHandler = async (
   if (!isNullableString(conditions)) {
     return reply.code(400).send(badRequest('Invalid conditions'))
   }
-  if (unitPrice === null) {
+  if (unitPrice === null && unitPriceInput !== null) {
     return reply.code(400).send(badRequest('Invalid unitPrice'))
   }
-  if (margin === null) {
+  if (margin === null && marginInput !== null) {
     return reply.code(400).send(badRequest('Invalid margin'))
   }
   if (request.body.agreedDate !== undefined && request.body.agreedDate !== null && !agreedDate) {
@@ -218,10 +225,14 @@ export const updateWholesaleHandler = async (
   if (conditions !== undefined) {
     data.conditions = conditions
   }
-  if (unitPrice !== undefined) {
+  if (unitPriceInput === null) {
+    data.unitPrice = null
+  } else if (unitPrice !== undefined) {
     data.unitPrice = unitPrice
   }
-  if (margin !== undefined) {
+  if (marginInput === null) {
+    data.margin = null
+  } else if (margin !== undefined) {
     data.margin = margin
   }
   if (request.body.agreedDate !== undefined) {

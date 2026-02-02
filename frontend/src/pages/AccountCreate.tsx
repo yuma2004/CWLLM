@@ -66,23 +66,23 @@ function AccountCreate() {
     setError('')
 
     if (!form.email.trim()) {
-      setError('メールアドレスを入力してください')
+      setError('メールアドレスを入力してください。')
       return
     }
     if (!form.name.trim()) {
-      setError('名前を入力してください')
+      setError('氏名を入力してください。')
       return
     }
     if (!form.password) {
-      setError('パスワードを入力してください')
+      setError('パスワードを入力してください。')
       return
     }
     if (form.password.length < 8) {
-      setError('パスワードは8文字以上で入力してください')
+      setError('パスワードは8文字以上で入力してください。')
       return
     }
     if (form.password !== passwordConfirm) {
-      setError('パスワードが一致しません')
+      setError('パスワードが一致しません。')
       return
     }
 
@@ -94,14 +94,14 @@ function AccountCreate() {
           password: form.password,
           role: form.role,
         },
-        { errorMessage: 'アカウントの作成に失敗しました', authMode: 'bearer' }
+        { errorMessage: 'アカウントの作成に失敗しました。', authMode: 'bearer' }
       )
-      showToast('アカウントを作成しました', 'success')
+      showToast('アカウントを作成しました。', 'success')
       setForm((prev) => ({ ...prev, email: '', name: '', password: '' }))
       setPasswordConfirm('')
       await refetchUsers(undefined, { ignoreCache: true })
     } catch (err) {
-      setError(toErrorMessage(err, 'アカウントの作成に失敗しました'))
+      setError(toErrorMessage(err, 'アカウントの作成に失敗しました。'))
     }
   }
 
@@ -129,7 +129,7 @@ function AccountCreate() {
         <p className="text-sm uppercase text-slate-400">アカウント</p>
         <h2 className="text-3xl font-bold text-slate-900">アカウント作成</h2>
         <p className="mt-1 text-sm text-slate-500">
-          管理者が新しいユーザーアカウントを追加できます。
+          管理者のみユーザーアカウントを作成できます。
         </p>
       </div>
 
@@ -137,7 +137,7 @@ function AccountCreate() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <FormInput
-              label="メールアドレス（必須）"
+              label="メールアドレス"
               type="email"
               autoComplete="email"
               value={form.email}
@@ -147,7 +147,7 @@ function AccountCreate() {
               required
             />
             <FormInput
-              label="名前（必須）"
+              label="氏名"
               type="text"
               autoComplete="name"
               value={form.name}
@@ -157,7 +157,7 @@ function AccountCreate() {
               required
             />
             <FormInput
-              label="パスワード（必須）"
+              label="パスワード"
               type="password"
               autoComplete="new-password"
               value={form.password}
@@ -193,7 +193,7 @@ function AccountCreate() {
                 数字を含む
               </span>
               {isPasswordMismatch && (
-                <span className="text-rose-600">確認用パスワードが一致していません</span>
+                <span className="text-rose-600">確認用パスワードが一致しません</span>
               )}
             </div>
           </div>
@@ -202,7 +202,7 @@ function AccountCreate() {
             value={form.role}
             onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
             disabled={isLoading}
-            hint="管理者は全機能、一般社員は設定以外の操作が可能です。"
+            hint="管理者は全機能の閲覧・編集が可能です。"
           >
             {ROLE_OPTIONS.map((role) => (
               <option key={role.value} value={role.value}>
@@ -245,7 +245,7 @@ function AccountCreate() {
               <thead className="bg-notion-bg-secondary text-left text-xs font-semibold uppercase whitespace-nowrap text-notion-text-tertiary">
                 <tr>
                   <th className="px-4 py-3">メールアドレス</th>
-                  <th className="px-4 py-3">名前</th>
+                  <th className="px-4 py-3">氏名</th>
                   <th className="px-4 py-3">権限</th>
                   <th className="px-4 py-3">作成日</th>
                 </tr>
@@ -255,8 +255,8 @@ function AccountCreate() {
                   <tr>
                     <td colSpan={4} className="px-4 py-10 text-center">
                       <EmptyState
-                        message="アカウントがまだありません"
-                        description="作成するとここに一覧が表示されます。"
+                        message="アカウントがありません"
+                        description="必要に応じて新しいアカウントを作成してください。"
                       />
                     </td>
                   </tr>
@@ -305,4 +305,4 @@ function AccountCreate() {
   )
 }
 
-export default AccountCreate
+export default AccountCreate

@@ -122,7 +122,7 @@ function CompanyCreateForm({
               ) : (
                 <div className="max-h-72 divide-y divide-notion-border overflow-y-auto rounded-xl border border-notion-border">
                   {filteredChatworkRooms.map((room) => {
-                    const isSelected = selectedRoomId === room.id
+                    const isSelected = selectedRoomId === room.roomId
                     return (
                       <button
                         key={room.id}

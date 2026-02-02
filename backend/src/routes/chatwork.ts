@@ -47,11 +47,14 @@ export async function chatworkRoutes(fastify: FastifyInstance) {
         done(null, rawBody)
       }
     )
-    webhook.post<{ Body: ChatworkWebhookBody }>(
+    webhook.post<{ Body: ChatworkWebhookBody; Querystring: { chatwork_webhook_signature?: string } }>(
       '/chatwork/webhook',
       {
         schema: {
           body: chatworkWebhookBodySchema,
+          querystring: z.object({
+            chatwork_webhook_signature: z.string().optional(),
+          }),
           response: {
             200: chatworkWebhookResponseSchema,
             401: apiErrorSchema,

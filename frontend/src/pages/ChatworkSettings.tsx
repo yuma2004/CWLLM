@@ -19,7 +19,10 @@ import { cn } from '../lib/cn'
 import { toErrorMessage } from '../utils/errorState'
 import { ChatworkRoom, JobRecord } from '../types'
 
-type RefetchResult<T> = (overrideInit?: RequestInit, options?: { ignoreCache?: boolean }) => Promise<T | null>
+type RefetchResult<T> = (
+  overrideInit?: RequestInit,
+  options?: { ignoreCache?: boolean }
+) => Promise<T | null>
 
 type ChatworkJobProgressProps = {
   activeJob: JobRecord | null
@@ -28,6 +31,15 @@ type ChatworkJobProgressProps = {
   refetchRooms: RefetchResult<{ rooms: ChatworkRoom[] }>
   showToast: (message: string, variant: 'success' | 'error' | 'info' | undefined) => void
   onCancel: () => void
+}
+
+type RoomFilter = 'all' | 'active' | 'inactive' | 'error'
+
+const ROOM_FILTER_LABELS: Record<RoomFilter, string> = {
+  all: 'すべて',
+  active: '稼働中',
+  inactive: '停止中',
+  error: 'エラーあり',
 }
 
 function ChatworkJobProgress({
@@ -84,11 +96,11 @@ function ChatworkJobProgress({
     const previous = statusRef.current
     if (previous && previous !== activeJob.status) {
       if (activeJob.status === 'completed') {
-        showToast('同期が完了しました', 'success')
+        showToast('同期が完了しました。', 'success')
       } else if (activeJob.status === 'failed') {
-        showToast('同期に失敗しました', 'error')
+        showToast('同期に失敗しました。', 'error')
       } else if (activeJob.status === 'canceled') {
-        showToast('同期をキャンセルしました', 'info')
+        showToast('同期をキャンセルしました。', 'info')
       }
     }
     statusRef.current = activeJob.status
@@ -134,7 +146,7 @@ function ChatworkSettings() {
   const [activeJob, setActiveJob] = useState<JobRecord | null>(null)
   const [actionError, setActionError] = useState('')
   const [roomQuery, setRoomQuery] = useState('')
-  const [roomFilter, setRoomFilter] = useState<'all' | 'active' | 'inactive' | 'error'>('all')
+  const [roomFilter, setRoomFilter] = useState<RoomFilter>('all')
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
   const [roomPage, setRoomPage] = useState(1)
   const [roomPageSize, setRoomPageSize] = useState(20)
@@ -150,7 +162,7 @@ function ChatworkSettings() {
     canManageChatwork ? apiRoutes.chatwork.rooms() : null,
     {
       enabled: canManageChatwork,
-      errorMessage: 'Chatworkルーム一覧の取得に失敗しました',
+      errorMessage: 'Chatworkルーム一覧の取得に失敗しました。',
       cacheTimeMs: 10_000,
     }
   )
@@ -163,12 +175,7 @@ function ChatworkSettings() {
       if (roomFilter === 'inactive' && room.isActive) return false
       if (roomFilter === 'error' && !room.lastErrorMessage && !room.lastErrorAt) return false
       if (!query) return true
-      const haystack = [
-        room.name,
-        room.roomId,
-        room.description,
-        room.lastErrorMessage,
-      ]
+      const haystack = [room.name, room.roomId, room.description, room.lastErrorMessage]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
@@ -187,14 +194,7 @@ function ChatworkSettings() {
   const allFilteredSelected =
     filteredRooms.length > 0 && filteredRooms.every((room) => selectedRoomSet.has(room.id))
   const hasRoomFilters = roomQuery.trim().length > 0 || roomFilter !== 'all'
-  const roomFilterLabel =
-    roomFilter === 'active'
-      ? '有効'
-      : roomFilter === 'inactive'
-        ? '無効'
-        : roomFilter === 'error'
-          ? 'エラーあり'
-          : 'すべて'
+  const roomFilterLabel = ROOM_FILTER_LABELS[roomFilter]
 
   const { mutate: queueRoomSync, isLoading: isQueueingRooms } = useMutation<
     { jobId: string; status: JobRecord['status'] },
@@ -217,7 +217,7 @@ function ChatworkSettings() {
     activeJob ? apiRoutes.jobs.detail(activeJob.id) : null,
     {
       enabled: false,
-      errorMessage: 'ジョブの取得に失敗しました',
+      errorMessage: 'ジョブの取得に失敗しました。',
     }
   )
 
@@ -230,14 +230,14 @@ function ChatworkSettings() {
     setActionError('')
     try {
       const data = await queueRoomSync(undefined, {
-        errorMessage: 'ルーム同期に失敗しました',
+        errorMessage: 'ルーム同期に失敗しました。',
       })
       if (data) {
         setActiveJob({ id: data.jobId, type: 'chatwork_rooms_sync', status: data.status })
-        showToast('ルーム同期を開始しました', 'success')
+        showToast('ルーム同期を開始しました。', 'success')
       }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'ルーム同期に失敗しました')
+      setActionError(err instanceof Error ? err.message : 'ルーム同期に失敗しました。')
     }
   }
 
@@ -245,7 +245,7 @@ function ChatworkSettings() {
     setActionError('')
     try {
       const data = await queueMessageSync(undefined, {
-        errorMessage: 'メッセージ同期に失敗しました',
+        errorMessage: 'メッセージ同期に失敗しました。',
       })
       if (data) {
         setActiveJob({
@@ -253,10 +253,10 @@ function ChatworkSettings() {
           type: 'chatwork_messages_sync',
           status: data.status,
         })
-        showToast('メッセージ同期を開始しました', 'success')
+        showToast('メッセージ同期を開始しました。', 'success')
       }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'メッセージ同期に失敗しました')
+      setActionError(err instanceof Error ? err.message : 'メッセージ同期に失敗しました。')
     }
   }
 
@@ -267,14 +267,14 @@ function ChatworkSettings() {
         { isActive: !room.isActive },
         {
           url: apiRoutes.chatwork.room(room.id),
-          errorMessage: 'ルームの更新に失敗しました',
+          errorMessage: 'ルームの状態更新に失敗しました。',
           onSuccess: () => {
             void refetchRooms(undefined, { ignoreCache: true })
           },
         }
       )
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'ルームの更新に失敗しました')
+      setActionError(err instanceof Error ? err.message : 'ルームの状態更新に失敗しました。')
     }
   }
 
@@ -285,7 +285,7 @@ function ChatworkSettings() {
   }
 
   const handleRoomFilterChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    setRoomFilter(event.target.value as 'all' | 'active' | 'inactive' | 'error')
+    setRoomFilter(event.target.value as RoomFilter)
     setRoomPage(1)
     setSelectedRoomIds([])
   }
@@ -334,12 +334,9 @@ function ChatworkSettings() {
       )
       setSelectedRoomIds([])
       void refetchRooms(undefined, { ignoreCache: true })
-      showToast(
-        nextActive ? '選択したルームを有効にしました' : '選択したルームを無効にしました',
-        'success'
-      )
+      showToast(nextActive ? '選択ルームを有効化しました。' : '選択ルームを無効化しました。', 'success')
     } catch (err) {
-      const message = toErrorMessage(err, '一括更新に失敗しました')
+      const message = toErrorMessage(err, '一括更新に失敗しました。')
       setActionError(message)
       showToast(message, 'error')
     } finally {
@@ -353,13 +350,13 @@ function ChatworkSettings() {
     try {
       const data = await cancelJob(undefined, {
         url: apiRoutes.jobs.cancel(activeJob.id),
-        errorMessage: 'ジョブのキャンセルに失敗しました',
+        errorMessage: 'ジョブのキャンセルに失敗しました。',
       })
       if (data?.job) {
         setActiveJob(data.job)
       }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'ジョブのキャンセルに失敗しました')
+      setActionError(err instanceof Error ? err.message : 'ジョブのキャンセルに失敗しました。')
     }
   }
 
@@ -368,15 +365,15 @@ function ChatworkSettings() {
   if (!canManageChatwork) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-        管理者のみChatworkを操作できます。
+        権限が不足しているため、Chatwork設定を表示できません。
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 ">
+    <div className="space-y-4">
       <div>
-        <p className="text-sm uppercase  text-slate-400">チャットワーク</p>
+        <p className="text-sm uppercase text-slate-400">Chatwork</p>
         <h2 className="text-3xl font-bold text-slate-900">Chatwork設定</h2>
       </div>
 
@@ -401,6 +398,7 @@ function ChatworkSettings() {
           メッセージ同期
         </Button>
       </div>
+
       <ChatworkJobProgress
         activeJob={activeJob}
         setActiveJob={setActiveJob}
@@ -416,7 +414,7 @@ function ChatworkSettings() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">Chatworkルーム</h3>
-            <p className="text-xs text-slate-400">{totalRooms}件</p>
+            <p className="text-xs text-slate-400">{totalRooms} 件</p>
           </div>
           <label className="flex items-center gap-2 text-xs text-slate-500">
             <input
@@ -426,7 +424,7 @@ function ChatworkSettings() {
               className="rounded border-slate-300"
               disabled={filteredRooms.length === 0 || isBulkUpdating || isLoadingRooms}
             />
-            全選択
+            すべて選択
           </label>
         </div>
 
@@ -446,8 +444,8 @@ function ChatworkSettings() {
             name="roomFilter"
           >
             <option value="all">すべて</option>
-            <option value="active">有効</option>
-            <option value="inactive">無効</option>
+            <option value="active">稼働中</option>
+            <option value="inactive">停止中</option>
             <option value="error">エラーあり</option>
           </FormSelect>
           <div className="flex items-end">
@@ -457,7 +455,7 @@ function ChatworkSettings() {
               className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
               disabled={isLoadingRooms}
             >
-              条件をクリア
+              フィルターを解除
             </button>
           </div>
         </div>
@@ -497,7 +495,7 @@ function ChatworkSettings() {
 
         {selectedRoomIds.length > 0 && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
-            <span className="text-slate-600">{selectedRoomIds.length}件選択中</span>
+            <span className="text-slate-600">{selectedRoomIds.length} 件選択中</span>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -533,7 +531,7 @@ function ChatworkSettings() {
           ) : totalRooms === 0 ? (
             <EmptyState
               data-testid="chatwork-room-empty"
-              message="ルームがありません"
+              message="ルームが見つかりません"
               description="同期を実行して最新のルーム一覧を取得してください。"
               action={
                 <button
@@ -592,7 +590,7 @@ function ChatworkSettings() {
                         : 'bg-slate-100 text-slate-600'
                     )}
                   >
-                    {room.isActive ? '有効' : '無効'}
+                    {room.isActive ? '稼働中' : '停止中'}
                   </button>
                 </div>
               ))}
@@ -623,4 +621,4 @@ function ChatworkSettings() {
   )
 }
 
-export default ChatworkSettings
+export default ChatworkSettings

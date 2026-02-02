@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import Tasks from './Tasks'
 import { useAuth } from '../contexts/AuthContext'
+import { TASK_STRINGS } from '../strings/tasks'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
@@ -69,7 +70,7 @@ describe('Tasks page', () => {
       if (url === '/api/tasks/t1' && init?.method === 'PATCH') {
         return buildResponse({ task: { id: 't1', status: 'done' } })
       }
-      if (url.startsWith('/api/me/tasks')) {
+      if (url.startsWith('/api/tasks') || url.startsWith('/api/me/tasks')) {
         taskFetchCount += 1
         return buildResponse(taskFetchCount === 1 ? initialTasks : updatedTasks)
       }
@@ -89,7 +90,8 @@ describe('Tasks page', () => {
     }
     const statusTrigger = within(row).getByText('未対応')
     fireEvent.click(statusTrigger)
-    const statusSelect = within(row).getByLabelText('ステータス')
+    const statusSelectLabel = `${initialTasks.items[0].title} ${TASK_STRINGS.labels.statusForTaskSuffix}`
+    const statusSelect = await screen.findByLabelText(statusSelectLabel)
     fireEvent.change(statusSelect, { target: { value: 'done' } })
 
     await waitFor(() => {
@@ -116,7 +118,7 @@ describe('Tasks page', () => {
       if (url === '/api/users/options') {
         return buildResponse({ users: [] })
       }
-      if (url.startsWith('/api/me/tasks')) {
+      if (url.startsWith('/api/tasks') || url.startsWith('/api/me/tasks')) {
         return buildResponse({
           items: [],
           pagination: { page: 1, pageSize: 20, total: 0 },

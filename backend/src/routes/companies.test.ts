@@ -46,6 +46,7 @@ describe('Company endpoints', () => {
   })
 
   afterEach(async () => {
+    await prisma.task.deleteMany()
     await prisma.contact.deleteMany()
     await prisma.company.deleteMany()
     await prisma.user.deleteMany({
@@ -315,5 +316,83 @@ describe('Company endpoints', () => {
     })
 
     expect(response.statusCode).toBe(401)
+  })
+
+  it('merges companies and reassigns related data', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+
+    const target = await prisma.company.create({
+      data: {
+        name: 'Target Corp',
+        normalizedName: 'targetcorp',
+        status: 'active',
+        tags: ['existing'],
+        ownerIds: ['owner-1'],
+        category: 'existing-category',
+        profile: 'existing-profile',
+      },
+    })
+    const source = await prisma.company.create({
+      data: {
+        name: 'Source Corp',
+        normalizedName: 'sourcecorp',
+        status: 'active',
+        tags: ['incoming'],
+        ownerIds: ['owner-2'],
+        category: 'incoming-category',
+        profile: 'incoming-profile',
+      },
+    })
+    const contact = await prisma.contact.create({
+      data: {
+        companyId: source.id,
+        name: 'Merged Contact',
+        sortOrder: 1,
+      },
+    })
+    const task = await prisma.task.create({
+      data: {
+        title: 'Company task',
+        targetType: 'company',
+        targetId: source.id,
+        status: 'todo',
+      },
+    })
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/companies/${target.id}/merge`,
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        sourceCompanyId: source.id,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+
+    const remainingSource = await prisma.company.findUnique({
+      where: { id: source.id },
+    })
+    expect(remainingSource).toBeNull()
+
+    const movedContact = await prisma.contact.findUnique({
+      where: { id: contact.id },
+    })
+    expect(movedContact?.companyId).toBe(target.id)
+
+    const movedTask = await prisma.task.findUnique({
+      where: { id: task.id },
+    })
+    expect(movedTask?.targetId).toBe(target.id)
+
+    const updatedTarget = await prisma.company.findUnique({
+      where: { id: target.id },
+    })
+    expect(updatedTarget?.tags).toEqual(expect.arrayContaining(['existing', 'incoming']))
+    expect(updatedTarget?.ownerIds).toEqual(expect.arrayContaining(['owner-1', 'owner-2']))
+    expect(updatedTarget?.category).toBe('existing-category')
+    expect(updatedTarget?.profile).toBe('existing-profile')
   })
 })

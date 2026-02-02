@@ -70,6 +70,16 @@ export const createSummaryDraftHandler = async (
     },
   })
   if (cached) {
+    const latestCount = await prisma.message.count({
+      where: {
+        companyId: request.params.id,
+        sentAt: {
+          gte: periodStart,
+          lte: periodEnd,
+        },
+      },
+    })
+    if (cached.sourceMessageCount === latestCount) {
     return {
       cached: true,
       draft: {
@@ -83,6 +93,7 @@ export const createSummaryDraftHandler = async (
         sourceMessageCount: cached.sourceMessageCount,
         tokenUsage: cached.tokenUsage,
       },
+    }
     }
   }
 

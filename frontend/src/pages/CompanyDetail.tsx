@@ -1,180 +1,162 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { CompanySearchSelect } from '../components/SearchSelect'
 import CompanyContactsSection from '../components/companies/CompanyContactsSection'
 import CompanyOverviewTab from '../components/companies/CompanyOverviewTab'
+import CompanyProjectsTab from '../components/companies/CompanyProjectsTab'
+import CompanySummariesTab from '../components/companies/CompanySummariesTab'
 import CompanyTasksSection from '../components/companies/CompanyTasksSection'
 import CompanyTimelineTab from '../components/companies/CompanyTimelineTab'
+import CompanyWholesalesTab from '../components/companies/CompanyWholesalesTab'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
+import Modal from '../components/ui/Modal'
 import { Skeleton, SkeletonText } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import Tabs, { Tab } from '../components/ui/Tabs'
 import Toast from '../components/ui/Toast'
-import { usePagination } from '../hooks/usePagination'
-import { usePaginationSync } from '../hooks/usePaginationSync'
 import { usePermissions } from '../hooks/usePermissions'
 import { useFetch, useMutation } from '../hooks/useApi'
+import { useCompanyContacts } from '../hooks/useCompanyContacts'
+import { useCompanyDetailData } from '../hooks/useCompanyDetailData'
+import { useCompanyOverviewForm } from '../hooks/useCompanyOverviewForm'
 import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
 import { cn } from '../lib/cn'
-import { ApiListResponse, Company, Contact, MessageItem, User } from '../types'
-import { toErrorMessage } from '../utils/errorState'
+import type { User } from '../types'
 import { getAvatarColor, getInitials } from '../utils/string'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
   COMPANY_STATUS_DEFAULT_OPTIONS,
 } from '../constants/labels'
 
-
 const NETWORK_ERROR_MESSAGE = '通信エラーが発生しました'
+const CONTACT_MESSAGES = {
+  requiredName: '担当者名は必須です',
+  updateFailed: '担当者の更新に失敗しました',
+  updateSuccess: '担当者を更新しました',
+  deleteFailed: '担当者の削除に失敗しました',
+  deleteSuccess: '担当者を削除しました',
+  reorderFailed: '並び替えに失敗しました',
+  mergeSuccess: '重複している担当者を統合しました',
+  mergeFailed: '重複統合に失敗しました',
+}
 
 function CompanyDetail() {
   const { id } = useParams<{ id: string }>()
-  const { canWrite } = usePermissions()
-  const [company, setCompany] = useState<Company | null>(null)
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [contactError, setContactError] = useState('')
-  const [companyError, setCompanyError] = useState('')
-  const [messages, setMessages] = useState<MessageItem[]>([])
-  const [messageQuery, setMessageQuery] = useState('')
-  const [messageFrom, setMessageFrom] = useState('')
-  const [messageTo, setMessageTo] = useState('')
-  const [messageLabel, setMessageLabel] = useState('')
-  const [messageError, setMessageError] = useState('')
-  const labelInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const [showContactForm, setShowContactForm] = useState(false)
-  const [isEditingOverview, setIsEditingOverview] = useState(false)
-  const [form, setForm] = useState({
-    name: '',
-    role: '',
-    email: '',
-    phone: '',
-    memo: '',
-  })
-  const [editingContactId, setEditingContactId] = useState<string | null>(null)
-  const [editContactForm, setEditContactForm] = useState({
-    name: '',
-    role: '',
-    email: '',
-    phone: '',
-    memo: '',
-  })
-  const [contactActionError, setContactActionError] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
-  const [isDedupeConfirmOpen, setIsDedupeConfirmOpen] = useState(false)
-  const [isDedupeWorking, setIsDedupeWorking] = useState(false)
-  const [companyForm, setCompanyForm] = useState<{
-    tags: string[]
-    profile: string
-    category: string
-    status: string
-    ownerIds: string[]
-  }>({
-    tags: [],
-    profile: '',
-    category: '',
-    status: '',
-    ownerIds: [],
-  })
-  const [tagInput, setTagInput] = useState('')
+  const { canWrite, isAdmin } = usePermissions()
   const { toast, showToast, clearToast } = useToast()
+  const labelInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const [isMergeOpen, setIsMergeOpen] = useState(false)
+  const [mergeTargetId, setMergeTargetId] = useState('')
+  const [mergeError, setMergeError] = useState('')
 
   const {
-    pagination: messagePagination,
-    setPagination: setMessagePagination,
-    setPage: setMessagePage,
-    setPageSize: setMessagePageSize,
-  } = usePagination(30)
-  const syncMessagePagination = usePaginationSync(setMessagePagination)
-
-  const {
-    error: companyFetchError,
-    isLoading: isLoadingCompany,
-    refetch: refetchCompany,
-  } = useFetch<{ company: Company }>(id ? apiRoutes.companies.detail(id) : null, {
-    enabled: Boolean(id),
-    errorMessage: NETWORK_ERROR_MESSAGE,
-    onSuccess: (data) => {
-      setCompany(data.company)
-      setCompanyForm({
-        tags: data.company.tags ?? [],
-        profile: data.company.profile || '',
-        category: data.company.category || '',
-        status: data.company.status || '',
-        ownerIds: data.company.ownerIds ?? [],
-      })
-    },
+    company,
+    setCompany,
+    companyFetchError,
+    isLoadingCompany,
+    refetchCompany,
+    messages,
+    messageQuery,
+    setMessageQuery,
+    messageFrom,
+    setMessageFrom,
+    messageTo,
+    setMessageTo,
+    messageLabel,
+    setMessageLabel,
+    messageError,
+    setMessageError,
+    messagePagination,
+    setMessagePage,
+    setMessagePageSize,
+    isLoadingMessages,
+    refetchMessages,
+    projects,
+    projectsError,
+    isLoadingProjects,
+    refetchProjects,
+    wholesales,
+    wholesalesError,
+    isLoadingWholesales,
+    refetchWholesales,
+    summaries,
+    summariesError,
+    isLoadingSummaries,
+    refetchSummaries,
+  } = useCompanyDetailData({
+    companyId: id,
+    networkErrorMessage: NETWORK_ERROR_MESSAGE,
   })
 
   const {
-    error: contactsFetchError,
-    isLoading: isLoadingContacts,
-    refetch: refetchContacts,
-  } = useFetch<{ contacts: Contact[] }>(id ? apiRoutes.companies.contacts(id) : null, {
-    enabled: Boolean(id),
-    errorMessage: NETWORK_ERROR_MESSAGE,
-    onSuccess: (data) => setContacts(data.contacts ?? []),
+    companyForm,
+    setCompanyForm,
+    tagInput,
+    setTagInput,
+    companyError,
+    isEditing,
+    isUpdatingCompany,
+    startEdit,
+    cancelEdit,
+    handleUpdateCompany,
+  } = useCompanyOverviewForm({
+    company,
+    companyId: id,
+    networkErrorMessage: NETWORK_ERROR_MESSAGE,
+    onCompanyUpdated: setCompany,
+    refetchCompany,
+    showToast,
   })
-  const duplicateContactGroups = useMemo(() => {
-    const groups = new Map<string, Contact[]>()
-    contacts.forEach((contact) => {
-      const emailKey = contact.email?.trim().toLowerCase()
-      const phoneKey = contact.phone?.trim()
-      const key = emailKey || phoneKey
-      if (!key) return
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key)!.push(contact)
-    })
-    return Array.from(groups.values()).filter((group) => group.length > 1)
-  }, [contacts])
+
+  const {
+    contacts,
+    contactError,
+    showContactForm,
+    setShowContactForm,
+    form,
+    setForm,
+    editingContactId,
+    editContactForm,
+    setEditContactForm,
+    contactActionError,
+    confirmDelete,
+    setConfirmDelete,
+    isDedupeConfirmOpen,
+    setIsDedupeConfirmOpen,
+    isDedupeWorking,
+    isReorderWorking,
+    isDeletingContact,
+    duplicateContactGroups,
+    contactsFetchError,
+    isLoadingContacts,
+    refetchContacts,
+    handleAddContact,
+    startEditContact,
+    cancelEditContact,
+    handleSaveContact,
+    handleConfirmDeleteContact,
+    moveContact,
+    handleMergeDuplicates,
+  } = useCompanyContacts({
+    companyId: id,
+    networkErrorMessage: NETWORK_ERROR_MESSAGE,
+    showToast,
+    messages: CONTACT_MESSAGES,
+  })
 
   // Tab configuration
   const tabs: Tab[] = useMemo(
     () => [
       { id: 'overview', label: '概要' },
       { id: 'timeline', label: 'タイムライン', count: messagePagination.total },
+      { id: 'projects', label: '案件', count: projects.length },
+      { id: 'wholesales', label: '卸', count: wholesales.length },
+      { id: 'summaries', label: 'サマリー', count: summaries.length },
     ],
-    [messagePagination.total]
+    [messagePagination.total, projects.length, wholesales.length, summaries.length]
   )
-
-
-  const messagesUrl = useMemo(() => {
-    if (!id) return null
-    const params = new URLSearchParams()
-    params.set('page', String(messagePagination.page))
-    params.set('pageSize', String(messagePagination.pageSize))
-    if (messageFrom) params.set('from', messageFrom)
-    if (messageTo) params.set('to', messageTo)
-    if (messageLabel.trim()) params.set('label', messageLabel.trim())
-    const trimmedQuery = messageQuery.trim()
-    if (trimmedQuery) {
-      params.set('q', trimmedQuery)
-      params.set('companyId', id)
-      return apiRoutes.messages.search(params.toString())
-    }
-    return apiRoutes.companies.messages(id, params.toString())
-  }, [
-    id,
-    messageFrom,
-    messageTo,
-    messageQuery,
-    messageLabel,
-    messagePagination.page,
-    messagePagination.pageSize,
-  ])
-
-  const { isLoading: isLoadingMessages, refetch: refetchMessages } =
-    useFetch<ApiListResponse<MessageItem>>(messagesUrl, {
-      enabled: Boolean(messagesUrl),
-      errorMessage: NETWORK_ERROR_MESSAGE,
-      onStart: () => setMessageError(''),
-      onSuccess: (data) => {
-        setMessages(data.items ?? [])
-        syncMessagePagination(data)
-      },
-      onError: setMessageError,
-    })
-
 
   const { data: companyOptionsData } = useFetch<{
     categories: string[]
@@ -198,7 +180,6 @@ function CompanyDetail() {
   })
   const userOptions = usersData?.users ?? []
 
-
   const tagOptions = companyOptionsData?.tags ?? []
   const labelOptions = labelOptionsData?.items?.map((item) => item.label) ?? []
 
@@ -215,44 +196,6 @@ function CompanyDetail() {
     ).sort()
   }, [companyOptionsData?.statuses])
 
-  const { mutate: addContact } = useMutation<
-    { contact: Contact },
-    { name: string; role?: string; email?: string; phone?: string; memo?: string }
-  >(id ? apiRoutes.companies.contacts(id) : '', 'POST')
-
-  const { mutate: updateContact } = useMutation<
-    { contact: Contact },
-    {
-      name?: string
-      role?: string | null
-      email?: string | null
-      phone?: string | null
-      memo?: string | null
-      sortOrder?: number | null
-    }
-  >(apiRoutes.contacts.base(), 'PATCH')
-
-  const { mutate: deleteContact, isLoading: isDeletingContact } = useMutation<unknown, void>(
-    apiRoutes.contacts.base(),
-    'DELETE'
-  )
-
-  const { mutate: reorderContactsMutation, isLoading: isReorderWorking } = useMutation<
-    unknown,
-    { orderedIds: string[] }
-  >(id ? apiRoutes.companies.contactsReorder(id) : '', 'PATCH')
-
-  const { mutate: updateCompany, isLoading: isUpdatingCompany } = useMutation<
-    { company: Company },
-    {
-      tags?: string[]
-      profile?: string | null
-      category?: string | null
-      status?: string
-      ownerIds?: string[]
-    }
-  >(id ? apiRoutes.companies.detail(id) : '', 'PATCH')
-
   const { mutate: addLabel } = useMutation<unknown, { label: string }>(
     apiRoutes.messages.base(),
     'POST'
@@ -260,286 +203,13 @@ function CompanyDetail() {
 
   const { mutate: removeLabel } = useMutation<unknown, void>(apiRoutes.messages.base(), 'DELETE')
 
+  const { mutate: mergeCompany, isLoading: isMerging } = useMutation<
+    { company: { id: string } },
+    { sourceCompanyId: string }
+  >(apiRoutes.companies.base(), 'POST')
+
   const isLoading = isLoadingCompany || isLoadingContacts
   const pageError = companyFetchError || contactsFetchError
-
-  useEffect(() => {
-    setMessagePage(1)
-  }, [messageQuery, messageFrom, messageTo, messageLabel, setMessagePage])
-
-  const handleAddContact = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setContactError('')
-    if (!form.name.trim()) {
-      setContactError('担当者名は必須です')
-      return
-    }
-    if (!id) return
-
-    try {
-      await addContact(
-        {
-          name: form.name,
-          role: form.role || undefined,
-          email: form.email || undefined,
-          phone: form.phone || undefined,
-          memo: form.memo || undefined,
-        },
-        { errorMessage: NETWORK_ERROR_MESSAGE }
-      )
-
-      setForm({ name: '', role: '', email: '', phone: '', memo: '' })
-      setShowContactForm(false)
-      void refetchContacts(undefined, { ignoreCache: true })
-    } catch (err) {
-      setContactError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
-    }
-  }
-
-  const resetEditContactForm = () => {
-    setEditContactForm({ name: '', role: '', email: '', phone: '', memo: '' })
-  }
-
-  const startEditContact = (contact: Contact) => {
-    setContactActionError('')
-    setEditingContactId(contact.id)
-    setEditContactForm({
-      name: contact.name,
-      role: contact.role ?? '',
-      email: contact.email ?? '',
-      phone: contact.phone ?? '',
-      memo: contact.memo ?? '',
-    })
-  }
-
-  const cancelEditContact = () => {
-    setEditingContactId(null)
-    resetEditContactForm()
-    setContactActionError('')
-  }
-
-  const handleSaveContact = async () => {
-    if (!editingContactId) return
-    const name = editContactForm.name.trim()
-    if (!name) {
-      setContactActionError('担当者名は必須です')
-      return
-    }
-    setContactActionError('')
-    try {
-      const data = await updateContact(
-        {
-          name,
-          role: editContactForm.role.trim() || null,
-          email: editContactForm.email.trim() || null,
-          phone: editContactForm.phone.trim() || null,
-          memo: editContactForm.memo.trim() || null,
-        },
-        {
-          url: apiRoutes.contacts.detail(editingContactId),
-          errorMessage: '担当者の更新に失敗しました',
-        }
-      )
-      if (data?.contact) {
-        const contact = data.contact
-        setContacts((prev) =>
-          prev.map((item) => (item.id === contact.id ? { ...item, ...contact } : item))
-        )
-      } else {
-        void refetchContacts(undefined, { ignoreCache: true })
-      }
-      showToast('担当者を更新しました', 'success')
-      setEditingContactId(null)
-      resetEditContactForm()
-    } catch (err) {
-      setContactActionError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
-    }
-  }
-  const handleConfirmDeleteContact = async () => {
-    if (!confirmDelete) return
-    setContactActionError('')
-    try {
-      await deleteContact(undefined, {
-        url: apiRoutes.contacts.detail(confirmDelete.id),
-        errorMessage: '担当者の削除に失敗しました',
-      })
-      setContacts((prev) => prev.filter((contact) => contact.id !== confirmDelete.id))
-      if (editingContactId === confirmDelete.id) {
-        setEditingContactId(null)
-        resetEditContactForm()
-      }
-      showToast('担当者を削除しました', 'success')
-      setConfirmDelete(null)
-    } catch (err) {
-      setContactActionError(err instanceof Error ? err.message : '担当者の削除に失敗しました')
-    }
-  }
-  const reorderContacts = async (nextContacts: Contact[]) => {
-    if (!id) return
-    setContactActionError('')
-    const previous = contacts
-    const orderedContacts = nextContacts.map((contact, index) => ({
-      ...contact,
-      sortOrder: index + 1,
-    }))
-    setContacts(orderedContacts)
-    try {
-      await reorderContactsMutation(
-        { orderedIds: orderedContacts.map((contact) => contact.id) },
-        { errorMessage: '並び替えに失敗しました' }
-      )
-    } catch (err) {
-      setContacts(previous)
-      setContactActionError(err instanceof Error ? err.message : '並び替えに失敗しました')
-    }
-  }
-  const moveContact = (index: number, direction: -1 | 1) => {
-    const nextIndex = index + direction
-    if (nextIndex < 0 || nextIndex >= contacts.length) return
-    const nextContacts = [...contacts]
-    const [moved] = nextContacts.splice(index, 1)
-    nextContacts.splice(nextIndex, 0, moved)
-    void reorderContacts(nextContacts)
-  }
-
-  const contactScore = (contact: Contact) =>
-    [contact.name, contact.role, contact.email, contact.phone, contact.memo].filter(
-      (value) => value && value.trim()
-    ).length
-
-  const pickContactValue = (...values: Array<string | null | undefined>) => {
-    for (const value of values) {
-      const trimmed = value?.trim()
-      if (trimmed) return trimmed
-    }
-    return ''
-  }
-
-  const handleMergeDuplicates = async () => {
-    if (duplicateContactGroups.length === 0) {
-      setIsDedupeConfirmOpen(false)
-      return
-    }
-    setIsDedupeWorking(true)
-    setContactActionError('')
-    try {
-      let nextContacts = [...contacts]
-      for (const group of duplicateContactGroups) {
-        const sortedGroup = [...group].sort((a, b) => contactScore(b) - contactScore(a))
-        const primary = sortedGroup[0]
-        const merged = {
-          name: pickContactValue(primary.name, ...sortedGroup.map((contact) => contact.name)),
-          role: pickContactValue(primary.role, ...sortedGroup.map((contact) => contact.role)),
-          email: pickContactValue(primary.email, ...sortedGroup.map((contact) => contact.email)),
-          phone: pickContactValue(primary.phone, ...sortedGroup.map((contact) => contact.phone)),
-          memo: pickContactValue(primary.memo, ...sortedGroup.map((contact) => contact.memo)),
-        }
-        const normalize = (value?: string | null) => value?.trim() || ''
-        const needsUpdate =
-          normalize(primary.name) !== merged.name ||
-          normalize(primary.role) !== merged.role ||
-          normalize(primary.email) !== merged.email ||
-          normalize(primary.phone) !== merged.phone ||
-          normalize(primary.memo) !== merged.memo
-
-        let updatedPrimary = primary
-        if (needsUpdate) {
-          const data = await updateContact(
-            {
-              name: merged.name,
-              role: merged.role || null,
-              email: merged.email || null,
-              phone: merged.phone || null,
-              memo: merged.memo || null,
-            },
-            {
-              url: apiRoutes.contacts.detail(primary.id),
-              errorMessage: '担当者の削除に失敗しました',
-            }
-          )
-          if (data?.contact) {
-            updatedPrimary = data.contact
-          }
-        }
-
-        nextContacts = nextContacts.map((contact) =>
-          contact.id === updatedPrimary.id ? { ...contact, ...updatedPrimary } : contact
-        )
-
-        const duplicateContacts = group.filter((contact) => contact.id !== primary.id)
-        for (const duplicate of duplicateContacts) {
-          await deleteContact(undefined, {
-            url: apiRoutes.contacts.detail(duplicate.id),
-            errorMessage: '担当者の削除に失敗しました',
-          })
-        }
-        if (duplicateContacts.length > 0) {
-          const duplicateIds = new Set(duplicateContacts.map((contact) => contact.id))
-          if (editingContactId && duplicateIds.has(editingContactId)) {
-            setEditingContactId(null)
-            resetEditContactForm()
-          }
-          nextContacts = nextContacts.filter((contact) => !duplicateIds.has(contact.id))
-        }
-      }
-
-      setContacts(nextContacts)
-      showToast('重複した担当者を統合しました', 'success')
-    } catch (err) {
-      setContactActionError(err instanceof Error ? err.message : '重複統合に失敗しました')
-    } finally {
-      setIsDedupeWorking(false)
-      setIsDedupeConfirmOpen(false)
-    }
-  }
-  const resetCompanyForm = (nextCompany?: Company | null) => {
-    const source = nextCompany ?? company
-    if (!source) return
-    setCompanyForm({
-      tags: source.tags ?? [],
-      profile: source.profile || '',
-      category: source.category || '',
-      status: source.status || '',
-      ownerIds: source.ownerIds ?? [],
-    })
-    setTagInput('')
-  }
-
-  const handleUpdateCompany = async () => {
-    setCompanyError('')
-    if (!id) return
-
-    try {
-      const data = await updateCompany(
-        {
-          tags: companyForm.tags,
-          profile: companyForm.profile.trim() || null,
-          category: companyForm.category.trim() || null,
-          status: companyForm.status.trim() || undefined,
-          ownerIds: companyForm.ownerIds,
-        },
-        { errorMessage: NETWORK_ERROR_MESSAGE }
-      )
-
-      if (data?.company) {
-        setCompany(data.company)
-        resetCompanyForm(data.company)
-      } else {
-        void refetchCompany(undefined, { ignoreCache: true })
-      }
-
-      setIsEditingOverview(false)
-      showToast('企業情報を更新しました', 'success')
-    } catch (err) {
-      setCompanyError(toErrorMessage(err, NETWORK_ERROR_MESSAGE))
-    }
-  }
-
-  const handleCancelCompanyEdit = () => {
-    resetCompanyForm()
-    setIsEditingOverview(false)
-    setCompanyError('')
-  }
 
   const handleAddLabel = async (messageId: string) => {
     const label = (labelInputRefs.current[messageId]?.value || '').trim()
@@ -560,9 +230,10 @@ function CompanyDetail() {
       }
       void refetchMessages(undefined, { ignoreCache: true })
     } catch (err) {
-      setMessageError(err instanceof Error ? err.message : 'ネットワークエラー')
+      setMessageError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
     }
   }
+
   const handleRemoveLabel = async (messageId: string, label: string) => {
     setMessageError('')
     try {
@@ -571,9 +242,45 @@ function CompanyDetail() {
       })
       void refetchMessages(undefined, { ignoreCache: true })
     } catch (err) {
-      setMessageError(err instanceof Error ? err.message : 'ネットワークエラー')
+      setMessageError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
     }
   }
+
+  const resetMergeState = () => {
+    setMergeTargetId('')
+    setMergeError('')
+  }
+
+  const handleMergeCompany = async () => {
+    if (!id) return
+    if (!mergeTargetId) {
+      setMergeError('統合対象の企業を選択してください')
+      return
+    }
+    if (mergeTargetId === id) {
+      setMergeError('同じ企業は統合できません')
+      return
+    }
+    setMergeError('')
+    try {
+      await mergeCompany(
+        { sourceCompanyId: mergeTargetId },
+        { url: apiRoutes.companies.merge(id), errorMessage: '企業の統合に失敗しました' }
+      )
+      showToast('企業を統合しました', 'success')
+      setIsMergeOpen(false)
+      resetMergeState()
+      void refetchCompany(undefined, { ignoreCache: true })
+      void refetchContacts(undefined, { ignoreCache: true })
+      void refetchMessages(undefined, { ignoreCache: true })
+      void refetchProjects(undefined, { ignoreCache: true })
+      void refetchWholesales(undefined, { ignoreCache: true })
+      void refetchSummaries(undefined, { ignoreCache: true })
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : '企業の統合に失敗しました')
+    }
+  }
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -582,6 +289,7 @@ function CompanyDetail() {
       showToast('コピーに失敗しました', 'error')
     }
   }
+
   // Loading skeleton
   if (isLoading) {
     return (
@@ -619,7 +327,6 @@ function CompanyDetail() {
     }) ?? []
   const visibleTags = company.tags?.slice(0, 3) ?? []
 
-
   return (
     <div className="space-y-4">
       <nav className="text-xs text-slate-400">
@@ -648,20 +355,31 @@ function CompanyDetail() {
             </div>
           </div>
         </div>
-        <Link
-          to="/companies"
-          className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm hover:bg-slate-50"
-        >
-          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          一覧に戻る
-        </Link>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsMergeOpen(true)}
+              className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
+            >
+              企業を統合
+            </button>
+          )}
+          <Link
+            to="/companies"
+            className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm hover:bg-slate-50"
+          >
+            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            一覧に戻る
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">区分</div>
+          <div className="text-xs text-slate-500">カテゴリ</div>
           <div className="mt-1 text-sm font-semibold text-slate-900">
             {company.category || '-'}
           </div>
@@ -725,13 +443,10 @@ function CompanyDetail() {
                       mergedStatuses={mergedStatuses}
                       userOptions={userOptions}
                       companyError={companyError}
-                      isEditing={isEditingOverview}
+                      isEditing={isEditing}
                       isSaving={isUpdatingCompany}
-                      onStartEdit={() => {
-                        resetCompanyForm()
-                        setIsEditingOverview(true)
-                      }}
-                      onCancelEdit={handleCancelCompanyEdit}
+                      onStartEdit={startEdit}
+                      onCancelEdit={cancelEdit}
                       onSave={handleUpdateCompany}
                       contactsSection={
                         <CompanyContactsSection
@@ -788,6 +503,30 @@ function CompanyDetail() {
                       onPageSizeChange={setMessagePageSize}
                     />
                   )}
+
+                  {activeTab === 'projects' && (
+                    <CompanyProjectsTab
+                      projects={projects}
+                      isLoading={isLoadingProjects}
+                      error={projectsError}
+                    />
+                  )}
+
+                  {activeTab === 'wholesales' && (
+                    <CompanyWholesalesTab
+                      wholesales={wholesales}
+                      isLoading={isLoadingWholesales}
+                      error={wholesalesError}
+                    />
+                  )}
+
+                  {activeTab === 'summaries' && (
+                    <CompanySummariesTab
+                      summaries={summaries}
+                      isLoading={isLoadingSummaries}
+                      error={summariesError}
+                    />
+                  )}
                 </>
               )}
             </Tabs>
@@ -799,6 +538,59 @@ function CompanyDetail() {
           </div>
         </aside>
       </div>
+      <Modal
+        isOpen={isMergeOpen}
+        onClose={() => {
+          setIsMergeOpen(false)
+          resetMergeState()
+        }}
+        title="企業の統合"
+        className="max-w-md"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMergeOpen(false)
+                resetMergeState()
+              }}
+              className="rounded-full px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              disabled={isMerging}
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={handleMergeCompany}
+              className="rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              disabled={isMerging || !mergeTargetId}
+            >
+              {isMerging ? '統合中...' : '統合する'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            選択した企業のデータをこの企業に統合します。統合対象の企業は削除されます。
+          </p>
+          <CompanySearchSelect
+            label="統合対象の企業"
+            placeholder="統合する企業を検索…"
+            value={mergeTargetId}
+            onChange={(value) => {
+              setMergeTargetId(value)
+              if (mergeError) setMergeError('')
+            }}
+            disabled={isMerging}
+          />
+          {mergeError && (
+            <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {mergeError}
+            </div>
+          )}
+        </div>
+      </Modal>
       <ConfirmDialog
         isOpen={!!confirmDelete}
         title="担当者を削除しますか？"
@@ -811,7 +603,7 @@ function CompanyDetail() {
       />
       <ConfirmDialog
         isOpen={isDedupeConfirmOpen}
-        title="重複した担当者を統合しますか？"
+        title="重複している担当者を統合しますか？"
         description={`${duplicateContactGroups.length} 件のグループを統合し、重複レコードを削除します。`}
         confirmLabel="統合"
         cancelLabel="キャンセル"
@@ -832,3 +624,18 @@ function CompanyDetail() {
 }
 
 export default CompanyDetail
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

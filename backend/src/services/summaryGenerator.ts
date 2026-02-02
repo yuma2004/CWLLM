@@ -1,10 +1,12 @@
 import { Prisma, type Message } from '@prisma/client'
 import { prisma, SUMMARY_DRAFT_TTL_MS } from '../utils'
 import { createLLMClient } from './llm'
-
-const MAX_MESSAGES = 300
-const RECENT_MESSAGE_RATIO = 0.6
-const SAMPLE_BUCKETS = 8
+import { JobCanceledError } from './jobErrors'
+import {
+  SUMMARY_MAX_MESSAGES,
+  SUMMARY_RECENT_MESSAGE_RATIO,
+  SUMMARY_SAMPLE_BUCKETS,
+} from './summaryConfig'
 const buildEmptySummary = () =>
   [
     '## Summary',
@@ -38,7 +40,7 @@ const selectMessagesForSummary = async (
     return { messages: [] as Message[], totalCount }
   }
 
-  if (totalCount <= MAX_MESSAGES) {
+  if (totalCount <= SUMMARY_MAX_MESSAGES) {
     const messages = await prisma.message.findMany({
       where,
       orderBy: { sentAt: 'asc' },
@@ -46,14 +48,17 @@ const selectMessagesForSummary = async (
     return { messages, totalCount }
   }
 
-  const targetRecentCount = Math.max(Math.floor(MAX_MESSAGES * RECENT_MESSAGE_RATIO), 1)
+  const targetRecentCount = Math.max(
+    Math.floor(SUMMARY_MAX_MESSAGES * SUMMARY_RECENT_MESSAGE_RATIO),
+    1
+  )
   const recentMessages = await prisma.message.findMany({
     where,
     orderBy: { sentAt: 'desc' },
     take: targetRecentCount,
   })
 
-  const remaining = Math.max(MAX_MESSAGES - recentMessages.length, 0)
+  const remaining = Math.max(SUMMARY_MAX_MESSAGES - recentMessages.length, 0)
   let sampledOlder: Message[] = []
   const oldestRecent = recentMessages[recentMessages.length - 1]?.sentAt
 
@@ -74,7 +79,7 @@ const selectMessagesForSummary = async (
           orderBy: { sentAt: 'asc' },
         })
       } else {
-        const bucketCount = Math.min(SAMPLE_BUCKETS, remaining, olderCount)
+        const bucketCount = Math.min(SUMMARY_SAMPLE_BUCKETS, remaining, olderCount)
         const perBucket = Math.ceil(remaining / bucketCount)
         const buckets = await Promise.all(
           Array.from({ length: bucketCount }, (_, index) => {
@@ -104,30 +109,51 @@ const selectMessagesForSummary = async (
   )
 
   return {
-    messages: messages.length > MAX_MESSAGES ? messages.slice(-MAX_MESSAGES) : messages,
+    messages:
+      messages.length > SUMMARY_MAX_MESSAGES
+        ? messages.slice(-SUMMARY_MAX_MESSAGES)
+        : messages,
     totalCount,
+  }
+}
+
+type CancelChecker = () => boolean | Promise<boolean>
+
+const ensureNotCanceled = async (isCanceled?: CancelChecker) => {
+  if (!isCanceled) return
+  const canceled = await isCanceled()
+  if (canceled) {
+    throw new JobCanceledError()
   }
 }
 
 export const generateSummaryDraft = async (
   companyId: string,
   periodStart: Date,
-  periodEnd: Date
+  periodEnd: Date,
+  options: { isCanceled?: CancelChecker } = {}
 ) => {
+  await ensureNotCanceled(options.isCanceled)
   const company = await prisma.company.findUnique({ where: { id: companyId } })
   if (!company) {
     throw new Error('Company not found')
   }
 
-  const { messages } = await selectMessagesForSummary(companyId, periodStart, periodEnd)
+  await ensureNotCanceled(options.isCanceled)
+  const { messages, totalCount } = await selectMessagesForSummary(
+    companyId,
+    periodStart,
+    periodEnd
+  )
 
   let content = buildEmptySummary()
   let sourceLinks: string[] = []
   let model: string | null = null
   let promptVersion: string | null = null
-  let sourceMessageCount = messages.length
+  let sourceMessageCount = totalCount
   let tokenUsage: Prisma.InputJsonValue | undefined
 
+  await ensureNotCanceled(options.isCanceled)
   if (messages.length > 0) {
     const client = createLLMClient()
     const result = await client.summarize(
@@ -136,19 +162,21 @@ export const generateSummaryDraft = async (
         sender: message.sender,
         body: message.body,
         sentAt: message.sentAt.toISOString(),
-      }))
+      })),
+      { isCanceled: options.isCanceled }
     )
 
     content = result.content
     sourceLinks = result.sourceLinks
     model = result.metadata?.model ?? null
     promptVersion = result.metadata?.promptVersion ?? null
-    sourceMessageCount = result.metadata?.sourceMessageCount ?? messages.length
+    sourceMessageCount = totalCount
     tokenUsage = result.metadata?.tokenUsage
       ? (result.metadata.tokenUsage as Prisma.InputJsonValue)
       : undefined
   }
 
+  await ensureNotCanceled(options.isCanceled)
   const expiresAt = new Date(Date.now() + SUMMARY_DRAFT_TTL_MS)
 
   const draft = await prisma.summaryDraft.upsert({

@@ -1,7 +1,7 @@
 ﻿import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { requireAuth, requireWriteAccess } from '../middleware/rbac'
+import { requireAdmin, requireAuth, requireWriteAccess } from '../middleware/rbac'
 import {
   CompanyCreateBody,
   CompanyListQuery,
@@ -10,9 +10,11 @@ import {
   ContactCreateBody,
   ContactReorderBody,
   ContactUpdateBody,
+  CompanyMergeBody,
   companyCreateBodySchema,
   companyListQuerySchema,
   companyListResponseSchema,
+  companyMergeBodySchema,
   companyOptionsResponseSchema,
   companyParamsSchema,
   companyResponseSchema,
@@ -35,6 +37,7 @@ import {
   getCompanyOptionsHandler,
   listCompaniesHandler,
   listCompanyContactsHandler,
+  mergeCompanyHandler,
   reorderContactsHandler,
   searchCompaniesHandler,
   updateCompanyHandler,
@@ -118,6 +121,22 @@ export async function companyRoutes(fastify: FastifyInstance) {
       },
     },
     updateCompanyHandler
+  )
+
+  app.post<{ Params: { id: string }; Body: CompanyMergeBody }>(
+    '/companies/:id/merge',
+    {
+      preHandler: requireAdmin(),
+      schema: {
+        tags: ['Companies'],
+        params: companyParamsSchema,
+        body: companyMergeBodySchema,
+        response: {
+          200: companyResponseSchema,
+        },
+      },
+    },
+    mergeCompanyHandler
   )
 
   app.delete<{ Params: { id: string } }>(
@@ -213,7 +232,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
     reorderContactsHandler
   )
 
-  // 莨∵･ｭ縺ｮ蛹ｺ蛻・√せ繝・・繧ｿ繧ｹ縲√ち繧ｰ縺ｮ蛟呵｣懊ｒ蜿門ｾ・
+  // 検索/フィルタ用のカテゴリ・ステータス・タグ候補を返す
   app.get(
     '/companies/options',
     {

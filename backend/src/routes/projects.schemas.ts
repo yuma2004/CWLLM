@@ -1,4 +1,4 @@
-import { ProjectStatus } from '@prisma/client'
+import { ProjectStatus, WholesaleStatus } from '@prisma/client'
 import { z } from 'zod'
 import {
   dateSchema,
@@ -8,6 +8,15 @@ import {
   sortQuerySchema,
   timestampsSchema,
 } from './shared/schemas'
+
+const optionalNumberSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.number().optional()
+)
+const optionalStringSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().optional()
+)
 
 export interface ProjectCreateBody {
   companyId: string
@@ -74,7 +83,7 @@ export const wholesaleSchema = z
     conditions: z.string().nullable().optional(),
     unitPrice: z.number().nullable().optional(),
     margin: z.number().nullable().optional(),
-    status: z.string(),
+    status: z.nativeEnum(WholesaleStatus),
     agreedDate: dateSchema.nullable().optional(),
     ownerId: z.string().nullable().optional(),
     company: z
@@ -125,12 +134,12 @@ export const projectSearchQuerySchema = z.object({
 export const projectCreateBodySchema = z.object({
   companyId: z.string().min(1),
   name: z.string().min(1),
-  conditions: z.string().optional(),
-  unitPrice: z.number().optional(),
-  periodStart: z.string().optional(),
-  periodEnd: z.string().optional(),
+  conditions: optionalStringSchema,
+  unitPrice: optionalNumberSchema,
+  periodStart: optionalStringSchema,
+  periodEnd: optionalStringSchema,
   status: z.nativeEnum(ProjectStatus).optional(),
-  ownerId: z.string().optional(),
+  ownerId: optionalStringSchema,
 })
 
 export const projectUpdateBodySchema = z.object({

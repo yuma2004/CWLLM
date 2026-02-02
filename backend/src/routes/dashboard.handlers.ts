@@ -8,9 +8,9 @@ export const getDashboardHandler = async () => {
   const startOfTomorrow = new Date(startOfToday)
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1)
   const startOfThreeDays = new Date(startOfToday)
-  startOfThreeDays.setDate(startOfThreeDays.getDate() + 4)
+  startOfThreeDays.setDate(startOfThreeDays.getDate() + 3)
   const startOfSevenDays = new Date(startOfToday)
-  startOfSevenDays.setDate(startOfSevenDays.getDate() + 8)
+  startOfSevenDays.setDate(startOfSevenDays.getDate() + 7)
 
   const baseTaskWhere = {
     status: { notIn: [TaskStatus.done, TaskStatus.cancelled] },

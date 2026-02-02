@@ -83,7 +83,7 @@ function KanbanCard({
             {...attributes}
             {...listeners}
           >
-            ⠿
+            移動
           </button>
           <input
             type="checkbox"
@@ -119,7 +119,7 @@ function KanbanCard({
             className="h-7 rounded-full text-[11px]"
             disabled={disabled}
           >
-            <option value="">未割当</option>
+            <option value="">未設定</option>
             {userOptions.map((user) => (
               <option key={user.id} value={user.id}>
                 {user.name || user.email}
@@ -127,7 +127,7 @@ function KanbanCard({
             ))}
           </FormSelect>
         ) : (
-          <div className="truncate text-xs text-slate-400">
+          <div className="text-xs text-slate-400 whitespace-normal break-words">
             担当: {task.assignee?.name || task.assignee?.email || task.assigneeId || '-'}
           </div>
         )}

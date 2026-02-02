@@ -1,6 +1,7 @@
 ﻿import DateInput from '../ui/DateInput'
 import FormSelect from '../ui/FormSelect'
 import { TASK_STATUS_OPTIONS, statusLabel } from '../../constants/labels'
+import { TASK_STRINGS } from '../../strings/tasks'
 
 export type TaskBulkActionsProps = {
   selectedIds: string[]
@@ -41,19 +42,22 @@ export function TaskBulkActions({
             className="size-4 rounded border-notion-border accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
             disabled={isBulkUpdating}
           />
-          全選択
+          {TASK_STRINGS.actions.selectAll}
         </label>
-        <span className="text-white/80 tabular-nums">{selectedIds.length}件選択中</span>
+        <span className="text-white/80 tabular-nums">
+          {selectedIds.length}
+          {TASK_STRINGS.labels.selectedCountSuffix}
+        </span>
         <FormSelect
           name="bulkStatus"
-          aria-label="ステータスを一括変更"
+          aria-label={TASK_STRINGS.bulk.statusLabel}
           autoComplete="off"
           value={bulkStatus}
           onChange={(e) => onBulkStatusChange(e.target.value)}
           className="w-36 text-xs"
           noContainer
         >
-          <option value="">ステータス</option>
+          <option value="">{TASK_STRINGS.labels.statusOption}</option>
           {TASK_STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
               {statusLabel('task', status)}
@@ -62,11 +66,11 @@ export function TaskBulkActions({
         </FormSelect>
         <DateInput
           name="bulkDueDate"
-          aria-label="期限を一括変更"
+          aria-label={TASK_STRINGS.bulk.dueDateLabel}
           autoComplete="off"
           value={bulkDueDate}
           onChange={(e) => onBulkDueDateChange(e.target.value)}
-          placeholder="期限…"
+          placeholder={TASK_STRINGS.bulk.dueDatePlaceholder}
           disabled={clearBulkDueDate}
           className="w-32 text-xs"
           noContainer
@@ -79,7 +83,7 @@ export function TaskBulkActions({
             name="clearBulkDueDate"
             className="size-4 rounded border-notion-border accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
           />
-          期限をクリア
+          {TASK_STRINGS.bulk.clearDueDateLabel}
         </label>
         <button
           type="button"
@@ -87,7 +91,7 @@ export function TaskBulkActions({
           disabled={isBulkUpdating || selectedIds.length === 0}
           className="rounded-full bg-notion-accent px-4 py-1.5 text-xs font-semibold text-white hover:bg-notion-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40 disabled:bg-slate-600"
         >
-          一括更新
+          {TASK_STRINGS.bulk.submitLabel}
         </button>
       </div>
     </div>

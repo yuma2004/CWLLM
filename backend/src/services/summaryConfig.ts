@@ -1,0 +1,3 @@
+export const SUMMARY_MAX_MESSAGES = 300
+export const SUMMARY_RECENT_MESSAGE_RATIO = 0.6
+export const SUMMARY_SAMPLE_BUCKETS = 8

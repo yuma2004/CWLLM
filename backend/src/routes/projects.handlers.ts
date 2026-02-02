@@ -112,7 +112,8 @@ export const createProjectHandler = async (
   reply: FastifyReply
 ) => {
   const { companyId, name, conditions, ownerId } = request.body
-  const unitPrice = parseNumber(request.body.unitPrice)
+  const unitPriceInput = request.body.unitPrice
+  const unitPrice = parseNumber(unitPriceInput)
   const periodStart = parseDate(request.body.periodStart)
   const periodEnd = parseDate(request.body.periodEnd)
   const normalizedStatus = normalizeProjectStatus(request.body.status)
@@ -123,7 +124,7 @@ export const createProjectHandler = async (
   if (!isNonEmptyString(name)) {
     return reply.code(400).send(badRequest('name is required'))
   }
-  if (unitPrice === null) {
+  if (unitPrice === null && unitPriceInput !== null) {
     return reply.code(400).send(badRequest('Invalid unitPrice'))
   }
   if (request.body.periodStart && !periodStart) {
@@ -139,6 +140,8 @@ export const createProjectHandler = async (
     return reply.code(400).send(badRequest('Invalid status'))
   }
 
+  const normalizedUnitPrice = unitPriceInput === null ? undefined : unitPrice
+
   const company = await prisma.company.findUnique({ where: { id: companyId } })
   if (!company) {
     return reply.code(404).send(notFound('Company'))
@@ -150,7 +153,7 @@ export const createProjectHandler = async (
         companyId,
         name: name.trim(),
         conditions,
-        unitPrice: unitPrice ?? undefined,
+        unitPrice: normalizedUnitPrice ?? undefined,
         periodStart: periodStart ?? undefined,
         periodEnd: periodEnd ?? undefined,
         status: normalizedStatus ?? undefined,
@@ -185,7 +188,8 @@ export const updateProjectHandler = async (
   reply: FastifyReply
 ) => {
   const { name, conditions, ownerId } = request.body
-  const unitPrice = parseNumber(request.body.unitPrice)
+  const unitPriceInput = request.body.unitPrice
+  const unitPrice = parseNumber(unitPriceInput)
   const periodStart = parseDate(request.body.periodStart)
   const periodEnd = parseDate(request.body.periodEnd)
   const normalizedStatus = normalizeProjectStatus(request.body.status)
@@ -196,7 +200,7 @@ export const updateProjectHandler = async (
   if (!isNullableString(conditions)) {
     return reply.code(400).send(badRequest('Invalid conditions'))
   }
-  if (unitPrice === null) {
+  if (unitPrice === null && unitPriceInput !== null) {
     return reply.code(400).send(badRequest('Invalid unitPrice'))
   }
   if (request.body.periodStart !== undefined && request.body.periodStart !== null && !periodStart) {
@@ -227,7 +231,9 @@ export const updateProjectHandler = async (
   if (conditions !== undefined) {
     data.conditions = conditions
   }
-  if (unitPrice !== undefined) {
+  if (unitPriceInput === null) {
+    data.unitPrice = null
+  } else if (unitPrice !== undefined) {
     data.unitPrice = unitPrice
   }
   if (request.body.periodStart !== undefined) {

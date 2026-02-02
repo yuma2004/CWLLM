@@ -1,3 +1,5 @@
+import { JobCanceledError } from './jobErrors'
+
 export interface LLMInputMessage {
   id: string
   sender: string
@@ -25,25 +27,29 @@ export interface LLMResult {
   metadata?: LLMMeta
 }
 
+export type LLMCancelChecker = () => boolean | Promise<boolean>
+
+export type LLMSummarizeOptions = {
+  isCanceled?: LLMCancelChecker
+}
+
 export interface LLMClient {
-  summarize(messages: LLMInputMessage[]): Promise<LLMResult>
+  summarize(messages: LLMInputMessage[], options?: LLMSummarizeOptions): Promise<LLMResult>
 }
 
 const MAX_SOURCE_LINKS = 20
 const CHUNK_SIZE = 40
-const PROMPT_VERSION = 'v2-ja-map-reduce'
-const SYSTEM_PROMPT =
-  'あなたは営業チームのアシスタントです。以下の会話ログを日本語で要約してください。' +
-  'Markdownで次の見出しを必ず使ってください: ' +
-  '## Summary, ## Key Topics, ## Open Items, ## Next Actions。' +
-  '箇条書き中心で、事実と推測を分けて簡潔にまとめてください。'
-const REDUCE_PROMPT =
-  '以下は分割した要約の集合です。重複を整理して一つの要約に統合してください。' +
-  'Markdownで次の見出しを必ず使ってください: ' +
-  '## Summary, ## Key Topics, ## Open Items, ## Next Actions。' +
-  '可能な限り具体的に、日本語で書いてください。'
-
-export const LLM_PROMPT_VERSION = PROMPT_VERSION
+export const LLM_PROMPT_VERSION = 'v2-ja-map-reduce'
+const SYSTEM_PROMPT = [
+  'あなたはビジネスチャットを要約するアシスタントです。',
+  '以下のメッセージを読み、Markdownで次の見出しを必ず出力してください: ## Summary, ## Key Topics, ## Open Items, ## Next Actions。',
+  '推測は避け、事実ベースで簡潔にまとめてください。',
+].join('\n')
+const REDUCE_PROMPT = [
+  '以下は複数チャンクの要約です。内容を統合し、重複を減らして重要なポイントに整理してください。',
+  '出力はMarkdownで、必ず次の見出しを含めてください: ## Summary, ## Key Topics, ## Open Items, ## Next Actions。',
+  '短く読みやすい箇条書きを優先してください。',
+].join('\n')
 
 const truncate = (value: string, max: number) =>
   value.length > max ? `${value.slice(0, max)}...` : value
@@ -84,10 +90,21 @@ const extractActionLines = (messages: LLMInputMessage[]) => {
   return matches
 }
 
+const ensureNotCanceled = async (checker?: LLMCancelChecker) => {
+  if (!checker) return
+  const canceled = await checker()
+  if (canceled) {
+    throw new JobCanceledError()
+  }
+}
+
 class MockLLMClient implements LLMClient {
-  async summarize(messages: LLMInputMessage[]): Promise<LLMResult> {
+  async summarize(messages: LLMInputMessage[], options?: LLMSummarizeOptions): Promise<LLMResult> {
+    await ensureNotCanceled(options?.isCanceled)
     const topMessages = messages.slice(0, 5)
-    const highlightLines = topMessages.map((message) => `- ${truncate(normalizeBody(message.body), 120)}`)
+    const highlightLines = topMessages.map(
+      (message) => `- ${truncate(normalizeBody(message.body), 120)}`
+    )
     const participants = Array.from(new Set(messages.map((message) => message.sender))).slice(0, 5)
     const actionLines = extractActionLines(messages)
 
@@ -114,7 +131,7 @@ class MockLLMClient implements LLMClient {
       sourceLinks: messages.slice(0, MAX_SOURCE_LINKS).map((message) => message.id),
       metadata: {
         model: 'mock',
-        promptVersion: PROMPT_VERSION,
+        promptVersion: LLM_PROMPT_VERSION,
         sourceMessageCount: messages.length,
         tokenUsage: { requests: 1 },
       },
@@ -196,7 +213,8 @@ class OpenAILLMClient implements LLMClient {
     return this.requestCompletion(REDUCE_PROMPT, text)
   }
 
-  async summarize(messages: LLMInputMessage[]): Promise<LLMResult> {
+  async summarize(messages: LLMInputMessage[], options?: LLMSummarizeOptions): Promise<LLMResult> {
+    await ensureNotCanceled(options?.isCanceled)
     const sourceLinks = messages.slice(0, MAX_SOURCE_LINKS).map((message) => message.id)
     const sourceMessageCount = messages.length
     let tokenUsage: LLMTokenUsage | undefined
@@ -209,7 +227,7 @@ class OpenAILLMClient implements LLMClient {
         sourceLinks,
         metadata: {
           model: this.model,
-          promptVersion: PROMPT_VERSION,
+          promptVersion: LLM_PROMPT_VERSION,
           sourceMessageCount,
           tokenUsage,
         },
@@ -220,12 +238,14 @@ class OpenAILLMClient implements LLMClient {
     const summaries: string[] = []
 
     for (let index = 0; index < chunks.length; index += 1) {
+      await ensureNotCanceled(options?.isCanceled)
       const chunk = chunks[index]
       const result = await this.summarizeChunk(chunk)
       tokenUsage = mergeTokenUsage(tokenUsage, result.usage)
       summaries.push(`### Chunk ${index + 1}\n${result.content}`)
     }
 
+    await ensureNotCanceled(options?.isCanceled)
     const reduce = await this.summarizeText(summaries.join('\n\n'))
     tokenUsage = mergeTokenUsage(tokenUsage, reduce.usage)
 
@@ -234,7 +254,7 @@ class OpenAILLMClient implements LLMClient {
       sourceLinks,
       metadata: {
         model: this.model,
-        promptVersion: PROMPT_VERSION,
+        promptVersion: LLM_PROMPT_VERSION,
         sourceMessageCount,
         tokenUsage,
       },
@@ -248,4 +268,4 @@ export const createLLMClient = (): LLMClient => {
     return new OpenAILLMClient(apiKey, process.env.OPENAI_MODEL || 'gpt-4o-mini')
   }
   return new MockLLMClient()
-}
+}

@@ -43,7 +43,7 @@ export const protectedRoutes: RouteConfig[] = [
   {
     path: '/feedback',
     element: <Feedback />,
-    label: '不具合フィードバック',
+    label: 'フィードバック',
     section: 'main',
     icon: (
       <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -59,7 +59,7 @@ export const protectedRoutes: RouteConfig[] = [
   {
     path: '/companies',
     element: <Companies />,
-    label: '企業管理',
+    label: '企業一覧',
     section: 'main',
     icon: (
       <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,7 +76,7 @@ export const protectedRoutes: RouteConfig[] = [
   {
     path: '/tasks',
     element: <Tasks />,
-    label: 'タスク管理',
+    label: 'タスク一覧',
     section: 'main',
     icon: (
       <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -93,7 +93,7 @@ export const protectedRoutes: RouteConfig[] = [
   {
     path: '/projects',
     element: <Projects />,
-    label: '案件管理',
+    label: '案件一覧',
     section: 'main',
     icon: (
       <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -154,4 +154,4 @@ export const protectedRoutes: RouteConfig[] = [
       </svg>
     ),
   },
-]
+]

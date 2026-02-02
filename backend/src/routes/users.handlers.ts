@@ -19,7 +19,7 @@ export const createUserHandler = async (
   reply: FastifyReply
 ) => {
   const { email, name, password, role } = request.body
-  const normalizedEmail = email.trim()
+  const normalizedEmail = email.trim().toLowerCase()
   const normalizedName = name.trim()
 
   const validRoles = new Set(Object.values(UserRole))

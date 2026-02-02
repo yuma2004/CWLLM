@@ -53,28 +53,73 @@ type TaskListFilterResult =
       dueTo?: Date | null
     }
 
+const TASK_FILTER_ERROR_MESSAGES = {
+  status: 'Invalid status',
+  targetType: 'Invalid targetType',
+  dueFrom: 'Invalid dueFrom date',
+  dueTo: 'Invalid dueTo date',
+}
+
 const parseTaskListFilters = (query: TaskListQuery): TaskListFilterResult => {
   const q = query.q?.trim()
   const status = normalizeStatus(query.status)
   if (status === null) {
-    return { ok: false, error: 'Invalid status' }
+    return { ok: false, error: TASK_FILTER_ERROR_MESSAGES.status }
   }
 
   const targetType = normalizeTargetType(query.targetType)
   if (targetType === null) {
-    return { ok: false, error: 'Invalid targetType' }
+    return { ok: false, error: TASK_FILTER_ERROR_MESSAGES.targetType }
   }
 
   const dueFrom = parseDate(query.dueFrom)
   const dueTo = parseDate(query.dueTo)
   if (query.dueFrom && !dueFrom) {
-    return { ok: false, error: 'Invalid dueFrom date' }
+    return { ok: false, error: TASK_FILTER_ERROR_MESSAGES.dueFrom }
   }
   if (query.dueTo && !dueTo) {
-    return { ok: false, error: 'Invalid dueTo date' }
+    return { ok: false, error: TASK_FILTER_ERROR_MESSAGES.dueTo }
   }
 
   return { ok: true, q: q && q.length > 0 ? q : undefined, status, targetType, dueFrom, dueTo }
+}
+
+type TaskListFiltersOk = Extract<TaskListFilterResult, { ok: true }>
+
+const buildTaskWhere = (
+  filters: TaskListFiltersOk,
+  options: {
+    assigneeId?: string
+    targetType?: TargetType
+    targetId?: string
+  }
+) => {
+  const where: Prisma.TaskWhereInput = {}
+  if (options.assigneeId) {
+    where.assigneeId = options.assigneeId
+  }
+  if (options.targetType) {
+    where.targetType = options.targetType
+  }
+  if (options.targetId) {
+    where.targetId = options.targetId
+  }
+  if (filters.status) {
+    where.status = filters.status
+  }
+  if (filters.q) {
+    where.OR = [
+      { title: { contains: filters.q, mode: 'insensitive' } },
+      { description: { contains: filters.q, mode: 'insensitive' } },
+    ]
+  }
+  if (filters.dueFrom || filters.dueTo) {
+    where.dueDate = {
+      ...(filters.dueFrom ? { gte: filters.dueFrom } : {}),
+      ...(filters.dueTo ? { lte: filters.dueTo } : {}),
+    }
+  }
+  return where
 }
 
 const listTasks = async (
@@ -110,34 +155,22 @@ const listTasksForTarget = async (
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
+  const filters = parseTaskListFilters(request.query)
+  if (!filters.ok) {
+    return reply.code(400).send(badRequest(filters.error))
+  }
+
   const { page, pageSize, skip } = parsePagination(
     request.query.page,
     request.query.pageSize
   )
-  const status = normalizeStatus(request.query.status)
-  if (request.query.status !== undefined && status === null) {
-    return reply.code(400).send(badRequest('Invalid status'))
-  }
 
-  const where: Prisma.TaskWhereInput = {
+  const assigneeId = !canManageAllTasks(user) ? userId : request.query.assigneeId
+  const where = buildTaskWhere(filters, {
+    assigneeId,
     targetType,
     targetId: request.params.id,
-  }
-  if (!canManageAllTasks(user)) {
-    where.assigneeId = userId
-  } else if (request.query.assigneeId) {
-    where.assigneeId = request.query.assigneeId
-  }
-  if (status) {
-    where.status = status
-  }
-  if (request.query.q?.trim()) {
-    where.OR = [
-      { title: { contains: request.query.q.trim(), mode: 'insensitive' } },
-      { description: { contains: request.query.q.trim(), mode: 'insensitive' } },
-    ]
-  }
-
+  })
   return listTasks(where, page, pageSize, skip)
 }
 
@@ -160,34 +193,12 @@ export const listTasksHandler = async (
     request.query.pageSize
   )
 
-  const where: Prisma.TaskWhereInput = {}
-  if (!canManageAllTasks(user)) {
-    where.assigneeId = userId
-  } else if (request.query.assigneeId) {
-    where.assigneeId = request.query.assigneeId
-  }
-  if (filters.q) {
-    where.OR = [
-      { title: { contains: filters.q, mode: 'insensitive' } },
-      { description: { contains: filters.q, mode: 'insensitive' } },
-    ]
-  }
-  if (filters.status) {
-    where.status = filters.status
-  }
-  if (filters.targetType) {
-    where.targetType = filters.targetType
-  }
-  if (request.query.targetId) {
-    where.targetId = request.query.targetId
-  }
-  if (filters.dueFrom || filters.dueTo) {
-    where.dueDate = {
-      ...(filters.dueFrom ? { gte: filters.dueFrom } : {}),
-      ...(filters.dueTo ? { lte: filters.dueTo } : {}),
-    }
-  }
-
+  const assigneeId = !canManageAllTasks(user) ? userId : request.query.assigneeId
+  const where = buildTaskWhere(filters, {
+    assigneeId,
+    targetType: filters.targetType,
+    targetId: request.query.targetId,
+  })
   return listTasks(where, page, pageSize, skip)
 }
 
@@ -247,9 +258,11 @@ export const createTaskHandler = async (
     return reply.code(400).send(badRequest('Invalid dueDate'))
   }
 
-  const target = await ensureTargetExists(normalizedTargetType, targetId)
-  if (!target) {
-    return reply.code(404).send(notFound('Target'))
+  if (normalizedTargetType !== 'general') {
+    const target = await ensureTargetExists(normalizedTargetType, targetId)
+    if (!target) {
+      return reply.code(404).send(notFound('Target'))
+    }
   }
 
   try {
@@ -276,7 +289,8 @@ export const updateTaskHandler = async (
   reply: FastifyReply
 ) => {
   const { title, description, assigneeId } = request.body
-  const userId = (request.user as JWTUser | undefined)?.userId
+  const user = request.user as JWTUser | undefined
+  const userId = user?.userId
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
@@ -297,8 +311,11 @@ export const updateTaskHandler = async (
     return reply.code(400).send(badRequest('Invalid dueDate'))
   }
 
-  const existing = await prisma.task.findUnique({
-    where: { id: request.params.id },
+  const existing = await prisma.task.findFirst({
+    where: {
+      id: request.params.id,
+      ...(canManageAllTasks(user) ? {} : { assigneeId: userId }),
+    },
   })
   if (!existing) {
     return reply.code(404).send(notFound('Task'))
@@ -338,7 +355,8 @@ export const bulkUpdateTasksHandler = async (
   reply: FastifyReply
 ) => {
   const { taskIds, assigneeId } = request.body
-  const userId = (request.user as JWTUser | undefined)?.userId
+  const user = request.user as JWTUser | undefined
+  const userId = user?.userId
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
@@ -362,7 +380,10 @@ export const bulkUpdateTasksHandler = async (
   }
 
   const existingTasks = await prisma.task.findMany({
-    where: { id: { in: taskIds } },
+    where: {
+      id: { in: taskIds },
+      ...(canManageAllTasks(user) ? {} : { assigneeId: userId }),
+    },
     select: { id: true },
   })
   if (existingTasks.length !== taskIds.length) {
@@ -392,12 +413,16 @@ export const deleteTaskHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
+  const user = request.user as JWTUser | undefined
+  const userId = user?.userId
   if (!userId) {
     return reply.code(401).send(unauthorized())
   }
-  const existing = await prisma.task.findUnique({
-    where: { id: request.params.id },
+  const existing = await prisma.task.findFirst({
+    where: {
+      id: request.params.id,
+      ...(canManageAllTasks(user) ? {} : { assigneeId: userId }),
+    },
   })
   if (!existing) {
     return reply.code(404).send(notFound('Task'))
@@ -431,34 +456,12 @@ export const listMyTasksHandler = async (
     request.query.pageSize
   )
 
-  const where: Prisma.TaskWhereInput = {}
-  if (user?.role !== 'admin') {
-    where.assigneeId = userId
-  } else if (request.query.assigneeId) {
-    where.assigneeId = request.query.assigneeId
-  }
-  if (filters.q) {
-    where.OR = [
-      { title: { contains: filters.q, mode: 'insensitive' } },
-      { description: { contains: filters.q, mode: 'insensitive' } },
-    ]
-  }
-  if (filters.status) {
-    where.status = filters.status
-  }
-  if (filters.targetType) {
-    where.targetType = filters.targetType
-  }
-  if (request.query.targetId) {
-    where.targetId = request.query.targetId
-  }
-  if (filters.dueFrom || filters.dueTo) {
-    where.dueDate = {
-      ...(filters.dueFrom ? { gte: filters.dueFrom } : {}),
-      ...(filters.dueTo ? { lte: filters.dueTo } : {}),
-    }
-  }
-
+  const assigneeId = !canManageAllTasks(user) ? userId : request.query.assigneeId
+  const where = buildTaskWhere(filters, {
+    assigneeId,
+    targetType: filters.targetType,
+    targetId: request.query.targetId,
+  })
   return listTasks(where, page, pageSize, skip)
 }
 

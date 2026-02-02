@@ -27,8 +27,9 @@ import type {
   MessageSearchQuery,
   UnassignedQuery,
 } from './messages.schemas'
+import { MESSAGE_LABEL_MAX_LENGTH } from './messages.schemas'
 
-const MAX_LABEL_LENGTH = 30
+const MAX_LABEL_LENGTH = MESSAGE_LABEL_MAX_LENGTH
 const ON_DEMAND_SYNC_MIN_INTERVAL_MS = 60_000
 
 const normalizeLabel = (value?: string) => {

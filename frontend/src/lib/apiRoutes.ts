@@ -18,8 +18,12 @@ export const apiRoutes = {
     options: () => '/api/companies/options',
     detail: (id: string) => `/api/companies/${id}`,
     search: () => '/api/companies/search',
+    merge: (companyId: string) => `/api/companies/${companyId}/merge`,
     contacts: (companyId: string) => `/api/companies/${companyId}/contacts`,
     contactsReorder: (companyId: string) => `/api/companies/${companyId}/contacts/reorder`,
+    projects: (companyId: string) => `/api/companies/${companyId}/projects`,
+    wholesales: (companyId: string) => `/api/companies/${companyId}/wholesales`,
+    summaries: (companyId: string) => `/api/companies/${companyId}/summaries`,
     tasks: (companyId: string, query?: string) =>
       withQuery(`/api/companies/${companyId}/tasks`, query),
     chatworkRooms: (companyId: string) => `/api/companies/${companyId}/chatwork-rooms`,

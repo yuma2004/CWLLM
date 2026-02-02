@@ -41,13 +41,11 @@ function ProjectDetail() {
     companyId: '',
     status: 'active',
     unitPrice: '',
-    taxType: 'excluded' as 'excluded' | 'included',
     conditions: '',
     agreedDate: '',
   })
   const [formError, setFormError] = useState('')
 
-  // 案件編集用state
   const [isEditingProject, setIsEditingProject] = useState(false)
   const [projectForm, setProjectForm] = useState({
     name: '',
@@ -60,12 +58,10 @@ function ProjectDetail() {
   })
   const [projectFormError, setProjectFormError] = useState('')
 
-  // 編集モーダル用state
   const [editingWholesale, setEditingWholesale] = useState<Wholesale | null>(null)
   const [editForm, setEditForm] = useState({
     status: 'active',
     unitPrice: '',
-    taxType: 'excluded' as 'excluded' | 'included',
     conditions: '',
     agreedDate: '',
   })
@@ -89,13 +85,10 @@ function ProjectDetail() {
     error: wholesalesError,
     isLoading: isLoadingWholesales,
     refetch: refetchWholesales,
-  } = useFetch<{ wholesales: Wholesale[] }>(
-    id ? apiRoutes.projects.wholesales(id) : null,
-    {
-      enabled: Boolean(id),
-      cacheTimeMs: 10_000,
-    }
-  )
+  } = useFetch<{ wholesales: Wholesale[] }>(id ? apiRoutes.projects.wholesales(id) : null, {
+    enabled: Boolean(id),
+    cacheTimeMs: 10_000,
+  })
 
   const project = projectData?.project ?? null
   const wholesales = wholesalesData?.wholesales ?? []
@@ -110,7 +103,6 @@ function ProjectDetail() {
     [refetchProject, refetchWholesales]
   )
 
-  // 案件データが読み込まれたらフォームを初期化
   useEffect(() => {
     if (project) {
       setProjectForm({
@@ -162,8 +154,10 @@ function ProjectDetail() {
   })
   const userOptions = usersData?.users ?? []
   const ownerLabel = project
-    ? userOptions.find((user) => user.id === project.ownerId)?.name || userOptions.find((user) => user.id === project.ownerId)?.email ||
-      project.owner?.name || project.owner?.email ||
+    ? userOptions.find((user) => user.id === project.ownerId)?.name ||
+      userOptions.find((user) => user.id === project.ownerId)?.email ||
+      project.owner?.name ||
+      project.owner?.email ||
       project.ownerId ||
       '-'
     : '-'
@@ -190,7 +184,7 @@ function ProjectDetail() {
     setProjectFormError('')
 
     if (!projectForm.name.trim()) {
-      setProjectFormError('案件名は必須です')
+      setProjectFormError('案件名を入力してください。')
       return
     }
 
@@ -207,13 +201,13 @@ function ProjectDetail() {
 
       await updateProject(payload, {
         url: apiRoutes.projects.detail(id),
-        errorMessage: '案件の更新に失敗しました',
+        errorMessage: '案件の更新に失敗しました。',
       })
       setIsEditingProject(false)
       refreshData()
-      showToast('案件情報を更新しました', 'success')
+      showToast('案件を更新しました。', 'success')
     } catch (err) {
-      setProjectFormError(err instanceof Error ? err.message : '案件の更新に失敗しました')
+      setProjectFormError(err instanceof Error ? err.message : '案件の更新に失敗しました。')
     }
   }
 
@@ -222,27 +216,31 @@ function ProjectDetail() {
     if (!id) return
     setFormError('')
     if (!form.companyId) {
-      setFormError('卸先企業を選択してください')
+      setFormError('企業を選択してください。')
       return
     }
 
     try {
-      await createWholesale(
-        {
-          projectId: id,
-          companyId: form.companyId,
-          status: form.status,
-          unitPrice: form.unitPrice ? parseFloat(form.unitPrice) : undefined,
-          conditions: form.conditions || undefined,
-          agreedDate: form.agreedDate || undefined,
-        }
-      )
-      setForm({ companyId: '', status: 'active', unitPrice: '', taxType: 'excluded', conditions: '', agreedDate: '' })
+      await createWholesale({
+        projectId: id,
+        companyId: form.companyId,
+        status: form.status,
+        unitPrice: form.unitPrice ? parseFloat(form.unitPrice) : undefined,
+        conditions: form.conditions || undefined,
+        agreedDate: form.agreedDate || undefined,
+      })
+      setForm({
+        companyId: '',
+        status: 'active',
+        unitPrice: '',
+        conditions: '',
+        agreedDate: '',
+      })
       setShowCreateForm(false)
       refreshData()
-      showToast('卸先を追加しました', 'success')
+      showToast('卸を追加しました。', 'success')
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'ネットワークエラー')
+      setFormError(err instanceof Error ? err.message : '卸の作成に失敗しました。')
     }
   }
 
@@ -251,7 +249,6 @@ function ProjectDetail() {
     setEditForm({
       status: wholesale.status,
       unitPrice: wholesale.unitPrice?.toString() || '',
-      taxType: 'excluded', // 既存データには税種別がないため、デフォルトで税抜とする
       conditions: wholesale.conditions || '',
       agreedDate: wholesale.agreedDate ? wholesale.agreedDate.split('T')[0] : '',
     })
@@ -277,9 +274,9 @@ function ProjectDetail() {
       )
       setEditingWholesale(null)
       refreshData()
-      showToast('卸情報を更新しました', 'success')
+      showToast('卸を更新しました。', 'success')
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'ネットワークエラー')
+      setEditError(err instanceof Error ? err.message : '卸の更新に失敗しました。')
     }
   }
 
@@ -298,9 +295,9 @@ function ProjectDetail() {
       })
       setDeleteTarget(null)
       refreshData()
-      showToast('卸情報を削除しました', 'success')
+      showToast('卸を削除しました。', 'success')
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'ネットワークエラー')
+      setDeleteError(err instanceof Error ? err.message : '卸の削除に失敗しました。')
     }
   }
 
@@ -317,7 +314,7 @@ function ProjectDetail() {
   }
 
   return (
-    <div className="space-y-4 ">
+    <div className="space-y-4">
       <nav className="text-xs text-slate-400">
         <Link to="/projects" className="hover:text-slate-600">
           案件一覧
@@ -327,7 +324,7 @@ function ProjectDetail() {
       </nav>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm uppercase  text-slate-400">案件詳細</p>
+          <p className="text-sm uppercase text-slate-400">案件詳細</p>
           <h2 className="text-3xl font-bold text-slate-900">{project.name}</h2>
         </div>
         <Link to="/projects" className="text-sm text-slate-500 hover:text-slate-700">
@@ -359,7 +356,7 @@ function ProjectDetail() {
           <div className="text-xs text-slate-500">期間</div>
           <div className="mt-1 text-sm font-semibold text-slate-900">
             {project.periodStart || project.periodEnd
-              ? `${formatDate(project.periodStart)} 〜 ${formatDate(project.periodEnd)}`
+              ? `${formatDate(project.periodStart)} ? ${formatDate(project.periodEnd)}`
               : '-'}
           </div>
         </div>
@@ -430,7 +427,7 @@ function ProjectDetail() {
                   value={projectForm.ownerId}
                   onChange={(e) => setProjectForm({ ...projectForm, ownerId: e.target.value })}
                 >
-                  <option value="">未設定</option>
+                  <option value="">担当者未設定</option>
                   {userOptions.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name || user.email}
@@ -439,25 +436,25 @@ function ProjectDetail() {
                 </FormSelect>
               </div>
               <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">期間開始</div>
+                <div className="mb-1 block text-xs font-medium text-slate-600">開始日</div>
                 <DateInput
                   value={projectForm.periodStart}
                   onChange={(e) => setProjectForm({ ...projectForm, periodStart: e.target.value })}
                 />
               </div>
               <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">期間終了</div>
+                <div className="mb-1 block text-xs font-medium text-slate-600">終了日</div>
                 <DateInput
                   value={projectForm.periodEnd}
                   onChange={(e) => setProjectForm({ ...projectForm, periodEnd: e.target.value })}
                 />
               </div>
               <div className="sm:col-span-2">
-                <div className="mb-1 block text-xs font-medium text-slate-600">条件・備考</div>
+                <div className="mb-1 block text-xs font-medium text-slate-600">条件・メモ</div>
                 <FormTextarea
                   value={projectForm.conditions}
                   onChange={(e) => setProjectForm({ ...projectForm, conditions: e.target.value })}
-                  placeholder="条件や備考を入力"
+                  placeholder="条件や補足を入力"
                   className="min-h-[80px]"
                 />
               </div>
@@ -468,20 +465,10 @@ function ProjectDetail() {
               </div>
             )}
             <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                onClick={handleCancelProjectEdit}
-                variant="secondary"
-                size="sm"
-              >
+              <Button type="button" onClick={handleCancelProjectEdit} variant="secondary" size="sm">
                 キャンセル
               </Button>
-              <Button
-                type="submit"
-                size="sm"
-                isLoading={isUpdatingProject}
-                loadingLabel="保存中..."
-              >
+              <Button type="submit" size="sm" isLoading={isUpdatingProject} loadingLabel="保存中...">
                 保存
               </Button>
             </div>
@@ -489,13 +476,13 @@ function ProjectDetail() {
         ) : (
           <dl className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase  text-slate-400">ステータス</dt>
+              <dt className="text-xs uppercase text-slate-400">ステータス</dt>
               <dd className="mt-1">
                 <StatusBadge status={project.status ?? '-'} kind="project" />
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase  text-slate-400">企業</dt>
+              <dt className="text-xs uppercase text-slate-400">企業</dt>
               <dd className="mt-1 text-slate-800">
                 <Link to={`/companies/${project.companyId}`} className="text-sky-600 hover:text-sky-700 hover:underline">
                   {project.company?.name || project.companyId}
@@ -503,47 +490,42 @@ function ProjectDetail() {
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase  text-slate-400">単価</dt>
+              <dt className="text-xs uppercase text-slate-400">単価</dt>
               <dd className="mt-1 text-slate-800">{formatCurrency(project.unitPrice)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase  text-slate-400">担当者</dt>
+              <dt className="text-xs uppercase text-slate-400">担当者</dt>
               <dd className="mt-1 text-slate-800">{ownerLabel}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase  text-slate-400">期間</dt>
+              <dt className="text-xs uppercase text-slate-400">期間</dt>
               <dd className="mt-1 text-slate-800">
                 {project.periodStart || project.periodEnd
-                  ? `${formatDate(project.periodStart)} 〜 ${formatDate(project.periodEnd)}`
+                  ? `${formatDate(project.periodStart)} ? ${formatDate(project.periodEnd)}`
                   : '-'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase  text-slate-400">条件</dt>
+              <dt className="text-xs uppercase text-slate-400">条件</dt>
               <dd className="mt-1 text-slate-800 whitespace-pre-wrap">{project.conditions || '-'}</dd>
             </div>
           </dl>
         )}
       </Card>
 
-      {/* 卸先一覧 */}
       <Card className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">卸先一覧</h3>
-            <p className="text-xs text-slate-400 mt-1">{wholesales.length}件</p>
+            <h3 className="text-lg font-semibold text-slate-900">卸一覧</h3>
+            <p className="text-xs text-slate-400 mt-1">{wholesales.length} 件</p>
           </div>
           {canWrite && (
-            <Button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              size="sm"
-            >
-              {showCreateForm ? 'キャンセル' : '卸先を追加'}
+            <Button onClick={() => setShowCreateForm(!showCreateForm)} size="sm">
+              {showCreateForm ? 'キャンセル' : '卸を追加'}
             </Button>
           )}
         </div>
 
-        {/* 追加フォーム */}
         {showCreateForm && canWrite && (
           <form
             onSubmit={handleCreateWholesale}
@@ -551,7 +533,7 @@ function ProjectDetail() {
           >
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">卸先企業 *</div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">企業 *</div>
                 <CompanySearchSelect
                   value={form.companyId}
                   onChange={(companyId) => setForm({ ...form, companyId })}
@@ -565,35 +547,24 @@ function ProjectDetail() {
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
                 >
-                  <option value="active">有効</option>
-                  <option value="paused">停止中</option>
+                  <option value="active">稼働中</option>
+                  <option value="paused">一時停止</option>
                   <option value="closed">終了</option>
                 </FormSelect>
               </div>
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
-                <div className="flex gap-2">
-                  <FormInput
-                    type="number"
-                    placeholder="例: 10000"
-                    value={form.unitPrice}
-                    onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
-                    containerClassName="flex-1"
-                    className="rounded-lg"
-                  />
-                  <FormSelect
-                    value={form.taxType}
-                    onChange={(e) => setForm({ ...form, taxType: e.target.value as 'excluded' | 'included' })}
-                    containerClassName="w-24"
-                    className="w-24 rounded-lg"
-                  >
-                    <option value="excluded">税抜</option>
-                    <option value="included">税込</option>
-                  </FormSelect>
-                </div>
+                <FormInput
+                  type="number"
+                  placeholder="例: 10000"
+                  value={form.unitPrice}
+                  onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                  containerClassName="flex-1"
+                  className="rounded-lg"
+                />
               </div>
               <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">成立日</div>
                 <DateInput
                   value={form.agreedDate}
                   onChange={(e) => setForm({ ...form, agreedDate: e.target.value })}
@@ -601,10 +572,10 @@ function ProjectDetail() {
                 />
               </div>
               <div className="md:col-span-2 lg:col-span-1">
-                <div className="block text-xs font-medium text-slate-600 mb-1">条件・備考</div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">条件・メモ</div>
                 <FormInput
                   type="text"
-                  placeholder="条件や備考を入力"
+                  placeholder="条件や補足を入力"
                   value={form.conditions}
                   onChange={(e) => setForm({ ...form, conditions: e.target.value })}
                   className="rounded-lg"
@@ -617,30 +588,24 @@ function ProjectDetail() {
               </div>
             )}
             <div className="mt-4 flex justify-end">
-              <Button
-                type="submit"
-                size="sm"
-                isLoading={isCreatingWholesale}
-                loadingLabel="追加中..."
-              >
+              <Button type="submit" size="sm" isLoading={isCreatingWholesale} loadingLabel="作成中...">
                 追加
               </Button>
             </div>
           </form>
         )}
 
-        {/* 卸一覧テーブル */}
         <div className="mt-4 overflow-x-auto">
           {wholesales.length === 0 ? (
-            <EmptyState className="py-8" message="卸先がありません" />
+            <EmptyState className="py-8" message="卸がありません" />
           ) : (
             <table className="min-w-full divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50/80 text-left text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-medium">卸先企業</th>
+                  <th className="px-4 py-3 font-medium">企業</th>
                   <th className="px-4 py-3 font-medium">ステータス</th>
                   <th className="px-4 py-3 font-medium text-right">単価</th>
-                  <th className="px-4 py-3 font-medium">合意日</th>
+                  <th className="px-4 py-3 font-medium">成立日</th>
                   <th className="px-4 py-3 font-medium">条件</th>
                   {canWrite && <th className="px-4 py-3 font-medium text-right">操作</th>}
                 </tr>
@@ -692,18 +657,17 @@ function ProjectDetail() {
         </div>
       </Card>
 
-      {/* 編集モーダル */}
       <Modal
         isOpen={Boolean(editingWholesale)}
         onClose={() => setEditingWholesale(null)}
-        title="卸情報を編集"
+        title="卸の編集"
         className="max-w-md"
       >
         {editingWholesale && (
           <form onSubmit={handleUpdateWholesale}>
             <div className="space-y-4">
               <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">卸先企業</div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">企業</div>
                 <div className="text-sm text-slate-800 bg-slate-50 px-3 py-2 rounded-lg">
                   {editingWholesale.company?.name || editingWholesale.companyId}
                 </div>
@@ -715,34 +679,23 @@ function ProjectDetail() {
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                 >
-                  <option value="active">有効</option>
-                  <option value="paused">停止中</option>
+                  <option value="active">稼働中</option>
+                  <option value="paused">一時停止</option>
                   <option value="closed">終了</option>
                 </FormSelect>
               </div>
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
-                <div className="flex gap-2">
-                  <FormInput
-                    type="number"
-                    value={editForm.unitPrice}
-                    onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
-                    containerClassName="flex-1"
-                    className="rounded-lg"
-                  />
-                  <FormSelect
-                    value={editForm.taxType}
-                    onChange={(e) => setEditForm({ ...editForm, taxType: e.target.value as 'excluded' | 'included' })}
-                    containerClassName="w-24"
-                    className="w-24 rounded-lg"
-                  >
-                    <option value="excluded">税抜</option>
-                    <option value="included">税込</option>
-                  </FormSelect>
-                </div>
+                <FormInput
+                  type="number"
+                  value={editForm.unitPrice}
+                  onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
+                  containerClassName="flex-1"
+                  className="rounded-lg"
+                />
               </div>
               <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">合意日</div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">成立日</div>
                 <DateInput
                   value={editForm.agreedDate}
                   onChange={(e) => setEditForm({ ...editForm, agreedDate: e.target.value })}
@@ -750,7 +703,7 @@ function ProjectDetail() {
                 />
               </div>
               <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">条件・備考</div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">条件・メモ</div>
                 <FormTextarea
                   rows={3}
                   value={editForm.conditions}
@@ -765,18 +718,10 @@ function ProjectDetail() {
               </div>
             )}
             <div className="mt-6 flex justify-end gap-3">
-              <Button
-                type="button"
-                onClick={() => setEditingWholesale(null)}
-                variant="secondary"
-                size="sm"
-              >
+              <Button type="button" onClick={() => setEditingWholesale(null)} variant="secondary" size="sm">
                 キャンセル
               </Button>
-              <Button
-                type="submit"
-                size="sm"
-              >
+              <Button type="submit" size="sm">
                 保存
               </Button>
             </div>
@@ -786,14 +731,18 @@ function ProjectDetail() {
 
       {!canWrite && (
         <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-          卸先の追加・編集には書き込み権限が必要です
+          権限がないため、卸の追加・編集はできません。
         </div>
       )}
 
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
-        title="卸情報の削除"
-        description={deleteTarget ? `${deleteTarget.company?.name || deleteTarget.companyId} の卸情報を削除します。` : undefined}
+        title="卸の削除"
+        description={
+          deleteTarget
+            ? `${deleteTarget.company?.name || deleteTarget.companyId} の卸を削除しますか？`
+            : undefined
+        }
         confirmLabel="削除する"
         cancelLabel="キャンセル"
         isLoading={isDeletingWholesale}
@@ -812,5 +761,4 @@ function ProjectDetail() {
   )
 }
 
-export default ProjectDetail
-
+export default ProjectDetail

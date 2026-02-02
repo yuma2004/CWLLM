@@ -16,49 +16,60 @@ function Home() {
     }
   )
   const recentCompanies = dashboardData?.recentCompanies ?? []
+  const unassignedMessageCount = dashboardData?.unassignedMessageCount ?? 0
 
-  const taskGroups = useMemo(
-    () => {
-      const overdueTasks = dashboardData?.overdueTasks ?? []
-      const todayTasks = dashboardData?.todayTasks ?? []
-      const soonTasks = dashboardData?.soonTasks ?? []
-      const weekTasks = dashboardData?.weekTasks ?? []
-      const upcomingTasks = [...todayTasks, ...soonTasks, ...weekTasks]
+  const taskGroups = useMemo(() => {
+    const overdueTasks = dashboardData?.overdueTasks ?? []
+    const todayTasks = dashboardData?.todayTasks ?? []
+    const soonTasks = dashboardData?.soonTasks ?? []
+    const weekTasks = dashboardData?.weekTasks ?? []
+    const upcomingTasks = [...todayTasks, ...soonTasks, ...weekTasks]
 
-      return [
-        { id: 'overdue', label: '期限切れ', dotClass: 'bg-rose-500', tasks: overdueTasks },
-        { id: 'upcoming', label: '本日以降', dotClass: 'bg-sky-600', tasks: upcomingTasks },
-      ]
-    },
-    [dashboardData]
-  )
+    return [
+      { id: 'overdue', label: '期限切れ', dotClass: 'bg-rose-500', tasks: overdueTasks },
+      { id: 'upcoming', label: '直近の期限', dotClass: 'bg-sky-600', tasks: upcomingTasks },
+    ]
+  }, [dashboardData])
   const totalTasks = useMemo(
     () => taskGroups.reduce((sum, group) => sum + group.tasks.length, 0),
     [taskGroups]
+  )
+
+  const summaryCards = useMemo(
+    () => [
+      ...taskGroups.map((group) => ({
+        id: group.id,
+        label: group.label,
+        dotClass: group.dotClass,
+        value: group.tasks.length,
+      })),
+      {
+        id: 'unassigned',
+        label: '未割当メッセージ',
+        dotClass: 'bg-amber-500',
+        value: unassignedMessageCount,
+      },
+    ],
+    [taskGroups, unassignedMessageCount]
   )
 
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-balance text-2xl font-bold text-slate-900">
-            ダッシュボード
-          </h2>
-          <p className="text-pretty text-slate-500 text-sm mt-1">ワークスペースの概要</p>
+          <h2 className="text-balance text-2xl font-bold text-slate-900">ダッシュボード</h2>
+          <p className="text-pretty text-slate-500 text-sm mt-1">
+            ワークスペースの最新情報をまとめて確認できます。
+          </p>
         </div>
         <div className="flex items-center text-sm">
           <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
             <div className="flex items-center gap-2">
               <div className="size-1.5 rounded-full bg-green-500" />
-              <span className="text-slate-600 font-medium">
-                {user?.email}
-              </span>
+              <span className="text-slate-600 font-medium">{user?.email}</span>
             </div>
             <span className="h-4 w-px bg-slate-200" aria-hidden="true" />
-            <button
-              onClick={logout}
-              className="text-slate-500 hover:text-slate-900 font-medium"
-            >
+            <button onClick={logout} className="text-slate-500 hover:text-slate-900 font-medium">
               ログアウト
             </button>
           </div>
@@ -67,19 +78,19 @@ function Home() {
 
       {error && <ErrorAlert message={error} />}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
-        {taskGroups.map((group) => (
+      <div className="grid gap-3 sm:grid-cols-3">
+        {summaryCards.map((card) => (
           <div
-            key={`summary-${group.id}`}
+            key={`summary-${card.id}`}
             className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
           >
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-              <span className={cn('size-1.5 rounded-full', group.dotClass)} />
-              {group.label}
+              <span className={cn('size-1.5 rounded-full', card.dotClass)} />
+              {card.label}
             </div>
             <div className="mt-2 flex items-end gap-1">
               <span className="text-2xl font-semibold text-slate-900 tabular-nums">
-                {group.tasks.length}
+                {card.value}
               </span>
               <span className="text-xs text-slate-400">件</span>
             </div>
@@ -99,7 +110,7 @@ function Home() {
               to="/tasks"
               className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700"
             >
-              マイタスクへ
+              タスク一覧へ
               <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -131,12 +142,14 @@ function Home() {
           </div>
           {!isLoading && totalTasks === 0 && (
             <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-center">
-              <p className="text-xs text-slate-500">タスクがまだありません。まずは作成して流れを作りましょう。</p>
+              <p className="text-xs text-slate-500">
+                タスクが見つかりません。必要に応じて新しいタスクを作成してください。
+              </p>
               <Link
                 to="/tasks"
                 className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
               >
-                タスク管理へ
+                タスク一覧へ
                 <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
@@ -149,24 +162,28 @@ function Home() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col h-full shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-balance text-base font-semibold text-slate-900 flex items-center gap-2">
-               <span className="size-1.5 rounded-full bg-sky-600"></span>
-              最近更新した企業
+              <span className="size-1.5 rounded-full bg-sky-600"></span>
+              最近更新された企業
             </h3>
           </div>
 
           <div className="flex-1 space-y-3">
             {isLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map(i => <div key={i} className="h-12 bg-slate-50 rounded-lg" />)}
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 bg-slate-50 rounded-lg" />
+                ))}
               </div>
             ) : recentCompanies.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center text-slate-500">
-                <p className="text-pretty text-sm font-medium text-slate-600">企業はまだありません</p>
+                <p className="text-pretty text-sm font-medium text-slate-600">
+                  企業がまだ登録されていません。
+                </p>
                 <Link
                   to="/companies"
                   className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
                 >
-                  企業管理へ
+                  企業一覧へ
                   <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -188,11 +205,19 @@ function Home() {
                         {company.name.slice(0, 1)}
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate font-medium text-slate-900 text-sm">{company.name}</div>
+                        <div className="truncate font-medium text-slate-900 text-sm">
+                          {company.name}
+                        </div>
                         <div className="text-xs text-slate-400 tabular-nums">{updatedAtLabel}</div>
                       </div>
                     </div>
-                    <svg className="size-4 text-slate-300 group-hover:text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <svg
+                      className="size-4 text-slate-300 group-hover:text-sky-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      aria-hidden="true"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
@@ -205,18 +230,16 @@ function Home() {
               to="/companies"
               className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-700 hover:bg-sky-100"
             >
-              全ての企業を表示
+              すべての企業を見る
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </Link>
           </div>
         </div>
-
       </div>
     </div>
   )
 }
 
-export default Home
-
+export default Home

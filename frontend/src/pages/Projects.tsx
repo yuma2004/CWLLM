@@ -149,7 +149,6 @@ function ProjectsFilters({
           </Button>
         </div>
 
-        {/* Active Filters */}
         <ActiveFilters isActive={hasActiveFilters} className="border-t border-slate-100 pt-3">
           <span className="text-xs text-slate-500">絞り込み:</span>
           {filters.q && (
@@ -210,7 +209,7 @@ function ProjectsCreateForm({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-balance text-lg font-semibold text-slate-900">案件を追加</h3>
+        <h3 className="text-balance text-lg font-semibold text-slate-900">案件を作成</h3>
         <button
           type="button"
           onClick={onClose}
@@ -223,7 +222,6 @@ function ProjectsCreateForm({
         </button>
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
-        {/* 基本情報 */}
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <div className="mb-1 block text-xs font-medium text-slate-600">
@@ -246,7 +244,6 @@ function ProjectsCreateForm({
             />
           </div>
         </div>
-        {/* 詳細情報 */}
         <div className="grid gap-4 md:grid-cols-3">
           <div>
             <div className="mb-1 block text-xs font-medium text-slate-600">ステータス</div>
@@ -276,7 +273,7 @@ function ProjectsCreateForm({
               value={form.ownerId}
               onChange={(event) => onFormChange({ ...form, ownerId: event.target.value })}
             >
-              <option value="">担当者</option>
+              <option value="">担当者未設定</option>
               {userOptions.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name || user.email}
@@ -302,9 +299,9 @@ function ProjectsCreateForm({
           </div>
         </div>
         <div>
-          <div className="mb-1 block text-xs font-medium text-slate-600">条件・備考</div>
+          <div className="mb-1 block text-xs font-medium text-slate-600">条件・メモ</div>
           <FormTextarea
-            placeholder="条件や備考を入力"
+            placeholder="条件や補足を入力"
             value={form.conditions}
             onChange={(event) => onFormChange({ ...form, conditions: event.target.value })}
             className="min-h-[80px]"
@@ -374,7 +371,7 @@ function ProjectsTable({
                   message="案件が見つかりません"
                   description={
                     canWrite
-                      ? '最初の案件を追加して進捗を管理しましょう。'
+                      ? '最初の案件を作成して共有しましょう。'
                       : '検索条件を見直してください。'
                   }
                   icon={
@@ -403,7 +400,7 @@ function ProjectsTable({
                             d="M12 4v16m8-8H4"
                           />
                         </svg>
-                        案件を追加
+                        案件を作成
                       </Button>
                     ) : null
                   }
@@ -447,7 +444,7 @@ function ProjectsTable({
                       className="w-full rounded-lg text-sm leading-6"
                       disabled={isUpdatingOwner}
                     >
-                      <option value="">未割当</option>
+                      <option value="">担当者未設定</option>
                       {userOptions.map((user) => (
                         <option key={user.id} value={user.id}>
                           {user.name || user.email}
@@ -455,7 +452,8 @@ function ProjectsTable({
                       ))}
                     </FormSelect>
                   ) : (
-                    userOptions.find((user) => user.id === project.ownerId)?.name || userOptions.find((user) => user.id === project.ownerId)?.email ||
+                    userOptions.find((user) => user.id === project.ownerId)?.name ||
+                    userOptions.find((user) => user.id === project.ownerId)?.email ||
                     project.ownerId ||
                     '-'
                   )}
@@ -510,7 +508,7 @@ function Projects() {
       transform: (value) => (typeof value === 'string' ? value.trim() : value),
     },
     fetchOptions: {
-      errorMessage: '案件一覧の取得に失敗しました',
+      errorMessage: '案件一覧の取得に失敗しました。',
     },
   })
 
@@ -552,7 +550,7 @@ function Projects() {
     event.preventDefault()
     setError('')
     if (!form.companyId.trim() || !form.name.trim()) {
-      setError('企業と案件名は必須です')
+      setError('企業と案件名は必須です。')
       return
     }
     try {
@@ -567,7 +565,7 @@ function Projects() {
       if (form.periodEnd) payload.periodEnd = form.periodEnd
       if (form.ownerId) payload.ownerId = form.ownerId
 
-      await createProject(payload, { errorMessage: '案件の作成に失敗しました' })
+      await createProject(payload, { errorMessage: '案件の作成に失敗しました。' })
       setForm({
         companyId: '',
         name: '',
@@ -580,9 +578,9 @@ function Projects() {
       })
       setShowCreateForm(false)
       void refetchProjects(undefined, { ignoreCache: true })
-      showToast('案件を作成しました', 'success')
+      showToast('案件を作成しました。', 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+      setError(err instanceof Error ? err.message : '保存中にエラーが発生しました。')
     }
   }
 
@@ -601,12 +599,12 @@ function Projects() {
     try {
       await updateProjectOwner(
         { ownerId: nextOwnerId },
-        { url: apiRoutes.projects.detail(projectId), errorMessage: '担当者の更新に失敗しました' }
+        { url: apiRoutes.projects.detail(projectId), errorMessage: '担当者の更新に失敗しました。' }
       )
       void refetchProjects(undefined, { ignoreCache: true })
-      showToast('担当者を更新しました', 'success')
+      showToast('担当者を更新しました。', 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
+      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました。')
     }
   }
 
@@ -622,15 +620,14 @@ function Projects() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-pretty text-sm uppercase text-slate-400">案件</p>
-          <h2 className="text-balance text-3xl font-bold text-slate-900">案件管理</h2>
+          <h2 className="text-balance text-3xl font-bold text-slate-900">案件一覧</h2>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-500 tabular-nums">
-            登録数: <span className="font-semibold text-slate-700 tabular-nums">{pagination.total}</span>
+            合計: <span className="font-semibold text-slate-700 tabular-nums">{pagination.total}</span>
           </span>
           {canWrite && (
             <Button
@@ -640,13 +637,12 @@ function Projects() {
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              案件を追加
+              案件を作成
             </Button>
           )}
         </div>
       </div>
 
-      {/* Search & Filter */}
       <ProjectsFilters
         filters={filters}
         onFiltersChange={setFilters}
@@ -660,7 +656,6 @@ function Projects() {
         searchInputRef={searchInputRef}
       />
 
-      {/* Create Form (Collapsible) */}
       <ProjectsCreateForm
         isOpen={canWrite && showCreateForm}
         form={form}
@@ -671,17 +666,14 @@ function Projects() {
         userOptions={userOptions}
       />
 
-      {/* Readonly Notice */}
       {!canWrite && (
         <div className="text-pretty rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-          権限がないため、案件の追加・編集はできません。
+          権限がないため、案件の作成・編集はできません。
         </div>
       )}
 
-      {/* Error */}
       <ErrorAlert message={error} onClose={() => setError('')} />
 
-      {/* Table */}
       <ProjectsTable
         projects={projects}
         isLoading={isLoadingProjects}
@@ -692,7 +684,6 @@ function Projects() {
         onOpenCreateForm={() => setShowCreateForm(true)}
       />
 
-      {/* Pagination */}
       {pagination.total > 0 && (
         <Pagination
           page={pagination.page}
@@ -703,13 +694,12 @@ function Projects() {
         />
       )}
 
-      {/* Keyboard Shortcuts Hint */}
       <div className="text-pretty text-center text-xs text-slate-400">
         <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">/</kbd> 検索
         {canWrite && (
           <>
             {' '}
-            <kbd className="ml-2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">n</kbd> 新規追加
+            <kbd className="ml-2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono">n</kbd> 新規作成
           </>
         )}
       </div>
@@ -725,4 +715,4 @@ function Projects() {
   )
 }
 
-export default Projects
+export default Projects

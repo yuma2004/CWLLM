@@ -74,7 +74,7 @@ function Companies() {
     buildUrl: apiRoutes.companies.list,
     debounce: { key: 'q', delayMs: 300 },
     fetchOptions: {
-      errorMessage: '企業一覧の取得に失敗しました',
+      errorMessage: '企業一覧の取得に失敗しました。',
       onStart: () => setError(''),
       onError: setError,
     },
@@ -89,7 +89,7 @@ function Companies() {
       })
     },
     onError: (message) => {
-      console.error('候補の取得エラー:', message)
+      console.error('企業オプションの取得エラー:', message)
     },
   })
 
@@ -97,7 +97,7 @@ function Companies() {
     isAdmin && showChatworkSelector ? apiRoutes.chatwork.rooms() : null,
     {
       enabled: isAdmin && showChatworkSelector,
-      errorMessage: 'Chatworkルーム一覧の取得に失敗しました。管理者権限が必要な場合があります。',
+      errorMessage: 'Chatworkルームの取得に失敗しました。管理者権限が必要です。',
       onSuccess: (data) => setChatworkRooms(data.rooms ?? []),
       onError: setError,
     }
@@ -132,14 +132,11 @@ function Companies() {
 
   const companies = companiesData?.items ?? []
 
-  // 標準候補とAPIから取得した候補をマージ
   const mergedCategories = useMemo(() => {
-    // 標準候補を先に、その後APIから取得した候補を追加（重複を除去）
     return Array.from(new Set([...COMPANY_CATEGORY_DEFAULT_OPTIONS, ...options.categories])).sort()
   }, [options.categories])
 
   const mergedStatuses = useMemo(() => {
-    // 標準候補を先に、その後APIから取得した候補を追加（重複を除去）
     return Array.from(new Set([...COMPANY_STATUS_DEFAULT_OPTIONS, ...options.statuses])).sort()
   }, [options.statuses])
 
@@ -160,7 +157,6 @@ function Companies() {
 
   useKeyboardShortcut(shortcuts)
 
-  // フォームが開かれたときにデフォルトでChatworkから選択モードにする
   useEffect(() => {
     if (showCreateForm && isAdmin) {
       setShowChatworkSelector(true)
@@ -195,7 +191,7 @@ function Companies() {
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!form.name.trim()) {
-      setError('企業名は必須です')
+      setError('企業名は必須です。')
       return
     }
     setError('')
@@ -215,11 +211,10 @@ function Companies() {
           profile: form.profile || undefined,
           tags,
         },
-        { errorMessage: '企業の作成に失敗しました' }
+        { errorMessage: '企業の作成に失敗しました。' }
       )
       const newCompanyId = companyData?.company?.id
 
-      // Chatworkルームが選択されている場合、自動的に紐づける
       if (selectedRoomId && newCompanyId) {
         try {
           await linkChatworkRoom(
@@ -227,7 +222,7 @@ function Companies() {
             { url: apiRoutes.companies.chatworkRooms(newCompanyId) }
           )
         } catch (err) {
-          console.error('ルームの紐づけに失敗しました:', err)
+          console.error('Chatworkルームの紐付けに失敗しました:', err)
         }
       }
 
@@ -244,9 +239,9 @@ function Companies() {
       setShowCreateForm(false)
       void refetchCompanies()
       void refetchOptions()
-      showToast('企業を作成しました', 'success')
+      showToast('企業を作成しました。', 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '通信エラーが発生しました')
+      setError(err instanceof Error ? err.message : '保存中にエラーが発生しました。')
     }
   }
 
@@ -264,18 +259,17 @@ function Companies() {
     try {
       await updateCompanyOwner(
         { ownerIds },
-        { url: apiRoutes.companies.detail(companyId), errorMessage: '担当者の更新に失敗しました' }
+        { url: apiRoutes.companies.detail(companyId), errorMessage: '担当者の更新に失敗しました。' }
       )
       void refetchCompanies(undefined, { ignoreCache: true })
-      showToast('担当者を更新しました', 'success')
+      showToast('担当者を更新しました。', 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
+      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました。')
     }
   }
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs uppercase text-notion-text-tertiary">企業</p>
@@ -283,7 +277,7 @@ function Companies() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-notion-text-secondary">
-            登録数: <span className="font-semibold text-notion-text tabular-nums">{pagination.total}</span>
+            合計: <span className="font-semibold text-notion-text tabular-nums">{pagination.total}</span>
           </span>
           {canWrite && (
             <Button
@@ -293,13 +287,12 @@ function Companies() {
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              企業を追加
+              企業を作成
             </Button>
           )}
         </div>
       </div>
 
-      {/* Search & Filter */}
       <CompanyFilters
         filters={filters}
         onFiltersChange={setFilters}
@@ -314,7 +307,6 @@ function Companies() {
         searchInputRef={searchInputRef}
       />
 
-      {/* Create Form (Collapsible) */}
       <CompanyCreateForm
         isOpen={canWrite && showCreateForm}
         isAdmin={isAdmin}
@@ -342,17 +334,14 @@ function Companies() {
         statusOptions={mergedStatuses}
       />
 
-      {/* Readonly Notice */}
       {!canWrite && (
         <div className="rounded-2xl border border-dashed border-notion-border p-4 text-sm text-notion-text-secondary">
-          権限がないため、企業の追加・編集はできません。
+          権限がないため、企業の作成・編集はできません。
         </div>
       )}
 
-      {/* Error */}
       <ErrorAlert message={error} onClose={() => setError('')} />
 
-      {/* Table */}
       <CompanyTable
         companies={companies}
         isLoading={isLoadingCompanies}
@@ -363,7 +352,6 @@ function Companies() {
         onOpenCreateForm={() => setShowCreateForm(true)}
       />
 
-      {/* Pagination */}
       {pagination.total > 0 && (
         <Pagination
           page={pagination.page}
@@ -374,13 +362,12 @@ function Companies() {
         />
       )}
 
-      {/* Keyboard Shortcuts Hint */}
       <div className="text-center text-xs text-notion-text-tertiary">
         <kbd className="rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">/</kbd> 検索
         {canWrite && (
           <>
             {' '}
-            <kbd className="ml-2 rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">n</kbd> 新規追加
+            <kbd className="ml-2 rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">n</kbd> 新規作成
           </>
         )}
       </div>
@@ -396,4 +383,4 @@ function Companies() {
   )
 }
 
-export default Companies
+export default Companies

@@ -6,6 +6,16 @@ import {
   timestampsSchema,
 } from './shared/schemas'
 
+export const MESSAGE_LABEL_MAX_LENGTH = 30
+const labelSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MESSAGE_LABEL_MAX_LENGTH)
+  .refine((value) => !/[\r\n\t]/.test(value), {
+    message: 'Label contains invalid whitespace',
+  })
+
 export interface MessageListQuery {
   page?: string
   pageSize?: string
@@ -88,6 +98,13 @@ export const messageSearchQuerySchema = z
     label: z.string().optional(),
   })
   .merge(paginationQuerySchema)
+  .refine((value) => {
+    const query = value.q?.trim()
+    return Boolean(query || value.messageId)
+  }, {
+    message: 'q or messageId is required',
+    path: ['q'],
+  })
 
 export const messageUnassignedQuerySchema = z
   .object({
@@ -100,7 +117,7 @@ export const messageAssignBodySchema = z.object({
 })
 
 export const messageLabelBodySchema = z.object({
-  label: z.string().min(1),
+  label: labelSchema,
 })
 
 export const messageBulkAssignBodySchema = z.object({
@@ -110,7 +127,7 @@ export const messageBulkAssignBodySchema = z.object({
 
 export const messageBulkLabelBodySchema = z.object({
   messageIds: z.array(z.string().min(1)).min(1),
-  label: z.string().min(1),
+  label: labelSchema,
 })
 
 export const messageLabelListQuerySchema = z.object({
@@ -118,7 +135,10 @@ export const messageLabelListQuerySchema = z.object({
 })
 
 export const messageParamsSchema = z.object({ id: z.string().min(1) })
-export const messageLabelParamsSchema = z.object({ id: z.string().min(1), label: z.string() })
+export const messageLabelParamsSchema = z.object({
+  id: z.string().min(1),
+  label: labelSchema,
+})
 
 export const messageListResponseSchema = z
   .object({

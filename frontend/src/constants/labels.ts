@@ -14,8 +14,8 @@ export const PROJECT_STATUS_OPTIONS = ['active', 'paused', 'closed'] as const
 export type ProjectStatus = (typeof PROJECT_STATUS_OPTIONS)[number]
 
 export const PROJECT_STATUS_LABELS: Record<string, string> = {
-  active: '稼働中',
-  paused: '停止中',
+  active: '進行中',
+  paused: '一時停止',
   closed: '終了',
 }
 
@@ -24,35 +24,36 @@ export const WHOLESALE_STATUS_OPTIONS = ['active', 'paused', 'closed'] as const
 export type WholesaleStatus = (typeof WHOLESALE_STATUS_OPTIONS)[number]
 
 export const WHOLESALE_STATUS_LABELS: Record<string, string> = {
-  active: '有効',
-  paused: '停止中',
+  active: '稼働中',
+  paused: '一時停止',
   closed: '終了',
 }
 
 // ターゲットタイプ
-export const TARGET_TYPE_OPTIONS = ['company', 'project', 'wholesale'] as const
+export const TARGET_TYPE_OPTIONS = ['company', 'project', 'wholesale', 'general'] as const
 export type TargetType = (typeof TARGET_TYPE_OPTIONS)[number]
 
 export const TARGET_TYPE_LABELS: Record<string, string> = {
-  company: '企業',
+  company: '会社',
   project: '案件',
   wholesale: '卸',
+  general: '未紐づけ',
 }
 
-// 企業区分（標準候補）
-export const COMPANY_CATEGORY_DEFAULT_OPTIONS = ['広告主', 'メディア', '他社ASP', 'その他'] as const
+// 会社カテゴリ（標準候補）
+export const COMPANY_CATEGORY_DEFAULT_OPTIONS = ['商社', 'メディア', '他社ASP', 'その他'] as const
 
-// 企業ステータス（標準候補）
-export const COMPANY_STATUS_DEFAULT_OPTIONS = ['商談中', '稼働中', '停止', '休眠', 'active'] as const
+// 会社ステータス（標準候補）
+export const COMPANY_STATUS_DEFAULT_OPTIONS = ['新規', '進行中', '保留', '解約', 'active'] as const
 export const COMPANY_STATUS_LABELS: Record<string, string> = {
-  商談中: '商談中',
-  稼働中: '稼働中',
-  停止: '停止',
-  休眠: '休眠',
+  新規: '新規',
+  進行中: '進行中',
+  保留: '保留',
+  解約: '解約',
   active: 'active',
 }
 
-// 共通ラベル
+// ステータスラベル
 export type StatusKind = 'task' | 'project' | 'wholesale' | 'company'
 
 const labelFrom = (labels: Record<string, string>, value?: string, fallback = '') =>

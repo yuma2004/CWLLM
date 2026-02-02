@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import IORedis from 'ioredis'
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { badRequest, handlePrismaError, prisma, unauthorized } from '../utils'
 import { env } from '../config/env'
@@ -8,10 +9,12 @@ import {
 } from '../services'
 import type {
   ChatworkWebhookBody,
+  ChatworkWebhookPayload,
   MessageSyncQuery,
   RoomLinkBody,
   RoomToggleBody,
 } from './chatwork.schemas'
+import { chatworkWebhookPayloadSchema } from './chatwork.schemas'
 
 const prismaErrorOverrides = {
   P2002: { status: 409, message: 'Duplicate record' },
@@ -19,7 +22,13 @@ const prismaErrorOverrides = {
 
 const webhookEventTypes = new Set(['message_created', 'message_updated', 'mention_to_me'])
 const webhookRoomCooldowns = new Map<string, number>()
+const WEBHOOK_COOLDOWN_KEY_PREFIX = 'cwllm:chatwork:webhook-cooldown:'
 let lastCooldownCleanupAt = 0
+let webhookCooldownClient: IORedis | null = null
+
+type Logger = {
+  warn?: (obj: unknown, msg?: string) => void
+}
 
 const getHeaderValue = (value: string | string[] | undefined) => {
   if (!value) return undefined
@@ -27,37 +36,50 @@ const getHeaderValue = (value: string | string[] | undefined) => {
   return value
 }
 
-const parseWebhookPayload = (rawBody: string) => {
+const getWebhookSignature = (
+  request: FastifyRequest,
+  payload: ChatworkWebhookPayload | null
+) => {
+  const header = getHeaderValue(request.headers['x-chatworkwebhooksignature'])?.trim()
+  if (header) return header
+  const query = request.query as { chatwork_webhook_signature?: string } | undefined
+  if (query?.chatwork_webhook_signature) {
+    const value = String(query.chatwork_webhook_signature).trim()
+    if (value) return value
+  }
+  const payloadSignature = payload?.chatwork_webhook_signature?.trim()
+  return payloadSignature || undefined
+}
+
+const parseWebhookPayload = (rawBody: string): ChatworkWebhookPayload | null => {
   try {
     const parsed = JSON.parse(rawBody)
-    if (!parsed || typeof parsed !== 'object') return null
-    return parsed as Record<string, unknown>
+    const result = chatworkWebhookPayloadSchema.safeParse(parsed)
+    return result.success ? result.data : null
   } catch {
     return null
   }
 }
 
-const toRoomId = (value: unknown) => {
+const normalizeRoomId = (value: unknown) => {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value)
-  if (typeof value === 'string' && value.trim() !== '') return value
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed) return trimmed
+  }
   return null
 }
 
-const extractWebhookRoomId = (payload: Record<string, unknown>) => {
+const extractWebhookRoomId = (payload: ChatworkWebhookPayload) => {
   const event = payload.webhook_event
-  if (event && typeof event === 'object') {
-    const eventRecord = event as Record<string, unknown>
-    const candidate =
-      eventRecord.room_id ??
-      eventRecord.roomId ??
-      (eventRecord.room && typeof eventRecord.room === 'object'
-        ? (eventRecord.room as Record<string, unknown>).room_id ??
-          (eventRecord.room as Record<string, unknown>).roomId
-        : null)
-    const roomId = toRoomId(candidate)
-    if (roomId) return roomId
-  }
-  return toRoomId(payload.room_id ?? payload.roomId)
+  const eventRoom =
+    event?.room_id ??
+    event?.roomId ??
+    event?.room?.room_id ??
+    event?.room?.roomId ??
+    payload.room_id ??
+    payload.roomId
+  return normalizeRoomId(eventRoom)
 }
 
 const isValidWebhookSignature = (rawBody: string, token: string, signature: string) => {
@@ -69,9 +91,33 @@ const isValidWebhookSignature = (rawBody: string, token: string, signature: stri
   return crypto.timingSafeEqual(expectedBuffer, providedBuffer)
 }
 
-const shouldEnqueueWebhook = (roomId: string, now: number) => {
+const getWebhookCooldownClient = (logger?: Logger) => {
+  if (!env.redisUrl) return null
+  if (!webhookCooldownClient) {
+    webhookCooldownClient = new IORedis(env.redisUrl, { maxRetriesPerRequest: null })
+    webhookCooldownClient.on('error', (err) => {
+      logger?.warn?.({ err }, 'Chatwork webhook cooldown redis error')
+    })
+  }
+  return webhookCooldownClient
+}
+
+const shouldEnqueueWebhook = async (roomId: string, now: number, logger?: Logger) => {
   const cooldownMs = env.chatworkWebhookCooldownMs
   if (cooldownMs <= 0) return true
+
+  const redisClient = getWebhookCooldownClient(logger)
+  if (redisClient) {
+    try {
+      const key = `${WEBHOOK_COOLDOWN_KEY_PREFIX}${roomId}`
+      const result = await redisClient.set(key, String(now), 'PX', cooldownMs, 'NX')
+      if (result === 'OK') return true
+      return false
+    } catch (err) {
+      logger?.warn?.({ err }, 'Chatwork webhook cooldown redis set failed')
+    }
+  }
+
   if (now - lastCooldownCleanupAt > Math.max(cooldownMs, 60_000)) {
     const cutoff = now - Math.max(cooldownMs * 2, 60_000)
     for (const [key, timestamp] of webhookRoomCooldowns.entries()) {
@@ -138,7 +184,10 @@ export const syncChatworkMessagesHandler = async (
 }
 
 export const chatworkWebhookHandler = async (
-  request: FastifyRequest<{ Body: ChatworkWebhookBody }>,
+  request: FastifyRequest<{
+    Body: ChatworkWebhookBody
+    Querystring: { chatwork_webhook_signature?: string }
+  }>,
   reply: FastifyReply
 ) => {
   const rawBody = request.body
@@ -147,7 +196,7 @@ export const chatworkWebhookHandler = async (
     return reply.code(200).send({ status: 'ignored', reason: 'invalid_body' })
   }
 
-  const signature = getHeaderValue(request.headers['x-chatworkwebhooksignature'])?.trim()
+  const signature = getWebhookSignature(request, payload)
   if (env.chatworkWebhookToken) {
     if (!signature || !isValidWebhookSignature(rawBody, env.chatworkWebhookToken, signature)) {
       return reply.code(401).send(unauthorized('Invalid webhook signature'))
@@ -174,7 +223,7 @@ export const chatworkWebhookHandler = async (
   }
 
   const now = Date.now()
-  if (!shouldEnqueueWebhook(roomId, now)) {
+  if (!(await shouldEnqueueWebhook(roomId, now, request.log))) {
     return reply.code(200).send({ status: 'ok', enqueued: false, reason: 'cooldown' })
   }
 

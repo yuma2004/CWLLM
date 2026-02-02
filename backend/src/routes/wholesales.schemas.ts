@@ -2,6 +2,15 @@ import { WholesaleStatus } from '@prisma/client'
 import { z } from 'zod'
 import { idParamsSchema, paginationQuerySchema } from './shared/schemas'
 
+const optionalNumberSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.number().optional()
+)
+const optionalStringSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().optional()
+)
+
 export interface WholesaleCreateBody {
   projectId: string
   companyId: string
@@ -45,12 +54,12 @@ export const wholesaleParamsSchema = idParamsSchema
 export const wholesaleCreateBodySchema = z.object({
   projectId: z.string().min(1),
   companyId: z.string().min(1),
-  conditions: z.string().optional(),
-  unitPrice: z.number().optional(),
-  margin: z.number().optional(),
+  conditions: optionalStringSchema,
+  unitPrice: optionalNumberSchema,
+  margin: optionalNumberSchema,
   status: z.nativeEnum(WholesaleStatus).optional(),
-  agreedDate: z.string().optional(),
-  ownerId: z.string().optional(),
+  agreedDate: optionalStringSchema,
+  ownerId: optionalStringSchema,
 })
 
 export const wholesaleUpdateBodySchema = z.object({

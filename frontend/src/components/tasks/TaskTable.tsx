@@ -13,6 +13,7 @@ import {
   targetTypeLabel,
 } from '../../constants/labels'
 import type { Task, User } from '../../types'
+import { TASK_STRINGS } from '../../strings/tasks'
 
 export type TaskTableProps = {
   tasks: Task[]
@@ -59,17 +60,17 @@ export function TaskTable({
                   checked={allSelected}
                   onChange={onToggleSelectAll}
                   name="select-all"
-                  aria-label="すべてのタスクを選択"
+                  aria-label={TASK_STRINGS.actions.selectAll}
                   className="size-4 rounded border-notion-border accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
                   disabled={isBulkUpdating}
                 />
-                タスク
+                {TASK_STRINGS.labels.section}
               </label>
             </th>
-            <th className="px-4 py-3">ステータス</th>
-            <th className="px-4 py-3">担当者</th>
-            <th className="px-4 py-3">期限</th>
-            <th className="px-4 py-3 text-right">操作</th>
+            <th className="px-4 py-3">{TASK_STRINGS.labels.status}</th>
+            <th className="px-4 py-3">{TASK_STRINGS.labels.assignee}</th>
+            <th className="px-4 py-3">{TASK_STRINGS.labels.dueDate}</th>
+            <th className="px-4 py-3 text-right">{TASK_STRINGS.labels.actions}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-notion-border bg-notion-bg">
@@ -77,7 +78,7 @@ export function TaskTable({
             <tr>
               <td colSpan={5} className="px-5 py-12 text-center">
                 <EmptyState
-                  message="タスクが見つかりません"
+                  message={TASK_STRINGS.messages.emptyList}
                   description={emptyStateDescription}
                   icon={
                     <svg
@@ -114,7 +115,7 @@ export function TaskTable({
                         checked={selectedIds.includes(task.id)}
                         onChange={() => onToggleSelected(task.id)}
                         name={`select-${task.id}`}
-                        aria-label={`${task.title} を選択`}
+                        aria-label={`${task.title} ${TASK_STRINGS.labels.selectTaskSuffix}`}
                         className="size-4 rounded border-notion-border accent-notion-accent focus-visible:ring-2 focus-visible:ring-notion-accent/40"
                         disabled={isBulkUpdating}
                       />
@@ -161,9 +162,9 @@ export function TaskTable({
                       </PopoverTrigger>
                       <PopoverContent align="start" sideOffset={6} className="w-64">
                         <FormSelect
-                          label="ステータス"
+                          label={TASK_STRINGS.labels.status}
                           name={`status-${task.id}`}
-                          aria-label={`${task.title} のステータス`}
+                          aria-label={`${task.title} ${TASK_STRINGS.labels.statusForTaskSuffix}`}
                           autoComplete="off"
                           value={task.status}
                           onChange={(e) => onStatusChange(task.id, e.target.value)}
@@ -186,25 +187,27 @@ export function TaskTable({
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-full bg-notion-bg-hover px-2 py-1 text-xs text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
+                          className="inline-flex max-w-[14rem] flex-wrap items-center gap-2 rounded-full bg-notion-bg-hover px-2 py-1 text-left text-xs text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
                         >
-                          {task.assignee?.name || task.assignee?.email || task.assigneeId || '未割当'}
-                          <svg className="size-3 text-notion-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <span className="min-w-0 whitespace-normal break-words">
+                            {task.assignee?.name || task.assignee?.email || task.assigneeId || TASK_STRINGS.labels.unassigned}
+                          </span>
+                          <svg className="size-3 shrink-0 text-notion-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </button>
                       </PopoverTrigger>
                       <PopoverContent align="start" sideOffset={6} className="w-64">
                         <FormSelect
-                          label="担当者"
+                          label={TASK_STRINGS.labels.assignee}
                           name={`assignee-${task.id}`}
-                          aria-label={`${task.title} の担当者`}
+                          aria-label={`${task.title} ${TASK_STRINGS.labels.assigneeForTaskSuffix}`}
                           autoComplete="off"
                           value={task.assigneeId ?? ''}
                           onChange={(e) => onAssigneeChange(task.id, e.target.value)}
                           disabled={isBulkUpdating}
                         >
-                          <option value="">未割当</option>
+                          <option value="">{TASK_STRINGS.labels.unassigned}</option>
                           {userOptions.map((user) => (
                             <option key={user.id} value={user.id}>
                               {user.name || user.email}
@@ -214,8 +217,8 @@ export function TaskTable({
                       </PopoverContent>
                     </Popover>
                   ) : (
-                    <span className="text-xs text-notion-text-secondary">
-                      {task.assignee?.name || task.assignee?.email || task.assigneeId || '-'}
+                    <span className="text-xs text-notion-text-secondary whitespace-normal break-words">
+                      {task.assignee?.name || task.assignee?.email || task.assigneeId || TASK_STRINGS.labels.unassigned}
                     </span>
                   )}
                 </td>
@@ -227,7 +230,7 @@ export function TaskTable({
                           type="button"
                           className="inline-flex items-center gap-2 rounded-full bg-notion-bg-hover px-2 py-1 text-xs text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent/40"
                         >
-                          {task.dueDate ? formatDate(task.dueDate) : '未設定'}
+                          {task.dueDate ? formatDate(task.dueDate) : TASK_STRINGS.labels.unassigned}
                           <svg className="size-3 text-notion-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
@@ -235,13 +238,13 @@ export function TaskTable({
                       </PopoverTrigger>
                       <PopoverContent align="start" sideOffset={6} className="w-64">
                         <DateInput
-                          label="期限"
+                          label={TASK_STRINGS.labels.dueDate}
                           name={`dueDate-${task.id}`}
-                          aria-label={`${task.title} の期限`}
+                          aria-label={`${task.title} ${TASK_STRINGS.labels.dueDateForTaskSuffix}`}
                           autoComplete="off"
                           value={task.dueDate ? formatDateInput(task.dueDate) : ''}
                           onChange={(e) => onDueDateChange(task.id, e.target.value)}
-                          placeholder="期限…"
+                          placeholder={TASK_STRINGS.labels.dueDatePlaceholder}
                         />
                       </PopoverContent>
                     </Popover>
@@ -255,7 +258,7 @@ export function TaskTable({
                       to={getTargetPath(task.targetType, task.targetId)}
                       className="font-semibold text-notion-text-secondary hover:text-notion-text"
                     >
-                      詳細
+                      {TASK_STRINGS.labels.details}
                     </Link>
                     {canWrite && (
                       <button
@@ -263,7 +266,7 @@ export function TaskTable({
                         onClick={() => onDelete(task)}
                         className="font-semibold text-rose-600 hover:text-rose-700"
                       >
-                        削除
+                        {TASK_STRINGS.confirm.deleteConfirmLabel}
                       </button>
                     )}
                   </div>

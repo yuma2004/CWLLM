@@ -38,6 +38,7 @@ enum TargetType {
   company
   project
   wholesale
+  general
 }
 
 enum SummaryType {
@@ -116,12 +117,13 @@ model Contact {
   phone     String?
   memo      String?
   sortOrder Int      @default(0)
+  sortKey   String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  @@index([companyId, sortOrder])
+  @@index([companyId, sortKey])
   @@map("contacts")
 }
 

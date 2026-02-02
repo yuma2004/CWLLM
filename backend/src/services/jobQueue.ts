@@ -4,7 +4,8 @@ import { JobStatus, JobType, Prisma } from '@prisma/client'
 import { env } from '../config/env'
 import { prisma } from '../utils'
 import { generateSummaryDraft } from './summaryGenerator'
-import { JobCanceledError, syncChatworkMessages, syncChatworkRooms } from './chatworkSync'
+import { syncChatworkMessages, syncChatworkRooms } from './chatworkSync'
+import { JobCanceledError } from './jobErrors'
 
 const QUEUE_NAME = 'cwllm-jobs'
 
@@ -98,12 +99,13 @@ const handleChatworkMessagesSync = async (
   return toJsonInput(data)
 }
 
-const handleSummaryDraft = async (payload: Prisma.JsonValue) => {
+const handleSummaryDraft = async (jobId: string, payload: Prisma.JsonValue) => {
   const typedPayload = payload as { companyId: string; periodStart: string; periodEnd: string }
   const draft = await generateSummaryDraft(
     typedPayload.companyId,
     new Date(typedPayload.periodStart),
-    new Date(typedPayload.periodEnd)
+    new Date(typedPayload.periodEnd),
+    { isCanceled: () => isCanceled(jobId) }
   )
   return toJsonInput({
     draft: {
@@ -147,7 +149,7 @@ const executeJob = async (
         result = await handleChatworkMessagesSync(jobId, payload, logger)
         break
       case JobType.summary_draft:
-        result = await handleSummaryDraft(payload)
+        result = await handleSummaryDraft(jobId, payload)
         break
       default:
         throw new Error(`Unknown job type: ${type}`)

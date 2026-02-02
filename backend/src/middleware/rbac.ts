@@ -1,4 +1,4 @@
-import { FastifyRequest, FastifyReply } from 'fastify'
+﻿import { FastifyRequest, FastifyReply } from 'fastify'
 import { JWTUser } from '../types/auth'
 
 type Role = 'admin' | 'employee'
@@ -36,3 +36,4 @@ export function requireAdmin() {
 export function requireWriteAccess() {
   return requireAuth(['admin', 'employee'])
 }
+

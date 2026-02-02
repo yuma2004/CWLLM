@@ -2,12 +2,7 @@ import { Prisma } from '@prisma/client'
 import { env } from '../config/env'
 import { prisma } from '../utils'
 import { ChatworkApiError, createChatworkClient } from './chatwork'
-
-export class JobCanceledError extends Error {
-  constructor() {
-    super('Job canceled')
-  }
-}
+import { JobCanceledError } from './jobErrors'
 
 const toBigInt = (value?: string | null) => {
   if (!value) return null

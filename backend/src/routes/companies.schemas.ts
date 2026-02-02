@@ -6,6 +6,33 @@ import {
   timestampsSchema,
 } from './shared/schemas'
 
+const trimOptionalString = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value
+    const trimmed = value.trim()
+    return trimmed === '' ? undefined : trimmed
+  },
+  z.string().trim().optional()
+)
+
+const trimNullableString = z.preprocess(
+  (value) => {
+    if (value === null) return null
+    if (typeof value !== 'string') return value
+    const trimmed = value.trim()
+    return trimmed === '' ? null : trimmed
+  },
+  z.string().trim().nullable().optional()
+)
+
+const trimRequiredString = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim() : value),
+  z.string().min(1)
+)
+
+const trimStringArray = z.array(z.string().trim())
+const trimNonEmptyStringArray = z.array(z.string().trim().min(1))
+
 export interface CompanyCreateBody {
   name: string
   category?: string
@@ -60,16 +87,20 @@ export interface ContactReorderBody {
   orderedIds: string[]
 }
 
+export interface CompanyMergeBody {
+  sourceCompanyId: string
+}
+
 export const companySchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    normalizedName: z.string().optional(),
-    category: z.string().nullable().optional(),
+    normalizedName: z.string(),
+    category: z.string().nullable(),
     status: z.string(),
     tags: z.array(z.string()),
-    profile: z.string().nullable().optional(),
-    ownerIds: z.array(z.string()).optional(),
+    profile: z.string().nullable(),
+    ownerIds: z.array(z.string()),
   })
   .merge(timestampsSchema)
   .passthrough()
@@ -83,63 +114,67 @@ export const contactSchema = z
     email: z.string().nullable().optional(),
     phone: z.string().nullable().optional(),
     memo: z.string().nullable().optional(),
-    sortOrder: z.number().optional(),
+    sortOrder: z.number(),
   })
   .merge(timestampsSchema)
   .passthrough()
 
 export const companyListQuerySchema = z
   .object({
-    q: z.string().optional(),
-    category: z.string().optional(),
-    status: z.string().optional(),
-    tag: z.string().optional(),
-    ownerId: z.string().optional(),
+    q: trimOptionalString,
+    category: trimOptionalString,
+    status: trimOptionalString,
+    tag: trimOptionalString,
+    ownerId: trimOptionalString,
   })
   .merge(paginationQuerySchema)
 
 export const companySearchQuerySchema = z.object({
-  q: z.string().min(1),
-  limit: z.string().optional(),
+  q: trimRequiredString,
+  limit: trimOptionalString,
 })
 
 export const companyCreateBodySchema = z.object({
-  name: z.string().min(1),
-  category: z.string().optional(),
-  status: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  profile: z.string().optional(),
-  ownerIds: z.array(z.string().min(1)).optional(),
+  name: trimRequiredString,
+  category: trimOptionalString,
+  status: trimOptionalString,
+  tags: trimStringArray.optional(),
+  profile: trimOptionalString,
+  ownerIds: trimNonEmptyStringArray.optional(),
 })
 
 export const companyUpdateBodySchema = z.object({
-  name: z.string().min(1).optional(),
-  category: z.string().nullable().optional(),
-  status: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  profile: z.string().nullable().optional(),
-  ownerIds: z.array(z.string().min(1)).optional(),
+  name: trimRequiredString.optional(),
+  category: trimNullableString,
+  status: trimOptionalString,
+  tags: trimStringArray.optional(),
+  profile: trimNullableString,
+  ownerIds: trimNonEmptyStringArray.optional(),
 })
 
 export const contactCreateBodySchema = z.object({
-  name: z.string().min(1),
-  role: z.string().optional(),
-  email: z.string().optional(),
-  phone: z.string().optional(),
-  memo: z.string().optional(),
+  name: trimRequiredString,
+  role: trimOptionalString,
+  email: trimOptionalString,
+  phone: trimOptionalString,
+  memo: trimOptionalString,
 })
 
 export const contactUpdateBodySchema = z.object({
-  name: z.string().min(1).optional(),
-  role: z.string().nullable().optional(),
-  email: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  memo: z.string().nullable().optional(),
+  name: trimRequiredString.optional(),
+  role: trimNullableString,
+  email: trimNullableString,
+  phone: trimNullableString,
+  memo: trimNullableString,
   sortOrder: z.number().int().min(0).nullable().optional(),
 })
 
 export const contactReorderBodySchema = z.object({
-  orderedIds: z.array(z.string().min(1)).min(1),
+  orderedIds: trimNonEmptyStringArray.min(1),
+})
+
+export const companyMergeBodySchema = z.object({
+  sourceCompanyId: trimRequiredString,
 })
 
 export const companyParamsSchema = idParamsSchema
@@ -159,9 +194,9 @@ export const companySearchResponseSchema = z
         .object({
           id: z.string(),
           name: z.string(),
-          status: z.string().optional(),
-          category: z.string().nullable().optional(),
-          tags: z.array(z.string()).optional(),
+          status: z.string(),
+          category: z.string().nullable(),
+          tags: z.array(z.string()),
         })
         .passthrough()
     ),

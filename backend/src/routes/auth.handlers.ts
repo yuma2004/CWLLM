@@ -29,7 +29,7 @@ export const buildLoginHandler =
     }
 
     const { email, password } = request.body
-    const normalizedEmail = email.trim()
+    const normalizedEmail = email.trim().toLowerCase()
 
     const dbStart = Date.now()
     const user = await prisma.user.findFirst({

@@ -48,7 +48,7 @@ function WholesaleDetail() {
     isLoading: isLoadingWholesale,
     error: wholesaleError,
   } = useFetch<{ wholesale: Wholesale }>(id ? apiRoutes.wholesales.detail(id) : null, {
-    errorMessage: '卸情報の取得に失敗しました',
+    errorMessage: '卸の取得に失敗しました。',
   })
 
   const { mutate: updateWholesale, isLoading: isUpdatingWholesale } = useMutation<
@@ -74,7 +74,7 @@ function WholesaleDetail() {
   } = useFetch<ApiListResponse<Task>>(
     id ? apiRoutes.wholesales.tasks(id, paginationQuery) : null,
     {
-      errorMessage: 'タスクの読み込みに失敗しました',
+      errorMessage: 'タスクの取得に失敗しました。',
       onSuccess: syncPagination,
     }
   )
@@ -85,7 +85,6 @@ function WholesaleDetail() {
   const wholesaleStatus = wholesale?.status
   const backPath = wholesale?.projectId ? `/projects/${wholesale.projectId}` : '/projects'
   const backLabel = wholesale?.project?.name ?? '案件一覧'
-
 
   const buildFormState = (data: Wholesale) => ({
     status: data.status,
@@ -114,20 +113,19 @@ function WholesaleDetail() {
     setFormError('')
 
     if (!form.status) {
-      setFormError('ステータスを選択してください')
+      setFormError('ステータスを選択してください。')
       return
     }
 
-    const unitPrice =
-      form.unitPrice.trim() === '' ? undefined : Number(form.unitPrice)
+    const unitPrice = form.unitPrice.trim() === '' ? undefined : Number(form.unitPrice)
     if (form.unitPrice.trim() !== '' && Number.isNaN(unitPrice)) {
-      setFormError('単価は数値で入力してください')
+      setFormError('単価は数値で入力してください。')
       return
     }
 
     const margin = form.margin.trim() === '' ? undefined : Number(form.margin)
     if (form.margin.trim() !== '' && Number.isNaN(margin)) {
-      setFormError('マージンは数値で入力してください')
+      setFormError('マージンは数値で入力してください。')
       return
     }
 
@@ -142,37 +140,35 @@ function WholesaleDetail() {
         },
         {
           url: apiRoutes.wholesales.detail(id),
-          errorMessage: '更新に失敗しました',
+          errorMessage: '更新に失敗しました。',
         }
       )
       if (data?.wholesale) {
         setWholesaleData({ wholesale: data.wholesale })
       }
       setIsEditing(false)
-      showToast('卸情報を更新しました', 'success')
+      showToast('卸を更新しました。', 'success')
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : '更新に失敗しました')
+      setFormError(err instanceof Error ? err.message : '更新に失敗しました。')
     }
   }
 
   const handleDeleteWholesale = async () => {
     if (!id || !canWrite) return
     try {
-      const fallbackPath = wholesale?.projectId
-        ? `/projects/${wholesale.projectId}`
-        : '/projects'
+      const fallbackPath = wholesale?.projectId ? `/projects/${wholesale.projectId}` : '/projects'
       await deleteWholesale(undefined, {
         url: apiRoutes.wholesales.detail(id),
-        errorMessage: '卸情報の削除に失敗しました',
+        errorMessage: '卸の削除に失敗しました。',
       })
       navigate(fallbackPath)
     } catch (err) {
-      showToast(err instanceof Error ? err.message : '削除に失敗しました', 'error')
+      showToast(err instanceof Error ? err.message : '削除に失敗しました。', 'error')
     }
   }
 
   return (
-    <div className="space-y-4 ">
+    <div className="space-y-4">
       <div className="flex items-center gap-2 text-sm text-slate-500">
         <Link to={backPath} className="hover:text-slate-700">
           {backLabel}
@@ -183,7 +179,7 @@ function WholesaleDetail() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase  text-slate-400">卸詳細</p>
+          <p className="text-sm uppercase text-slate-400">卸詳細</p>
           <h2 className="text-3xl font-bold text-slate-900">卸詳細</h2>
         </div>
         {wholesaleStatus && <StatusBadge status={wholesaleStatus} kind="wholesale" />}
@@ -192,7 +188,7 @@ function WholesaleDetail() {
       {wholesale && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="text-xs text-slate-500">卸先企業</div>
+            <div className="text-xs text-slate-500">企業</div>
             <Link
               to={`/companies/${wholesale.companyId}`}
               className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700"
@@ -216,7 +212,7 @@ function WholesaleDetail() {
             </div>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="text-xs text-slate-500">合意日</div>
+            <div className="text-xs text-slate-500">成立日</div>
             <div className="mt-1 text-sm font-semibold text-slate-900">
               {formatDate(wholesale.agreedDate)}
             </div>
@@ -256,7 +252,7 @@ function WholesaleDetail() {
           )}
         </div>
         {isLoadingWholesale ? (
-          <LoadingState message="卸情報を読み込み中..." />
+          <LoadingState message="卸情報を取得中..." />
         ) : wholesale ? (
           isEditing ? (
             <form onSubmit={handleUpdateWholesale} className="space-y-4">
@@ -295,7 +291,7 @@ function WholesaleDetail() {
                   />
                 </div>
                 <div>
-                  <div className="mb-1 block text-xs font-medium text-slate-600">合意日</div>
+                  <div className="mb-1 block text-xs font-medium text-slate-600">成立日</div>
                   <DateInput
                     value={form.agreedDate}
                     onChange={(event) => setForm({ ...form, agreedDate: event.target.value })}
@@ -314,20 +310,10 @@ function WholesaleDetail() {
               </div>
               {formError && <ErrorAlert message={formError} />}
               <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  variant="secondary"
-                  size="sm"
-                >
+                <Button type="button" onClick={handleCancelEdit} variant="secondary" size="sm">
                   キャンセル
                 </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  isLoading={isUpdatingWholesale}
-                  loadingLabel="保存中..."
-                >
+                <Button type="submit" size="sm" isLoading={isUpdatingWholesale} loadingLabel="保存中...">
                   保存
                 </Button>
               </div>
@@ -335,7 +321,7 @@ function WholesaleDetail() {
           ) : (
             <dl className="grid gap-4 sm:grid-cols-2">
               <div>
-                <dt className="text-xs font-medium text-slate-500">卸先企業</dt>
+                <dt className="text-xs font-medium text-slate-500">企業</dt>
                 <dd className="mt-1 text-sm font-semibold text-slate-900">
                   <Link to={`/companies/${wholesale.companyId}`} className="hover:text-slate-700">
                     {wholesale.company?.name || wholesale.companyId}
@@ -352,7 +338,9 @@ function WholesaleDetail() {
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">単価</dt>
-                <dd className="mt-1 text-sm text-slate-700">{formatCurrency(wholesale.unitPrice)}</dd>
+                <dd className="mt-1 text-sm text-slate-700">
+                  {formatCurrency(wholesale.unitPrice)}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">マージン</dt>
@@ -361,30 +349,30 @@ function WholesaleDetail() {
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-slate-500">合意日</dt>
+                <dt className="text-xs font-medium text-slate-500">成立日</dt>
                 <dd className="mt-1 text-sm text-slate-700">{formatDate(wholesale.agreedDate)}</dd>
               </div>
               <div>
                 <dt className="text-xs font-medium text-slate-500">ステータス</dt>
-                <dd className="mt-1 text-sm text-slate-700">{statusLabel('wholesale', wholesaleStatus, '-')}</dd>
+                <dd className="mt-1 text-sm text-slate-700">
+                  {statusLabel('wholesale', wholesaleStatus, '-')}
+                </dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-xs font-medium text-slate-500">条件</dt>
-                <dd className="mt-1 text-sm text-slate-700">
-                  {wholesale.conditions || '-'}
-                </dd>
+                <dd className="mt-1 text-sm text-slate-700">{wholesale.conditions || '-'}</dd>
               </div>
             </dl>
           )
         ) : (
-          <div className="text-sm text-slate-500">卸情報が見つかりません。</div>
+          <div className="text-sm text-slate-500">卸が見つかりません。</div>
         )}
       </Card>
 
       <Card className="space-y-4">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">関連タスク</h3>
-          <span className="text-xs text-slate-500">{pagination.total}件</span>
+          <span className="text-xs text-slate-500">{pagination.total} 件</span>
         </div>
 
         {tasksError && <ErrorAlert message={tasksError} className="mb-4" />}
@@ -392,7 +380,7 @@ function WholesaleDetail() {
         {isLoadingTasks ? (
           <SkeletonTable rows={4} columns={4} />
         ) : tasks.length === 0 ? (
-          <div className="text-sm text-slate-500">関連タスクはありません。</div>
+          <div className="text-sm text-slate-500">関連タスクがありません。</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -400,8 +388,8 @@ function WholesaleDetail() {
                 <tr className="text-left text-xs text-slate-500">
                   <th className="px-4 py-3">タイトル</th>
                   <th className="px-4 py-3">ステータス</th>
-                  <th className="px-4 py-3">期日</th>
-                  <th className="px-4 py-3">担当</th>
+                  <th className="px-4 py-3">期限</th>
+                  <th className="px-4 py-3">担当者</th>
                 </tr>
               </thead>
               <tbody>
@@ -434,8 +422,8 @@ function WholesaleDetail() {
       />
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="卸情報の削除"
-        description={`この卸情報を削除しますか？この操作は取り消せません。`}
+        title="卸の削除"
+        description="この卸を削除します。関連する紐づきも削除されます。"
         confirmLabel="削除"
         cancelLabel="キャンセル"
         isLoading={isDeletingWholesale}
@@ -454,4 +442,4 @@ function WholesaleDetail() {
   )
 }
 
-export default WholesaleDetail
+export default WholesaleDetail

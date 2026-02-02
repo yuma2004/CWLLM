@@ -20,31 +20,37 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// モックログイン用。バックエンド不要で全ページアクセス可能
+// 開発中のモックログイン切り替え（環境変数 VITE_MOCK_AUTH = true）
 const MOCK_AUTH =
   !import.meta.env.PROD && (import.meta.env.VITE_MOCK_AUTH ?? 'false') === 'true'
 const MOCK_USER: User = {
   id: 'mock-user-1',
   email: 'admin@example.com',
-  role: 'admin', // admin権限で全ページアクセス可能
+  role: 'admin',
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(MOCK_AUTH ? MOCK_USER : null)
   const [hasToken, setHasToken] = useState(() => !!getAuthToken())
-  const { data: authData, error: authError, setError: setAuthError, isLoading: isAuthLoading } =
-    useFetch<{ user: User }>(apiRoutes.auth.me(), {
-      enabled: !MOCK_AUTH && hasToken,
-      errorMessage: '認証に失敗しました',
-      cacheTimeMs: 0,
-      authMode: 'bearer',
-      onError: (_message, error) => {
-        // 401エラーは認証切れの想定なので、エラー状態をクリア
-        if (error instanceof ApiRequestError && error.status === 401) {
-          setAuthError('')
-        }
-      },
-    })
+  const {
+    data: authData,
+    error: authError,
+    setError: setAuthError,
+    isLoading: isAuthLoading,
+  } = useFetch<{ user: User }>(apiRoutes.auth.me(), {
+    enabled: !MOCK_AUTH && hasToken,
+    errorMessage: '認証情報の取得に失敗しました。',
+    cacheTimeMs: 0,
+    authMode: 'bearer',
+    onError: (_message, error) => {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        clearAuthToken()
+        setHasToken(false)
+        setUser(null)
+        setAuthError('')
+      }
+    },
+  })
 
   const { mutate: loginRequest } = useMutation<
     { token: string; user: User },
@@ -76,15 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const data = await loginRequest(
       { email, password },
-      { errorMessage: 'ログインに失敗しました' }
+      { errorMessage: 'ログインに失敗しました。' }
     )
     if (data?.token) {
       setAuthToken(data.token)
       setHasToken(true)
     }
     if (data?.user) {
-      // エラー状態をクリアしてからユーザーを設定
-      // 初回ロード時の authError が残ると useEffect で user が null に戻されるため
       setAuthError('')
       setUser(data.user)
     }
@@ -92,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await logoutRequest(undefined, { errorMessage: 'ログアウトに失敗しました' })
+      await logoutRequest(undefined, { errorMessage: 'ログアウトに失敗しました。' })
     } catch {
       // noop
     }
@@ -123,4 +127,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
-}
+}

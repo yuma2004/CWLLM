@@ -24,14 +24,23 @@ import { toErrorMessage } from '../utils/errorState'
 import { cn } from '../lib/cn'
 import type { Task, TasksFilters, User } from '../types'
 import { apiRoutes } from '../lib/apiRoutes'
+import { TASK_STRINGS } from '../strings/tasks'
+import { targetTypeLabel } from '../constants/labels'
 
 const defaultFilters: TasksFilters = {
   q: '',
   status: '',
+  assigneeId: '',
   targetType: '',
   dueFrom: '',
   dueTo: '',
 }
+
+const GENERAL_TARGET_ID = 'general'
+const CREATE_TARGET_OPTIONS = [
+  { value: 'company', label: targetTypeLabel('company') },
+  { value: 'general', label: targetTypeLabel('general') },
+] as const
 
 function Tasks() {
   const { canWrite, isAdmin } = usePermissions()
@@ -78,7 +87,7 @@ function Tasks() {
     debounce: { key: 'q', delayMs: 300 },
     fetchOptions: {
       authMode: 'bearer',
-      errorMessage: 'タスクの読み込みに失敗しました',
+      errorMessage: TASK_STRINGS.errors.load,
     },
   })
   const viewMode = extraParams.view === 'kanban' ? 'kanban' : 'list'
@@ -88,6 +97,7 @@ function Tasks() {
   const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
   const [createForm, setCreateForm] = useState({
+    targetType: 'company',
     title: '',
     description: '',
     dueDate: '',
@@ -103,7 +113,7 @@ function Tasks() {
   const { toast, showToast, clearToast } = useToast()
 
   const { mutate: createTask, isLoading: isCreating } = useMutation<
-    Task,
+    { task: Task },
     {
       targetType: string
       targetId: string
@@ -114,13 +124,13 @@ function Tasks() {
     }
   >(apiRoutes.tasks.base(), 'POST')
 
-  const { mutate: updateTaskStatus } = useMutation<Task, { status: string }>(
+  const { mutate: updateTaskStatus } = useMutation<{ task: Task }, { status: string }>(
     apiRoutes.tasks.base(),
     'PATCH'
   )
 
   const { mutate: updateTask } = useMutation<
-    Task,
+    { task: Task },
     { status?: string; dueDate?: string | null; assigneeId?: string | null }
   >(apiRoutes.tasks.base(), 'PATCH')
 
@@ -214,16 +224,19 @@ function Tasks() {
     try {
       await updateTaskStatus(
         { status: nextStatus },
-        { authMode: 'bearer', url: apiRoutes.tasks.detail(taskId), errorMessage: 'ステータスの更新に失敗しました' }
+        {
+          authMode: 'bearer',
+          url: apiRoutes.tasks.detail(taskId),
+          errorMessage: TASK_STRINGS.errors.updateStatus,
+        }
       )
       void refetchTasks()
-      showToast('ステータスを更新しました', 'success')
+      showToast(TASK_STRINGS.success.updateStatus, 'success')
     } catch (err) {
       restoreOptimisticTasks(previousItems)
-      setError(err instanceof Error ? err.message : 'タスクの更新に失敗しました')
+      setError(err instanceof Error ? err.message : TASK_STRINGS.errors.updateStatus)
     }
   }
-
 
   const handleDueDateChange = async (taskId: string, value: string) => {
     if (!canWrite) return
@@ -236,13 +249,17 @@ function Tasks() {
     try {
       await updateTask(
         { dueDate },
-        { authMode: 'bearer', url: apiRoutes.tasks.detail(taskId), errorMessage: '期限の更新に失敗しました' }
+        {
+          authMode: 'bearer',
+          url: apiRoutes.tasks.detail(taskId),
+          errorMessage: TASK_STRINGS.errors.updateDueDate,
+        }
       )
       void refetchTasks()
-      showToast('期限を更新しました', 'success')
+      showToast(TASK_STRINGS.success.updateDueDate, 'success')
     } catch (err) {
       restoreOptimisticTasks(previousItems)
-      setError(err instanceof Error ? err.message : 'タスクの更新に失敗しました')
+      setError(err instanceof Error ? err.message : TASK_STRINGS.errors.updateDueDate)
     }
   }
 
@@ -261,13 +278,17 @@ function Tasks() {
     try {
       await updateTask(
         { assigneeId },
-        { authMode: 'bearer', url: apiRoutes.tasks.detail(taskId), errorMessage: '担当者の更新に失敗しました' }
+        {
+          authMode: 'bearer',
+          url: apiRoutes.tasks.detail(taskId),
+          errorMessage: TASK_STRINGS.errors.updateAssignee,
+        }
       )
       void refetchTasks()
-      showToast('担当者を更新しました', 'success')
+      showToast(TASK_STRINGS.success.updateAssignee, 'success')
     } catch (err) {
       restoreOptimisticTasks(previousItems)
-      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました')
+      setError(err instanceof Error ? err.message : TASK_STRINGS.errors.updateAssignee)
     }
   }
 
@@ -276,10 +297,10 @@ function Tasks() {
     setCreateError('')
     const nextErrors: { title?: string; companyId?: string } = {}
     if (!createForm.title.trim()) {
-      nextErrors.title = 'タスクタイトルを入力してください'
+      nextErrors.title = TASK_STRINGS.errors.createTitleRequired
     }
-    if (!createForm.companyId) {
-      nextErrors.companyId = '紐づける企業を選択してください'
+    if (createForm.targetType === 'company' && !createForm.companyId) {
+      nextErrors.companyId = TASK_STRINGS.errors.createCompanyRequired
     }
     if (Object.keys(nextErrors).length > 0) {
       setCreateFieldErrors(nextErrors)
@@ -293,34 +314,36 @@ function Tasks() {
     setCreateFieldErrors({})
 
     try {
+      const targetType = createForm.targetType
+      const targetId = targetType === 'general' ? GENERAL_TARGET_ID : createForm.companyId
       await createTask(
         {
-          targetType: 'company',
-          targetId: createForm.companyId,
+          targetType,
+          targetId,
           title: createForm.title.trim(),
           description: createForm.description.trim() || undefined,
           dueDate: createForm.dueDate || undefined,
           assigneeId: createForm.assigneeId || undefined,
         },
-        { authMode: 'bearer', errorMessage: 'タスクの作成に失敗しました' }
+        { authMode: 'bearer', errorMessage: TASK_STRINGS.errors.create }
       )
-      showToast('タスクを作成しました', 'success')
+      showToast(TASK_STRINGS.success.create, 'success')
       setCreateForm((prev) => ({ ...prev, title: '', description: '', dueDate: '' }))
       setCreateFieldErrors({})
       void refetchTasks()
     } catch (err) {
-      setCreateError(toErrorMessage(err, 'タスクの作成に失敗しました'))
+      setCreateError(toErrorMessage(err, TASK_STRINGS.errors.create))
     }
   }
 
   const handleBulkUpdate = async () => {
     if (!canWrite) return
     if (selectedIds.length === 0) {
-      setError('更新するタスクを選択してください')
+      setError(TASK_STRINGS.errors.bulkSelectTargets)
       return
     }
     if (!bulkStatus && !bulkDueDate && !clearBulkDueDate) {
-      setError('更新内容（ステータス/期限）を選択してください')
+      setError(TASK_STRINGS.errors.bulkSelectFields)
       return
     }
     setError('')
@@ -333,15 +356,15 @@ function Tasks() {
       if (bulkStatus) payload.status = bulkStatus
       if (bulkDueDate) payload.dueDate = bulkDueDate
       if (clearBulkDueDate) payload.dueDate = null
-      await bulkUpdateTasks(payload, { authMode: 'bearer', errorMessage: '一括更新に失敗しました' })
+      await bulkUpdateTasks(payload, { authMode: 'bearer', errorMessage: TASK_STRINGS.errors.bulk })
       setSelectedIds([])
       setBulkStatus('')
       setBulkDueDate('')
       setClearBulkDueDate(false)
       void refetchTasks()
-      showToast('一括更新しました', 'success')
+      showToast(TASK_STRINGS.success.bulk, 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '一括更新に失敗しました')
+      setError(err instanceof Error ? err.message : TASK_STRINGS.errors.bulk)
     }
   }
 
@@ -349,14 +372,16 @@ function Tasks() {
     if (!deleteTarget || !canWrite) return
     setError('')
     try {
-      await deleteTask(undefined, { authMode: 'bearer', url: apiRoutes.tasks.detail(deleteTarget.id),
-        errorMessage: 'タスクの削除に失敗しました',
+      await deleteTask(undefined, {
+        authMode: 'bearer',
+        url: apiRoutes.tasks.detail(deleteTarget.id),
+        errorMessage: TASK_STRINGS.errors.delete,
       })
       setDeleteTarget(null)
       void refetchTasks()
-      showToast('タスクを削除しました', 'success')
+      showToast(TASK_STRINGS.success.delete, 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'タスクの削除に失敗しました')
+      setError(err instanceof Error ? err.message : TASK_STRINGS.errors.delete)
     }
   }
 
@@ -400,6 +425,9 @@ function Tasks() {
     if (!isAdmin) return
     setHasTouchedScope(true)
     setTaskScope(nextScope)
+    if (nextScope === 'mine') {
+      setFilters((prev) => ({ ...prev, assigneeId: '' }))
+    }
     setPage(1)
   }
 
@@ -408,17 +436,22 @@ function Tasks() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase text-notion-text-tertiary">タスク</p>
-          <h2 className="text-3xl font-semibold text-notion-text text-balance">タスク管理</h2>
+          <p className="text-xs uppercase text-notion-text-tertiary">{TASK_STRINGS.labels.section}</p>
+          <h2 className="text-3xl font-semibold text-notion-text text-balance">
+            {TASK_STRINGS.labels.pageTitle}
+          </h2>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-notion-text-secondary">
-            合計件数:{' '}
+            {TASK_STRINGS.labels.totalCount}:{' '}
             <span className="font-semibold text-notion-text tabular-nums">{pagination.total}</span>
           </span>
           {isAdmin && (
             <span className="rounded-full border border-notion-border bg-notion-bg px-2 py-1 text-xs font-semibold text-notion-text-secondary">
-              表示範囲: {taskScope === 'all' ? '全員' : '自分'}
+              {TASK_STRINGS.labels.scopeLabel}:{' '}
+              {taskScope === 'all'
+                ? TASK_STRINGS.labels.scopeAll
+                : TASK_STRINGS.labels.scopeMine}
             </span>
           )}
           {canWrite && (
@@ -426,7 +459,7 @@ function Tasks() {
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              新規作成
+              {TASK_STRINGS.actions.new}
             </Button>
           )}
         </div>
@@ -443,7 +476,7 @@ function Tasks() {
               viewMode === 'list' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
             )}
           >
-            リスト
+            {TASK_STRINGS.labels.viewList}
           </button>
           <button
             type="button"
@@ -454,7 +487,7 @@ function Tasks() {
               viewMode === 'kanban' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
             )}
           >
-            カンバン
+            {TASK_STRINGS.labels.viewKanban}
           </button>
         </div>
         {isAdmin && (
@@ -468,7 +501,7 @@ function Tasks() {
                 taskScope === 'mine' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
               )}
             >
-              自分
+              {TASK_STRINGS.labels.scopeMine}
             </button>
             <button
               type="button"
@@ -479,13 +512,14 @@ function Tasks() {
                 taskScope === 'all' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
               )}
             >
-              全員
+              {TASK_STRINGS.labels.scopeAll}
             </button>
           </div>
         )}
       </div>
 
       {/* Search & Filter */}
+
       <TaskFilters
         filters={filters}
         onFiltersChange={setFilters}
@@ -494,6 +528,8 @@ function Tasks() {
         onClearFilter={handleClearFilter}
         onClearAll={handleClearAllFilters}
         searchInputRef={searchInputRef}
+        assigneeOptions={userOptions}
+        showAssigneeFilter={isAdmin && taskScope === 'all'}
       />
 
       {hasBulkActions && (
@@ -515,23 +551,29 @@ function Tasks() {
       {/* Readonly Notice */}
       {!canWrite && (
         <div className="rounded-2xl border border-dashed border-notion-border p-4 text-sm text-notion-text-secondary">
-          権限がないため、タスクのステータス変更はできません。
+          {TASK_STRINGS.notices.readonly}
         </div>
       )}
 
       {/* Delete Confirmation */}
+
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="タスクの削除"
-        description={`「${deleteTarget?.title}」を削除しますか？この操作は元に戻せません。`}
-        confirmLabel="削除"
-        cancelLabel="キャンセル"
+        title={TASK_STRINGS.confirm.deleteTitle}
+        description={
+          deleteTarget
+            ? TASK_STRINGS.confirm.deleteDescription(deleteTarget.title)
+            : undefined
+        }
+        confirmLabel={TASK_STRINGS.confirm.deleteConfirmLabel}
+        cancelLabel={TASK_STRINGS.confirm.cancelLabel}
         isLoading={isDeleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
 
       {/* Error */}
+
       <ErrorAlert message={error} onClose={() => setError('')} />
 
       <div className={cn('space-y-4', hasBulkActions && 'pb-24')}>
@@ -555,18 +597,19 @@ function Tasks() {
             emptyStateDescription={
               canWrite
                 ? isAdmin && taskScope === 'all'
-                  ? '全員分のタスクがまだありません。'
-                  : 'まずはタスクを追加して、対応状況を見える化しましょう。'
-                : '検索条件をリセットして確認してください。'
+                  ? TASK_STRINGS.empty.adminAll
+                  : TASK_STRINGS.empty.normal
+                : TASK_STRINGS.empty.readonly
             }
             emptyStateAction={
+
               canWrite ? (
                 <button
                   type="button"
                   onClick={handleScrollToCreate}
                   className="text-sm font-semibold text-notion-accent hover:text-notion-accent/80"
                 >
-                  タスクを作成
+                  {TASK_STRINGS.actions.create}
                 </button>
               ) : null
             }
@@ -597,53 +640,80 @@ function Tasks() {
 
         {/* Keyboard Shortcuts Hint */}
         <div className="text-center text-xs text-notion-text-tertiary">
-          <kbd className="rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">/</kbd> フィルターにフォーカス
+          <kbd className="rounded border border-notion-border bg-notion-bg-secondary px-1.5 py-0.5 font-mono">/</kbd> {TASK_STRINGS.hints.filterFocus}
         </div>
       </div>
 
       <SlidePanel
         isOpen={canWrite && isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title="タスク作成"
-        description="企業に紐づけてタスクを追加できます。"
+        title={TASK_STRINGS.panel.createTitle}
+        description={TASK_STRINGS.panel.createDescription}
         size="md"
       >
         <form onSubmit={handleCreateTask} className="space-y-4">
           <div className="grid gap-4">
             <FormInput
-              label="タスクタイトル"
+              label={TASK_STRINGS.labels.createTitle}
               value={createForm.title}
               onChange={(event) => {
                 const nextValue = event.target.value
                 setCreateForm((prev) => ({ ...prev, title: nextValue }))
                 if (createFieldErrors.title) {
                   setCreateFieldErrors((prev) => ({ ...prev, title: undefined }))
-                }}}
+                }
+              }}
               name="title"
               autoComplete="off"
-              placeholder="対応内容を入力…"
+              placeholder={TASK_STRINGS.labels.createTitlePlaceholder}
               disabled={isCreating}
               error={createFieldErrors.title}
               ref={createTitleRef}
             />
-            <CompanySearchSelect
-              label="紐づける企業"
-              value={createForm.companyId}
-              onChange={(companyId) => {
-                setCreateForm((prev) => ({ ...prev, companyId }))
+            <FormSelect
+              label={TASK_STRINGS.labels.createTargetType}
+              value={createForm.targetType}
+              onChange={(event) => {
+                const nextType = event.target.value
+                setCreateForm((prev) => ({
+                  ...prev,
+                  targetType: nextType,
+                  companyId: nextType === 'company' ? prev.companyId : '',
+                }))
                 if (createFieldErrors.companyId) {
                   setCreateFieldErrors((prev) => ({ ...prev, companyId: undefined }))
                 }
               }}
-              name="companyId"
+              name="targetType"
               autoComplete="off"
-              placeholder="企業名で検索…"
               disabled={isCreating}
-              error={createFieldErrors.companyId}
-              inputRef={createCompanyRef}
-            />
+            >
+              {CREATE_TARGET_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </FormSelect>
+            {createForm.targetType === 'company' && (
+              <CompanySearchSelect
+                label={TASK_STRINGS.labels.createCompany}
+                value={createForm.companyId}
+                onChange={(companyId) => {
+                  setCreateForm((prev) => ({ ...prev, companyId }))
+                  if (createFieldErrors.companyId) {
+                    setCreateFieldErrors((prev) => ({ ...prev, companyId: undefined }))
+                  }
+                }}
+                name="companyId"
+                autoComplete="off"
+                placeholder={TASK_STRINGS.labels.createCompanyPlaceholder}
+                disabled={isCreating}
+                error={createFieldErrors.companyId}
+                inputRef={createCompanyRef}
+              />
+            )}
             <FormSelect
-              label="担当者"
+              label={TASK_STRINGS.labels.createAssignee}
               value={createForm.assigneeId}
               onChange={(event) =>
                 setCreateForm((prev) => ({ ...prev, assigneeId: event.target.value }))
@@ -652,7 +722,7 @@ function Tasks() {
               autoComplete="off"
               disabled={isCreating}
             >
-              <option value="">未割当</option>
+              <option value="">{TASK_STRINGS.labels.unassigned}</option>
               {userOptions.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name || user.email}
@@ -660,7 +730,7 @@ function Tasks() {
               ))}
             </FormSelect>
             <FormTextarea
-              label="詳細"
+              label={TASK_STRINGS.labels.createDescription}
               rows={3}
               value={createForm.description}
               onChange={(event) =>
@@ -668,18 +738,18 @@ function Tasks() {
               }
               name="description"
               autoComplete="off"
-              placeholder="背景や補足メモ…"
+              placeholder={TASK_STRINGS.labels.createDescriptionPlaceholder}
               disabled={isCreating}
             />
             <DateInput
-              label="期限"
+              label={TASK_STRINGS.labels.createDueDate}
               value={createForm.dueDate}
               onChange={(event) =>
                 setCreateForm((prev) => ({ ...prev, dueDate: event.target.value }))
               }
               name="dueDate"
               autoComplete="off"
-              placeholder="期限…"
+              placeholder={TASK_STRINGS.labels.createDueDatePlaceholder}
               disabled={isCreating}
             />
           </div>
@@ -687,8 +757,8 @@ function Tasks() {
           {createError && <ErrorAlert message={createError} onClose={() => setCreateError('')} />}
 
           <div className="flex justify-end">
-            <Button type="submit" isLoading={isCreating} loadingLabel="作成中…">
-              タスクを作成
+            <Button type="submit" isLoading={isCreating} loadingLabel={TASK_STRINGS.actions.creating}>
+              {TASK_STRINGS.actions.create}
             </Button>
           </div>
         </form>
