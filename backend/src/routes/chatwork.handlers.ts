@@ -26,8 +26,10 @@ const WEBHOOK_COOLDOWN_KEY_PREFIX = 'cwllm:chatwork:webhook-cooldown:'
 let lastCooldownCleanupAt = 0
 let webhookCooldownClient: IORedis | null = null
 
-const toIsoString = (value: Date | null | undefined) =>
-  value instanceof Date ? value.toISOString() : value
+const toIsoString = (value: Date | null | undefined) => {
+  if (value == null) return undefined
+  return value.toISOString()
+}
 
 const serializeChatworkRoom = (room: {
   id: string

@@ -2,8 +2,10 @@ import { TaskStatus } from '@prisma/client'
 import { attachTargetInfo } from '../services'
 import { prisma } from '../utils'
 
-const toIsoString = (value: Date | null | undefined) =>
-  value instanceof Date ? value.toISOString() : value
+const toIsoString = (value: Date | null | undefined) => {
+  if (value == null) return undefined
+  return value.toISOString()
+}
 
 const serializeTask = <T extends { createdAt: Date; updatedAt: Date; dueDate?: Date | null }>(
   task: T
