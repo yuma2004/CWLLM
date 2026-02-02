@@ -2,6 +2,31 @@ import { TaskStatus } from '@prisma/client'
 import { attachTargetInfo } from '../services'
 import { prisma } from '../utils'
 
+const toIsoString = (value: Date | null | undefined) =>
+  value instanceof Date ? value.toISOString() : value
+
+const serializeTask = <T extends { createdAt: Date; updatedAt: Date; dueDate?: Date | null }>(
+  task: T
+) => ({
+  ...task,
+  createdAt: toIsoString(task.createdAt),
+  updatedAt: toIsoString(task.updatedAt),
+  dueDate: toIsoString(task.dueDate),
+})
+
+const serializeSummary = <T extends { createdAt?: Date | null }>(summary: T) => ({
+  ...summary,
+  createdAt: toIsoString(summary.createdAt ?? undefined),
+})
+
+const serializeCompany = <T extends { createdAt?: Date | null; updatedAt?: Date | null }>(
+  company: T
+) => ({
+  ...company,
+  createdAt: toIsoString(company.createdAt ?? undefined),
+  updatedAt: toIsoString(company.updatedAt ?? undefined),
+})
+
 export const getDashboardHandler = async () => {
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -107,12 +132,12 @@ export const getDashboardHandler = async () => {
   const weekTasksWithTarget = tasksWithTarget.slice(offset, offset + weekTasks.length)
 
   return {
-    overdueTasks: overdueTasksWithTarget,
-    todayTasks: todayTasksWithTarget,
-    soonTasks: soonTasksWithTarget,
-    weekTasks: weekTasksWithTarget,
-    latestSummaries,
-    recentCompanies,
+    overdueTasks: overdueTasksWithTarget.map(serializeTask),
+    todayTasks: todayTasksWithTarget.map(serializeTask),
+    soonTasks: soonTasksWithTarget.map(serializeTask),
+    weekTasks: weekTasksWithTarget.map(serializeTask),
+    latestSummaries: latestSummaries.map(serializeSummary),
+    recentCompanies: recentCompanies.map(serializeCompany),
     unassignedMessageCount,
   }
 }

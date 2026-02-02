@@ -26,6 +26,40 @@ const WEBHOOK_COOLDOWN_KEY_PREFIX = 'cwllm:chatwork:webhook-cooldown:'
 let lastCooldownCleanupAt = 0
 let webhookCooldownClient: IORedis | null = null
 
+const toIsoString = (value: Date | null | undefined) =>
+  value instanceof Date ? value.toISOString() : value
+
+const serializeChatworkRoom = (room: {
+  id: string
+  roomId: string
+  name: string
+  description: string | null
+  lastSyncAt: Date | null
+  lastMessageId: string | null
+  lastErrorAt: Date | null
+  lastErrorMessage: string | null
+  lastErrorStatus: number | null
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+}) => ({
+  ...room,
+  lastSyncAt: toIsoString(room.lastSyncAt),
+  lastErrorAt: toIsoString(room.lastErrorAt),
+  createdAt: toIsoString(room.createdAt),
+  updatedAt: toIsoString(room.updatedAt),
+})
+
+const serializeCompanyRoomLink = (link: {
+  id: string
+  companyId: string
+  chatworkRoomId: string
+  createdAt: Date
+}) => ({
+  ...link,
+  createdAt: toIsoString(link.createdAt),
+})
+
 type Logger = {
   warn?: (obj: unknown, msg?: string) => void
 }
@@ -139,7 +173,7 @@ export const listChatworkRoomsHandler = async () => {
   const rooms = await prisma.chatworkRoom.findMany({
     orderBy: { updatedAt: 'desc' },
   })
-  return { rooms }
+  return { rooms: rooms.map(serializeChatworkRoom) }
 }
 
 export const syncChatworkRoomsHandler = async (
@@ -165,7 +199,7 @@ export const toggleChatworkRoomHandler = async (
       where: { id: request.params.id },
       data: { isActive },
     })
-    return { room }
+    return { room: serializeChatworkRoom(room) }
   } catch (error) {
     return handlePrismaError(reply, error, prismaErrorOverrides)
   }
@@ -298,7 +332,7 @@ export const createCompanyChatworkRoomLinkHandler = async (
       },
     })
 
-    return reply.code(201).send({ link })
+    return reply.code(201).send({ link: serializeCompanyRoomLink(link) })
   } catch (error) {
     return handlePrismaError(reply, error, prismaErrorOverrides)
   }
