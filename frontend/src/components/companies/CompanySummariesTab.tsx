@@ -1,4 +1,4 @@
-import EmptyState from '../ui/EmptyState'
+﻿import EmptyState from '../ui/EmptyState'
 import ErrorAlert from '../ui/ErrorAlert'
 import { Skeleton, SkeletonText } from '../ui/Skeleton'
 import { formatDate } from '../../utils/date'
@@ -10,7 +10,10 @@ type CompanySummariesTabProps = {
   error?: string
 }
 
-const summaryTypeLabel = () => '手動'
+const summaryTypeLabel = (type?: string) => {
+  if (!type || type === 'manual') return '手動'
+  return type
+}
 
 function CompanySummariesTab({ summaries, isLoading, error }: CompanySummariesTabProps) {
   if (isLoading) {

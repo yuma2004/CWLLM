@@ -9,7 +9,6 @@ import CompanyTimelineTab from '../components/companies/CompanyTimelineTab'
 import CompanyWholesalesTab from '../components/companies/CompanyWholesalesTab'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
-import Modal from '../components/ui/Modal'
 import { Skeleton, SkeletonText } from '../components/ui/Skeleton'
 import StatusBadge from '../components/ui/StatusBadge'
 import Tabs, { Tab } from '../components/ui/Tabs'
@@ -70,15 +69,12 @@ function CompanyDetail() {
     projects,
     projectsError,
     isLoadingProjects,
-    refetchProjects,
     wholesales,
     wholesalesError,
     isLoadingWholesales,
-    refetchWholesales,
     summaries,
     summariesError,
     isLoadingSummaries,
-    refetchSummaries,
   } = useCompanyDetailData({
     companyId: id,
     networkErrorMessage: NETWORK_ERROR_MESSAGE,
@@ -125,7 +121,6 @@ function CompanyDetail() {
     duplicateContactGroups,
     contactsFetchError,
     isLoadingContacts,
-    refetchContacts,
     handleAddContact,
     startEditContact,
     cancelEditContact,
