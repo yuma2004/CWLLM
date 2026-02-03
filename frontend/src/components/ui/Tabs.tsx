@@ -14,6 +14,8 @@ interface TabsProps {
   onChange?: (tabId: string) => void
   children: (activeTab: string) => ReactNode
   syncWithHash?: boolean
+  className?: string
+  contentClassName?: string
 }
 
 export default function Tabs({
@@ -22,6 +24,8 @@ export default function Tabs({
   onChange,
   children,
   syncWithHash = false,
+  className,
+  contentClassName,
 }: TabsProps) {
   const getInitialTab = () => {
     if (syncWithHash) {
@@ -55,7 +59,7 @@ export default function Tabs({
   }
 
   return (
-    <div className="w-full">
+    <div className={cn('w-full', className)}>
       {/* Tab List */}
       <div className="border-b border-slate-200">
         <nav className="-mb-px flex gap-1 overflow-x-auto" aria-label="Tabs">
@@ -95,7 +99,7 @@ export default function Tabs({
       </div>
 
       {/* Tab Content */}
-      <div className="py-4">{children(activeTab)}</div>
+      <div className={cn('py-4', contentClassName)}>{children(activeTab)}</div>
     </div>
   )
 }

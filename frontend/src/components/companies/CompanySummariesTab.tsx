@@ -10,7 +10,7 @@ type CompanySummariesTabProps = {
   error?: string
 }
 
-const summaryTypeLabel = (type?: string) => (type === 'auto' ? '自動' : '手動')
+const summaryTypeLabel = () => '手動'
 
 function CompanySummariesTab({ summaries, isLoading, error }: CompanySummariesTabProps) {
   if (isLoading) {

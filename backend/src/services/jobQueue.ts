@@ -3,7 +3,6 @@ import IORedis from 'ioredis'
 import { JobStatus, JobType, Prisma } from '@prisma/client'
 import { env } from '../config/env'
 import { prisma } from '../utils'
-import { generateSummaryDraft } from './summaryGenerator'
 import { syncChatworkMessages, syncChatworkRooms } from './chatworkSync'
 import { JobCanceledError } from './jobErrors'
 
@@ -99,30 +98,6 @@ const handleChatworkMessagesSync = async (
   return toJsonInput(data)
 }
 
-const handleSummaryDraft = async (jobId: string, payload: Prisma.JsonValue) => {
-  const typedPayload = payload as { companyId: string; periodStart: string; periodEnd: string }
-  const draft = await generateSummaryDraft(
-    typedPayload.companyId,
-    new Date(typedPayload.periodStart),
-    new Date(typedPayload.periodEnd),
-    { isCanceled: () => isCanceled(jobId) }
-  )
-  return toJsonInput({
-    draft: {
-      id: draft.id,
-      companyId: draft.companyId,
-      periodStart: draft.periodStart.toISOString(),
-      periodEnd: draft.periodEnd.toISOString(),
-      content: draft.content,
-      sourceLinks: draft.sourceLinks,
-      model: draft.model,
-      promptVersion: draft.promptVersion,
-      sourceMessageCount: draft.sourceMessageCount,
-      tokenUsage: draft.tokenUsage ?? null,
-    },
-  })
-}
-
 const executeJob = async (
   jobId: string,
   type: JobType,
@@ -147,9 +122,6 @@ const executeJob = async (
         break
       case JobType.chatwork_messages_sync:
         result = await handleChatworkMessagesSync(jobId, payload, logger)
-        break
-      case JobType.summary_draft:
-        result = await handleSummaryDraft(jobId, payload)
         break
       default:
         throw new Error(`Unknown job type: ${type}`)
@@ -312,13 +284,6 @@ export const enqueueChatworkMessagesSync = (
   userId?: string,
   options: { roomLimit?: number } = {}
 ) => enqueueJob(JobType.chatwork_messages_sync, { roomId, roomLimit: options.roomLimit }, userId)
-
-export const enqueueSummaryDraftJob = (
-  companyId: string,
-  periodStart: string,
-  periodEnd: string,
-  userId?: string
-) => enqueueJob(JobType.summary_draft, { companyId, periodStart, periodEnd }, userId)
 
 export const cancelJob = async (jobId: string) => {
   const existing = await prisma.job.findUnique({ where: { id: jobId } })

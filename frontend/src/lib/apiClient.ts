@@ -63,9 +63,10 @@ const prepareRequest = (
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
   if (authMode === 'bearer' && !requestHeaders.has('Authorization')) {
     const token = authToken ?? getAuthToken()
-    if (token) {
-      requestHeaders.set('Authorization', `Bearer ${token}`)
+    if (!token) {
+      throw new Error('認証トークンがありません。再ログインしてください。')
     }
+    requestHeaders.set('Authorization', `Bearer ${token}`)
   }
 
   let requestBody: BodyInit | undefined

@@ -20,9 +20,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// 開発中のモックログイン切り替え（環境変数 VITE_MOCK_AUTH = true）
+// ?????????????????VITE_MOCK_AUTH=true?
 const MOCK_AUTH =
   !import.meta.env.PROD && (import.meta.env.VITE_MOCK_AUTH ?? 'false') === 'true'
+const MOCK_AUTH_TOKEN = import.meta.env.VITE_MOCK_AUTH_TOKEN ?? ''
 const MOCK_USER: User = {
   id: 'mock-user-1',
   email: 'admin@example.com',
@@ -65,10 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(authData.user)
       return
     }
-    if (authError) {
+  }, [authData, authError])
+
+  useEffect(() => {
+    if (MOCK_AUTH) return
+    if (!hasToken) {
       setUser(null)
     }
-  }, [authData, authError])
+  }, [hasToken])
 
   useEffect(() => {
     if (MOCK_AUTH) return
@@ -77,6 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateToken()
     window.addEventListener('storage', updateToken)
     return () => window.removeEventListener('storage', updateToken)
+  }, [])
+
+  useEffect(() => {
+    if (!MOCK_AUTH) return
+    if (!MOCK_AUTH_TOKEN) return
+    if (getAuthToken()) return
+    setAuthToken(MOCK_AUTH_TOKEN)
+    setHasToken(true)
   }, [])
 
   const login = async (email: string, password: string) => {
@@ -127,4 +140,5 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
-}
+}
+

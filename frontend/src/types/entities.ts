@@ -157,18 +157,6 @@ export interface Summary {
   createdAt: string
 }
 
-export interface SummaryDraft {
-  id: string
-  content: string
-  periodStart: string
-  periodEnd: string
-  sourceLinks: string[]
-  model?: string | null
-  promptVersion?: string | null
-  sourceMessageCount?: number | null
-  tokenUsage?: unknown
-}
-
 export interface SummaryCandidate {
   title: string
   dueDate?: string

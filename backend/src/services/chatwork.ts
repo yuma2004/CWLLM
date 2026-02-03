@@ -1,3 +1,5 @@
+import { env } from '../config/env'
+
 export interface ChatworkRoom {
   room_id: number
   name: string
@@ -44,8 +46,8 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const RATE_LIMIT_WINDOW_MS = 5 * 60_000
 const RATE_LIMIT_MAX = 300
 const DEFAULT_MIN_INTERVAL_MS = Math.ceil(RATE_LIMIT_WINDOW_MS / RATE_LIMIT_MAX)
-const MIN_REQUEST_INTERVAL_MS =
-  process.env.NODE_ENV === 'test' ? 0 : DEFAULT_MIN_INTERVAL_MS
+
+const MIN_REQUEST_INTERVAL_MS = env.nodeEnv === 'test' ? 0 : DEFAULT_MIN_INTERVAL_MS
 let nextAllowedAt = 0
 let scheduleChain = Promise.resolve()
 

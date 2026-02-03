@@ -1,18 +1,12 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
-import { Prisma, SummaryType } from '@prisma/client'
-import { enqueueSummaryDraftJob } from '../services'
+import { SummaryType } from '@prisma/client'
 import { isNonEmptyString, parseDate, parseStringArray, prisma } from '../utils'
-import type { DraftBody, SummaryCreateBody } from './summaries.schemas'
+import type { SummaryCreateBody } from './summaries.schemas'
 
 const normalizeSummaryType = (value?: string) => {
   if (value === undefined) return undefined
-  if (!Object.values(SummaryType).includes(value as SummaryType)) return null
-  return value as SummaryType
-}
-
-const normalizeJsonInput = (value: unknown): Prisma.InputJsonValue | undefined => {
-  if (value === undefined || value === null) return undefined
-  return value as Prisma.InputJsonValue
+  if (value !== SummaryType.manual) return null
+  return SummaryType.manual
 }
 
 const extractCandidates = (content: string) => {
@@ -43,71 +37,6 @@ const extractCandidates = (content: string) => {
   return candidates
 }
 
-export const createSummaryDraftHandler = async (
-  request: FastifyRequest<{ Params: { id: string }; Body: DraftBody }>,
-  reply: FastifyReply
-) => {
-  const periodStart = parseDate(request.body.periodStart)
-  const periodEnd = parseDate(request.body.periodEnd)
-  if (!periodStart || !periodEnd) {
-    return reply.code(400).send({ error: 'Invalid period' })
-  }
-  if (periodStart > periodEnd) {
-    return reply.code(400).send({ error: 'Invalid period range' })
-  }
-
-  const company = await prisma.company.findUnique({ where: { id: request.params.id } })
-  if (!company) {
-    return reply.code(404).send({ error: 'Company not found' })
-  }
-
-  const cached = await prisma.summaryDraft.findFirst({
-    where: {
-      companyId: request.params.id,
-      periodStart,
-      periodEnd,
-      expiresAt: { gt: new Date() },
-    },
-  })
-  if (cached) {
-    const latestCount = await prisma.message.count({
-      where: {
-        companyId: request.params.id,
-        sentAt: {
-          gte: periodStart,
-          lte: periodEnd,
-        },
-      },
-    })
-    if (cached.sourceMessageCount === latestCount) {
-    return {
-      cached: true,
-      draft: {
-        id: cached.id,
-        content: cached.content,
-        periodStart: cached.periodStart.toISOString(),
-        periodEnd: cached.periodEnd.toISOString(),
-        sourceLinks: cached.sourceLinks,
-        model: cached.model,
-        promptVersion: cached.promptVersion,
-        sourceMessageCount: cached.sourceMessageCount,
-        tokenUsage: cached.tokenUsage,
-      },
-    }
-    }
-  }
-
-  const userId = (request.user as { userId?: string } | undefined)?.userId
-  const job = await enqueueSummaryDraftJob(
-    request.params.id,
-    periodStart.toISOString(),
-    periodEnd.toISOString(),
-    userId
-  )
-
-  return reply.code(202).send({ jobId: job.id, status: job.status })
-}
-
 export const createSummaryHandler = async (
   request: FastifyRequest<{ Params: { id: string }; Body: SummaryCreateBody }>,
   reply: FastifyReply
@@ -117,10 +46,6 @@ export const createSummaryHandler = async (
   const periodEnd = parseDate(request.body.periodEnd)
   const type = normalizeSummaryType(request.body.type)
   const sourceLinks = parseStringArray(request.body.sourceLinks)
-  const sourceMessageCount =
-    request.body.sourceMessageCount !== undefined
-      ? Number(request.body.sourceMessageCount)
-      : undefined
 
   if (!isNonEmptyString(content)) {
     return reply.code(400).send({ error: 'content is required' })
@@ -137,32 +62,10 @@ export const createSummaryHandler = async (
   if (sourceLinks === null) {
     return reply.code(400).send({ error: 'sourceLinks must be string array' })
   }
-  if (sourceMessageCount !== undefined && !Number.isFinite(sourceMessageCount)) {
-    return reply.code(400).send({ error: 'Invalid sourceMessageCount' })
-  }
 
   const company = await prisma.company.findUnique({ where: { id: request.params.id } })
   if (!company) {
     return reply.code(404).send({ error: 'Company not found' })
-  }
-
-  let resolvedLinks = sourceLinks ?? []
-  let model = request.body.model ?? null
-  let promptVersion = request.body.promptVersion ?? null
-  let resolvedCount = sourceMessageCount ?? null
-  let tokenUsage = normalizeJsonInput(request.body.tokenUsage)
-
-  if (request.body.draftId) {
-    const draft = await prisma.summaryDraft.findUnique({
-      where: { id: request.body.draftId },
-    })
-    if (draft && draft.companyId === request.params.id) {
-      resolvedLinks = resolvedLinks.length > 0 ? resolvedLinks : draft.sourceLinks
-      model = model ?? draft.model
-      promptVersion = promptVersion ?? draft.promptVersion
-      resolvedCount = resolvedCount ?? draft.sourceMessageCount
-      tokenUsage = tokenUsage ?? normalizeJsonInput(draft.tokenUsage)
-    }
   }
 
   const summary = await prisma.summary.create({
@@ -171,12 +74,8 @@ export const createSummaryHandler = async (
       content: content.trim(),
       periodStart,
       periodEnd,
-      type: type ?? 'manual',
-      sourceLinks: resolvedLinks,
-      model,
-      promptVersion,
-      sourceMessageCount: resolvedCount,
-      tokenUsage,
+      type: type ?? SummaryType.manual,
+      sourceLinks: sourceLinks ?? [],
     },
   })
 

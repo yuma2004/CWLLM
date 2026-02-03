@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePermissions } from '../hooks/usePermissions'
+import { useAuth } from '../contexts/AuthContext'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import Button from '../components/ui/Button'
@@ -44,15 +45,15 @@ const CREATE_TARGET_OPTIONS = [
 
 function Tasks() {
   const { canWrite, isAdmin } = usePermissions()
-  const [taskScope, setTaskScope] = useState<'mine' | 'all'>(() => (isAdmin ? 'all' : 'mine'))
-  const [hasTouchedScope, setHasTouchedScope] = useState(false)
+  const { user } = useAuth()
+  const [taskScope, setTaskScope] = useState<'mine' | 'all' | 'user'>('mine')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const createTitleRef = useRef<HTMLInputElement>(null)
   const createCompanyRef = useRef<HTMLInputElement>(null)
 
   const buildTaskUrl = useMemo(
     () => (queryString: string) =>
-      isAdmin && taskScope === 'all'
+      isAdmin && taskScope !== 'mine'
         ? apiRoutes.tasks.list(queryString)
         : apiRoutes.tasks.myList(queryString),
     [isAdmin, taskScope]
@@ -80,7 +81,7 @@ function Tasks() {
     urlSync: {
       pathname: '/tasks',
       defaultFilters,
-      defaultParams: { view: 'list' },
+      defaultParams: { view: 'kanban' },
       resetPageOnFilterChange: false,
     },
     buildUrl: buildTaskUrl,
@@ -175,10 +176,22 @@ function Tasks() {
   }, [isAdmin, taskScope])
 
   useEffect(() => {
-    if (isAdmin && !hasTouchedScope && taskScope !== 'all') {
-      setTaskScope('all')
+    if (isAdmin) return
+    if (!filters.assigneeId) return
+    setFilters((prev) => ({ ...prev, assigneeId: '' }))
+  }, [filters.assigneeId, isAdmin, setFilters])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    if (taskScope !== 'user') return
+    if (filters.assigneeId) return
+    const fallback =
+      (user?.id ? userOptions.find((option) => option.id === user.id) : undefined) ??
+      userOptions[0]
+    if (fallback) {
+      setFilters((prev) => ({ ...prev, assigneeId: fallback.id }))
     }
-  }, [hasTouchedScope, isAdmin, taskScope])
+  }, [filters.assigneeId, isAdmin, setFilters, taskScope, user?.id, userOptions])
 
   useEffect(() => {
     if (!isCreateDirty) return undefined
@@ -421,11 +434,10 @@ function Tasks() {
     setIsCreateOpen(true)
   }
 
-  const handleScopeChange = (nextScope: 'mine' | 'all') => {
+  const handleScopeChange = (nextScope: 'mine' | 'all' | 'user') => {
     if (!isAdmin) return
-    setHasTouchedScope(true)
     setTaskScope(nextScope)
-    if (nextScope === 'mine') {
+    if (nextScope === 'mine' || nextScope === 'all') {
       setFilters((prev) => ({ ...prev, assigneeId: '' }))
     }
     setPage(1)
@@ -451,7 +463,9 @@ function Tasks() {
               {TASK_STRINGS.labels.scopeLabel}:{' '}
               {taskScope === 'all'
                 ? TASK_STRINGS.labels.scopeAll
-                : TASK_STRINGS.labels.scopeMine}
+                : taskScope === 'user'
+                  ? TASK_STRINGS.labels.scopeUser
+                  : TASK_STRINGS.labels.scopeMine}
             </span>
           )}
           {canWrite && (
@@ -491,29 +505,59 @@ function Tasks() {
           </button>
         </div>
         {isAdmin && (
-          <div className="inline-flex rounded-full border border-notion-border bg-notion-bg p-1 text-xs font-semibold text-notion-text-secondary shadow-sm">
-            <button
-              type="button"
-              onClick={() => handleScopeChange('mine')}
-              aria-pressed={taskScope === 'mine'}
-              className={cn(
-                'rounded-full px-3 py-1',
-                taskScope === 'mine' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
-              )}
-            >
-              {TASK_STRINGS.labels.scopeMine}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleScopeChange('all')}
-              aria-pressed={taskScope === 'all'}
-              className={cn(
-                'rounded-full px-3 py-1',
-                taskScope === 'all' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
-              )}
-            >
-              {TASK_STRINGS.labels.scopeAll}
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-full border border-notion-border bg-notion-bg p-1 text-xs font-semibold text-notion-text-secondary shadow-sm">
+              <button
+                type="button"
+                onClick={() => handleScopeChange('mine')}
+                aria-pressed={taskScope === 'mine'}
+                className={cn(
+                  'rounded-full px-3 py-1',
+                  taskScope === 'mine' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
+                )}
+              >
+                {TASK_STRINGS.labels.scopeMine}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScopeChange('all')}
+                aria-pressed={taskScope === 'all'}
+                className={cn(
+                  'rounded-full px-3 py-1',
+                  taskScope === 'all' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
+                )}
+              >
+                {TASK_STRINGS.labels.scopeAll}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScopeChange('user')}
+                aria-pressed={taskScope === 'user'}
+                className={cn(
+                  'rounded-full px-3 py-1',
+                  taskScope === 'user' ? 'bg-notion-accent text-white' : 'hover:bg-notion-bg-hover'
+                )}
+              >
+                {TASK_STRINGS.labels.scopeUser}
+              </button>
+            </div>
+            {taskScope === 'user' && (
+              <FormSelect
+                name="assigneeId"
+                aria-label={TASK_STRINGS.labels.assigneeFilterLabel}
+                autoComplete="off"
+                value={filters.assigneeId}
+                onChange={(e) => setFilters((prev) => ({ ...prev, assigneeId: e.target.value }))}
+                className="text-xs"
+              >
+                <option value="">{TASK_STRINGS.labels.assigneeOption}</option>
+                {userOptions.map((userOption) => (
+                  <option key={userOption.id} value={userOption.id}>
+                    {userOption.name || userOption.email}
+                  </option>
+                ))}
+              </FormSelect>
+            )}
           </div>
         )}
       </div>

@@ -1,6 +1,5 @@
-﻿import { useMemo, useRef, useState } from 'react'
+﻿import { useMemo, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CompanySearchSelect } from '../components/SearchSelect'
 import CompanyContactsSection from '../components/companies/CompanyContactsSection'
 import CompanyOverviewTab from '../components/companies/CompanyOverviewTab'
 import CompanyProjectsTab from '../components/companies/CompanyProjectsTab'
@@ -22,9 +21,7 @@ import { useCompanyDetailData } from '../hooks/useCompanyDetailData'
 import { useCompanyOverviewForm } from '../hooks/useCompanyOverviewForm'
 import { useToast } from '../hooks/useToast'
 import { apiRoutes } from '../lib/apiRoutes'
-import { cn } from '../lib/cn'
 import type { User } from '../types'
-import { getAvatarColor, getInitials } from '../utils/string'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
   COMPANY_STATUS_DEFAULT_OPTIONS,
@@ -44,12 +41,9 @@ const CONTACT_MESSAGES = {
 
 function CompanyDetail() {
   const { id } = useParams<{ id: string }>()
-  const { canWrite, isAdmin } = usePermissions()
+  const { canWrite } = usePermissions()
   const { toast, showToast, clearToast } = useToast()
   const labelInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const [isMergeOpen, setIsMergeOpen] = useState(false)
-  const [mergeTargetId, setMergeTargetId] = useState('')
-  const [mergeError, setMergeError] = useState('')
 
   const {
     company,
@@ -203,11 +197,6 @@ function CompanyDetail() {
 
   const { mutate: removeLabel } = useMutation<unknown, void>(apiRoutes.messages.base(), 'DELETE')
 
-  const { mutate: mergeCompany, isLoading: isMerging } = useMutation<
-    { company: { id: string } },
-    { sourceCompanyId: string }
-  >(apiRoutes.companies.base(), 'POST')
-
   const isLoading = isLoadingCompany || isLoadingContacts
   const pageError = companyFetchError || contactsFetchError
 
@@ -243,41 +232,6 @@ function CompanyDetail() {
       void refetchMessages(undefined, { ignoreCache: true })
     } catch (err) {
       setMessageError(err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE)
-    }
-  }
-
-  const resetMergeState = () => {
-    setMergeTargetId('')
-    setMergeError('')
-  }
-
-  const handleMergeCompany = async () => {
-    if (!id) return
-    if (!mergeTargetId) {
-      setMergeError('統合対象の企業を選択してください')
-      return
-    }
-    if (mergeTargetId === id) {
-      setMergeError('同じ企業は統合できません')
-      return
-    }
-    setMergeError('')
-    try {
-      await mergeCompany(
-        { sourceCompanyId: mergeTargetId },
-        { url: apiRoutes.companies.merge(id), errorMessage: '企業の統合に失敗しました' }
-      )
-      showToast('企業を統合しました', 'success')
-      setIsMergeOpen(false)
-      resetMergeState()
-      void refetchCompany(undefined, { ignoreCache: true })
-      void refetchContacts(undefined, { ignoreCache: true })
-      void refetchMessages(undefined, { ignoreCache: true })
-      void refetchProjects(undefined, { ignoreCache: true })
-      void refetchWholesales(undefined, { ignoreCache: true })
-      void refetchSummaries(undefined, { ignoreCache: true })
-    } catch (err) {
-      setMergeError(err instanceof Error ? err.message : '企業の統合に失敗しました')
     }
   }
 
@@ -320,15 +274,8 @@ function CompanyDetail() {
     return <div className="text-slate-500">企業が見つかりませんでした。</div>
   }
 
-  const ownerLabels =
-    company.ownerIds?.map((ownerId) => {
-      const owner = userOptions.find((user) => user.id === ownerId)
-      return owner?.name || owner?.email || ownerId
-    }) ?? []
-  const visibleTags = company.tags?.slice(0, 3) ?? []
-
   return (
-    <div className="space-y-4">
+    <div className="flex h-[calc(100dvh-6rem)] min-h-0 flex-col gap-4 overflow-hidden sm:h-[calc(100dvh-4rem)]">
       <nav className="text-xs text-slate-400">
         <Link to="/companies" className="hover:text-slate-600">
           企業一覧
@@ -338,33 +285,14 @@ function CompanyDetail() {
       </nav>
       {/* Simple Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div
-            className={cn(
-              'flex size-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white',
-              getAvatarColor(company.name)
-            )}
-          >
-            {getInitials(company.name)}
-          </div>
-          <div>
-            <p className="text-xs uppercase  text-slate-400">企業</p>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-slate-900">{company.name}</h2>
-              <StatusBadge status={company.status} kind="company" />
-            </div>
+        <div>
+          <p className="text-xs uppercase text-slate-400">企業</p>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-slate-900">{company.name}</h2>
+            <StatusBadge status={company.status} kind="company" />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setIsMergeOpen(true)}
-              className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
-            >
-              企業を統合
-            </button>
-          )}
           <Link
             to="/companies"
             className="flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm hover:bg-slate-50"
@@ -377,56 +305,17 @@ function CompanyDetail() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">カテゴリ</div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">
-            {company.category || '-'}
-          </div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">ステータス</div>
-          <div className="mt-1">
-            <StatusBadge status={company.status} kind="company" />
-          </div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">担当者</div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">
-            {ownerLabels.length > 0 ? ownerLabels.join(', ') : '未設定'}
-          </div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">タグ</div>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {visibleTags.length > 0 ? (
-              <>
-                {visibleTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-600"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {company.tags.length > visibleTags.length && (
-                  <span className="text-xs text-slate-400">
-                    +{company.tags.length - visibleTags.length}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-xs text-slate-400">-</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2 min-h-0">
           {/* Main Tabs Container */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <Tabs tabs={tabs} defaultTab="overview" syncWithHash>
+          <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <Tabs
+              tabs={tabs}
+              defaultTab="overview"
+              syncWithHash
+              className="flex h-full min-h-0 flex-col"
+              contentClassName="min-h-0 flex-1 overflow-auto pr-1"
+            >
               {(activeTab) => (
                 <>
                   {/* Overview Tab */}
@@ -532,65 +421,12 @@ function CompanyDetail() {
             </Tabs>
           </div>
         </div>
-        <aside className="lg:col-span-1">
-          <div className="lg:sticky lg:top-24">
+        <aside className="lg:col-span-1 min-h-0">
+          <div className="h-full min-h-0 overflow-auto pr-1">
             {id ? <CompanyTasksSection companyId={id} canWrite={canWrite} /> : null}
           </div>
         </aside>
       </div>
-      <Modal
-        isOpen={isMergeOpen}
-        onClose={() => {
-          setIsMergeOpen(false)
-          resetMergeState()
-        }}
-        title="企業の統合"
-        className="max-w-md"
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setIsMergeOpen(false)
-                resetMergeState()
-              }}
-              className="rounded-full px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-              disabled={isMerging}
-            >
-              キャンセル
-            </button>
-            <button
-              type="button"
-              onClick={handleMergeCompany}
-              className="rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-              disabled={isMerging || !mergeTargetId}
-            >
-              {isMerging ? '統合中...' : '統合する'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            選択した企業のデータをこの企業に統合します。統合対象の企業は削除されます。
-          </p>
-          <CompanySearchSelect
-            label="統合対象の企業"
-            placeholder="統合する企業を検索…"
-            value={mergeTargetId}
-            onChange={(value) => {
-              setMergeTargetId(value)
-              if (mergeError) setMergeError('')
-            }}
-            disabled={isMerging}
-          />
-          {mergeError && (
-            <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {mergeError}
-            </div>
-          )}
-        </div>
-      </Modal>
       <ConfirmDialog
         isOpen={!!confirmDelete}
         title="担当者を削除しますか？"

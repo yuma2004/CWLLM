@@ -58,10 +58,10 @@ function Layout({ children }: LayoutProps) {
       {!isSidebarOpen && (
         <button
           onClick={() => setIsSidebarOpen(true)}
-          className="hidden lg:fixed top-4 left-4 z-30 rounded-lg border border-slate-200 bg-white p-2 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2 lg:block safe-area-top"
+          className="hidden lg:fixed lg:flex top-4 left-4 z-30 h-10 w-10 items-center justify-center rounded-none border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-offset-2 safe-area-top"
           aria-label="サイドバーを開く"
         >
-          <svg className="size-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="block size-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
@@ -166,7 +166,12 @@ function Layout({ children }: LayoutProps) {
       )}
 
       {/* Main content */}
-      <div className={cn('flex-1 min-w-0', isSidebarOpen ? 'lg:ml-64' : '')}>
+      <div
+        className={cn(
+          'flex-1 min-w-0',
+          isSidebarOpen ? 'lg:ml-64' : 'lg:pl-16'
+        )}
+      >
         <main className="max-w-7xl mx-auto px-4 pt-16 pb-6 sm:px-6 sm:py-6 lg:px-8">
           {children}
         </main>

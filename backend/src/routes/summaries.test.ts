@@ -44,9 +44,6 @@ describe('Summary endpoints', () => {
 
   afterEach(async () => {
     await prisma.summary.deleteMany()
-    await prisma.summaryDraft.deleteMany()
-    await prisma.message.deleteMany()
-    await prisma.chatworkRoom.deleteMany()
     await prisma.company.deleteMany()
     await prisma.user.deleteMany({
       where: {
@@ -56,7 +53,7 @@ describe('Summary endpoints', () => {
     await fastify.close()
   })
 
-  it('creates draft, saves summary, and extracts candidates', async () => {
+  it('creates summary and extracts candidates', async () => {
     const token = fastify.jwt.sign({ userId, role: 'admin' })
 
     const company = await prisma.company.create({
@@ -68,55 +65,8 @@ describe('Summary endpoints', () => {
       },
     })
 
-    const room = await prisma.chatworkRoom.create({
-      data: {
-        roomId: 'room-1',
-        name: 'Room',
-      },
-    })
-
-    const sentAt = new Date()
-    await prisma.message.create({
-      data: {
-        chatworkRoomId: room.id,
-        roomId: room.roomId,
-        messageId: 'm-1',
-        sender: 'User',
-        body: 'TODO: follow up on pricing',
-        sentAt,
-        companyId: company.id,
-      },
-    })
-
-    const periodStart = new Date(sentAt.getTime() - 1000)
-    const periodEnd = new Date(sentAt.getTime() + 1000)
-
-    await prisma.summaryDraft.create({
-      data: {
-        companyId: company.id,
-        periodStart,
-        periodEnd,
-        content: '## Summary\n- Seed draft content',
-        sourceLinks: ['m-1'],
-        expiresAt: new Date(Date.now() + 60_000),
-      },
-    })
-
-    const draftResponse = await fastify.inject({
-      method: 'POST',
-      url: `/api/companies/${company.id}/summaries/draft`,
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-      payload: {
-        periodStart: periodStart.toISOString(),
-        periodEnd: periodEnd.toISOString(),
-      },
-    })
-
-    expect(draftResponse.statusCode).toBe(200)
-    const draft = JSON.parse(draftResponse.body).draft
-    expect(draft.content).toContain('Summary')
+    const periodStart = new Date(Date.now() - 1000)
+    const periodEnd = new Date(Date.now() + 1000)
 
     const saveResponse = await fastify.inject({
       method: 'POST',
@@ -127,9 +77,9 @@ describe('Summary endpoints', () => {
       payload: {
         content: '## Next Actions\n- Follow up 2024-01-01',
         type: 'manual',
-        periodStart: draft.periodStart,
-        periodEnd: draft.periodEnd,
-        sourceLinks: draft.sourceLinks,
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        sourceLinks: [],
       },
     })
 
@@ -159,30 +109,4 @@ describe('Summary endpoints', () => {
     expect(candidates.length).toBeGreaterThan(0)
   })
 
-  it('returns 401 for invalid role when requesting draft', async () => {
-    const token = fastify.jwt.sign({ userId: 'invalid', role: 'invalid-role' })
-
-    const company = await prisma.company.create({
-      data: {
-        name: 'Invalid Co',
-        normalizedName: 'invalidco',
-        status: 'active',
-        tags: [],
-      },
-    })
-
-    const response = await fastify.inject({
-      method: 'POST',
-      url: `/api/companies/${company.id}/summaries/draft`,
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-      payload: {
-        periodStart: new Date().toISOString(),
-        periodEnd: new Date().toISOString(),
-      },
-    })
-
-    expect(response.statusCode).toBe(401)
-  })
 })

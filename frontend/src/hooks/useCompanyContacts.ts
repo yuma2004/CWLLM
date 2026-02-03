@@ -59,6 +59,7 @@ export const useCompanyContacts = ({
     {
       enabled: Boolean(companyId),
       errorMessage: networkErrorMessage,
+      authMode: 'bearer',
       onSuccess: (data) => setContacts(data.contacts ?? []),
     }
   )
@@ -121,7 +122,7 @@ export const useCompanyContacts = ({
           phone: form.phone || undefined,
           memo: form.memo || undefined,
         },
-        { errorMessage: networkErrorMessage }
+        { errorMessage: networkErrorMessage, authMode: 'bearer' }
       )
 
       setForm({ name: '', role: '', email: '', phone: '', memo: '' })
@@ -174,6 +175,7 @@ export const useCompanyContacts = ({
         {
           url: apiRoutes.contacts.detail(editingContactId),
           errorMessage: messages.updateFailed,
+          authMode: 'bearer',
         }
       )
       if (data?.contact) {
@@ -201,6 +203,7 @@ export const useCompanyContacts = ({
       await deleteContact(undefined, {
         url: apiRoutes.contacts.detail(confirmDelete.id),
         errorMessage: messages.deleteFailed,
+        authMode: 'bearer',
       })
       setContacts((prev) => prev.filter((contact) => contact.id !== confirmDelete.id))
       if (editingContactId === confirmDelete.id) {
@@ -228,7 +231,7 @@ export const useCompanyContacts = ({
     try {
       await reorderContactsMutation(
         { orderedIds: orderedContacts.map((contact) => contact.id) },
-        { errorMessage: messages.reorderFailed }
+        { errorMessage: messages.reorderFailed, authMode: 'bearer' }
       )
     } catch (err) {
       setContacts(previous)
@@ -300,6 +303,7 @@ export const useCompanyContacts = ({
             {
               url: apiRoutes.contacts.detail(primary.id),
               errorMessage: messages.updateFailed,
+              authMode: 'bearer',
             }
           )
           if (data?.contact) {
@@ -316,6 +320,7 @@ export const useCompanyContacts = ({
           await deleteContact(undefined, {
             url: apiRoutes.contacts.detail(duplicate.id),
             errorMessage: messages.deleteFailed,
+            authMode: 'bearer',
           })
         }
         if (duplicateContacts.length > 0) {

@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import bcrypt from 'bcryptjs'
 import { JWTUser } from '../types/auth'
+import { env } from '../config/env'
 import { buildErrorPayload, prisma } from '../utils'
 import type { LoginBody } from './auth.schemas'
 
@@ -58,10 +59,11 @@ export const buildLoginHandler =
     }
 
     const token = fastify.jwt.sign({ userId: user.id, role: user.role }, { expiresIn: '7d' })
+    const isProduction = env.nodeEnv === 'production'
     reply.setCookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/',
     })
 
@@ -79,10 +81,11 @@ export const buildLoginHandler =
 
 export const logoutHandler = async (request: FastifyRequest, reply: FastifyReply) => {
   void request
+  const isProduction = env.nodeEnv === 'production'
   reply.clearCookie('token', {
     path: '/',
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
   })
   return { message: 'Logged out' }
 }

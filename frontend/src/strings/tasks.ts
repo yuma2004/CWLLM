@@ -30,6 +30,7 @@
     scopeLabel: '表示範囲',
     scopeMine: '自分',
     scopeAll: '全件',
+    scopeUser: '担当者',
     viewList: 'リスト',
     viewKanban: 'カンバン',
     searchPlaceholder: 'タスクを検索...',

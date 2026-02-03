@@ -27,8 +27,6 @@ const envSchema = z.object({
   CHATWORK_NEW_ROOMS_ACTIVE: z.string().optional(),
   CHATWORK_WEBHOOK_TOKEN: z.string().optional(),
   CHATWORK_WEBHOOK_COOLDOWN_SECONDS: z.coerce.number().int().optional(),
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().optional(),
   REDIS_URL: z.string().optional(),
   JOB_WORKER_ENABLED: z.string().optional(),
 })
@@ -93,8 +91,6 @@ export const env = {
   chatworkWebhookToken: raw.CHATWORK_WEBHOOK_TOKEN,
   chatworkWebhookCooldownMs:
     (parsePositiveInt(raw.CHATWORK_WEBHOOK_COOLDOWN_SECONDS) ?? 60) * 1000,
-  openaiApiKey: raw.OPENAI_API_KEY,
-  openaiModel: raw.OPENAI_MODEL,
   redisUrl: raw.REDIS_URL,
   jobWorkerEnabled: parseBoolean(raw.JOB_WORKER_ENABLED, raw.NODE_ENV !== 'production'),
 }

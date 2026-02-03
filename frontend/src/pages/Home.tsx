@@ -16,7 +16,6 @@ function Home() {
     }
   )
   const recentCompanies = dashboardData?.recentCompanies ?? []
-  const unassignedMessageCount = dashboardData?.unassignedMessageCount ?? 0
 
   const taskGroups = useMemo(() => {
     const overdueTasks = dashboardData?.overdueTasks ?? []
@@ -36,21 +35,14 @@ function Home() {
   )
 
   const summaryCards = useMemo(
-    () => [
-      ...taskGroups.map((group) => ({
+    () =>
+      taskGroups.map((group) => ({
         id: group.id,
         label: group.label,
         dotClass: group.dotClass,
         value: group.tasks.length,
       })),
-      {
-        id: 'unassigned',
-        label: '未割当メッセージ',
-        dotClass: 'bg-amber-500',
-        value: unassignedMessageCount,
-      },
-    ],
-    [taskGroups, unassignedMessageCount]
+    [taskGroups]
   )
 
   return (
@@ -63,7 +55,7 @@ function Home() {
           </p>
         </div>
         <div className="flex items-center text-sm">
-          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+          <div className="flex items-center gap-3 rounded-none border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
             <div className="flex items-center gap-2">
               <div className="size-1.5 rounded-full bg-green-500" />
               <span className="text-slate-600 font-medium">{user?.email}</span>
@@ -78,7 +70,7 @@ function Home() {
 
       {error && <ErrorAlert message={error} />}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         {summaryCards.map((card) => (
           <div
             key={`summary-${card.id}`}
@@ -242,4 +234,5 @@ function Home() {
   )
 }
 
-export default Home
+export default Home
+

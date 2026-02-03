@@ -43,7 +43,6 @@ enum TargetType {
 
 enum SummaryType {
   manual
-  auto
 }
 
 enum JobStatus {
@@ -57,7 +56,6 @@ enum JobStatus {
 enum JobType {
   chatwork_rooms_sync
   chatwork_messages_sync
-  summary_draft
 }
 
 enum FeedbackType {
@@ -101,7 +99,6 @@ model Company {
   wholesales Wholesale[]
   messages      Message[]
   summaries     Summary[]
-  summaryDrafts SummaryDraft[]
   roomLinks     CompanyRoomLink[]
 
   @@unique([normalizedName])
@@ -239,10 +236,6 @@ model Summary {
   content     String
   type        SummaryType   @default(manual)
   sourceLinks String[]
-  model       String?
-  promptVersion String?
-  sourceMessageCount Int?
-  tokenUsage  Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -269,28 +262,6 @@ model Task {
   @@index([dueDate, status])
   @@index([assigneeId])
   @@map("tasks")
-}
-
-model SummaryDraft {
-  id                String   @id @default(cuid())
-  companyId         String
-  periodStart       DateTime
-  periodEnd         DateTime
-  content           String
-  sourceLinks       String[]
-  model             String?
-  promptVersion     String?
-  sourceMessageCount Int?
-  tokenUsage        Json?
-  expiresAt         DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, periodStart, periodEnd])
-  @@index([companyId, periodStart, periodEnd])
-  @@map("summary_drafts")
 }
 
 model Feedback {

@@ -154,4 +154,5 @@ export const protectedRoutes: RouteConfig[] = [
       </svg>
     ),
   },
-]
+]
+

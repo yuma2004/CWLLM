@@ -542,30 +542,6 @@ export const mergeCompanyHandler = async (
       data: { companyId: targetCompanyId },
     })
 
-    const targetDrafts = await tx.summaryDraft.findMany({
-      where: { companyId: targetCompanyId },
-      select: { periodStart: true, periodEnd: true },
-    })
-    const targetDraftKeys = new Set(
-      targetDrafts.map(
-        (draft) => `${draft.periodStart.getTime()}-${draft.periodEnd.getTime()}`
-      )
-    )
-    const sourceDrafts = await tx.summaryDraft.findMany({
-      where: { companyId: sourceCompanyId },
-    })
-    for (const draft of sourceDrafts) {
-      const draftKey = `${draft.periodStart.getTime()}-${draft.periodEnd.getTime()}`
-      if (targetDraftKeys.has(draftKey)) {
-        await tx.summaryDraft.delete({ where: { id: draft.id } })
-      } else {
-        await tx.summaryDraft.update({
-          where: { id: draft.id },
-          data: { companyId: targetCompanyId },
-        })
-      }
-    }
-
     const targetRoomLinks = await tx.companyRoomLink.findMany({
       where: { companyId: targetCompanyId },
       select: { chatworkRoomId: true },
