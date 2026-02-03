@@ -116,7 +116,7 @@ function KanbanCard({
           <FormSelect
             value={task.assigneeId ?? ''}
             onChange={(event) => onAssigneeChange(event.target.value)}
-            className="h-7 rounded-full text-[11px]"
+            className="h-8 rounded-full py-1 text-xs leading-5"
             disabled={disabled}
           >
             <option value="">未設定</option>
