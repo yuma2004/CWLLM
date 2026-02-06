@@ -132,7 +132,7 @@ export function useFetch<T>(url: string | null, options: FetchOptions<T> = {}) {
         }
       }
     },
-    [url, init, errorMessage, cacheKey, cacheTimeMs]
+    [url, init, errorMessage, cacheKey, cacheTimeMs, authMode, authToken]
   )
 
   useEffect(() => {

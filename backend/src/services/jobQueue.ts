@@ -17,9 +17,16 @@ type JobQueueLogger = {
 let queue: Queue | null = null
 let worker: Worker | null = null
 // BullMQ requires maxRetriesPerRequest: null for long-running jobs.
-let connection: IORedis | null = env.redisUrl
-  ? new IORedis(env.redisUrl, { maxRetriesPerRequest: null })
-  : null
+let connection: IORedis | null = null
+
+const createRedisConnection = (logger?: JobQueueLogger) => {
+  if (!env.redisUrl) return null
+  const client = new IORedis(env.redisUrl, { maxRetriesPerRequest: null })
+  client.on('error', (err) => {
+    logger?.error?.({ err }, 'job queue redis error')
+  })
+  return client
+}
 
 type JobQueueOptions = {
   enableQueue?: boolean
@@ -175,7 +182,7 @@ export const initJobQueue = (
 ) => {
   const { enableQueue = true, enableWorker = true } = options
   if (!connection && env.redisUrl) {
-    connection = new IORedis(env.redisUrl, { maxRetriesPerRequest: null })
+    connection = createRedisConnection(logger)
   }
   if (!connection) return null
   const connectionOptions = connection as unknown as ConnectionOptions

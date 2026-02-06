@@ -121,7 +121,6 @@ const MultiSelect = ({
             )}
             aria-label={triggerAriaLabel}
             aria-describedby={describedBy}
-            aria-invalid={Boolean(error) || undefined}
             disabled={disabled}
           >
             <div className="min-w-0 flex-1">

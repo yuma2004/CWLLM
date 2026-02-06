@@ -105,8 +105,8 @@ function AccountCreate() {
     }
   }
 
-  const users = usersData?.users ?? []
   const mergedUsers = useMemo(() => {
+    const users = usersData?.users ?? []
     if (!currentUser) return users
     const exists = users.some(
       (userItem) => userItem.id === currentUser.id || userItem.email === currentUser.email
@@ -121,7 +121,7 @@ function AccountCreate() {
       },
       ...users,
     ]
-  }, [currentUser, users])
+  }, [currentUser, usersData?.users])
 
   return (
     <div className="space-y-4">

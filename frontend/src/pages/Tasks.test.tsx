@@ -1,9 +1,10 @@
-﻿import { describe, it, expect, beforeEach, vi } from 'vitest'
+﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Tasks from './Tasks'
 import { useAuth } from '../contexts/AuthContext'
 import { TASK_STRINGS } from '../strings/tasks'
+import { clearAuthToken, setAuthToken } from '../lib/authToken'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
@@ -21,6 +22,7 @@ const buildResponse = (payload: unknown) =>
 
 describe('Tasks page', () => {
   beforeEach(() => {
+    setAuthToken('test-token')
     mockUseAuth.mockReturnValue({
       user: { id: '1', email: 'admin@example.com', role: 'admin' },
       login: vi.fn(async () => {}),
@@ -30,6 +32,10 @@ describe('Tasks page', () => {
     })
     mockFetch.mockReset()
     globalThis.fetch = mockFetch as unknown as typeof fetch
+  })
+
+  afterEach(() => {
+    clearAuthToken()
   })
 
   it('renders tasks from API', async () => {
@@ -82,6 +88,9 @@ describe('Tasks page', () => {
         <Tasks />
       </MemoryRouter>
     )
+
+    const listViewButton = await screen.findByRole('button', { name: 'リスト' })
+    fireEvent.click(listViewButton)
 
     const titleCell = await screen.findByText('Follow up')
     const row = titleCell.closest('tr')
@@ -146,4 +155,6 @@ describe('Tasks page', () => {
     })
   })
 })
+
+
 

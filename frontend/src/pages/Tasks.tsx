@@ -149,9 +149,7 @@ function Tasks() {
     authMode: 'bearer',
     cacheTimeMs: 30_000,
   })
-  const userOptions = usersData?.users ?? []
-
-
+  const userOptions = useMemo(() => usersData?.users ?? [], [usersData?.users])
 
   const tasks = useMemo(() => tasksData?.items ?? [], [tasksData])
   const hasBulkActions = canWrite && selectedIds.length > 0

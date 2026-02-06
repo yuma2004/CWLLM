@@ -1,8 +1,9 @@
-﻿import { describe, it, expect, beforeEach, vi } from 'vitest'
+﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import CompanyDetail from './CompanyDetail'
 import { useAuth } from '../contexts/AuthContext'
+import { clearAuthToken, setAuthToken } from '../lib/authToken'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
@@ -23,6 +24,7 @@ describe('CompanyDetail page', () => {
   const companyId = 'c1'
 
   beforeEach(() => {
+    setAuthToken('test-token')
     mockUseAuth.mockReturnValue({
       user: { id: '1', email: 'admin@example.com', role: 'admin' },
       login: vi.fn(async () => {}),
@@ -109,6 +111,10 @@ describe('CompanyDetail page', () => {
     })
 
     globalThis.fetch = mockFetch as unknown as typeof fetch
+  })
+
+  afterEach(() => {
+    clearAuthToken()
   })
 
   it('shows validation error when contact name is empty', async () => {
@@ -200,3 +206,5 @@ describe('CompanyDetail page', () => {
     })
   })
 })
+
+

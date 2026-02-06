@@ -9,6 +9,20 @@ const __dirname = path.dirname(__filename)
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') })
 
+const logEnvSummary = () => {
+  if (process.env.NODE_ENV !== 'production') return
+  console.log('[env] summary', {
+    nodeEnv: process.env.NODE_ENV ?? null,
+    port: process.env.PORT ?? null,
+    backendPort: process.env.BACKEND_PORT ?? null,
+    hasJwtSecret: Boolean(process.env.JWT_SECRET),
+    hasRedisUrl: Boolean(process.env.REDIS_URL),
+    hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+  })
+}
+
+logEnvSummary()
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   RUN_MODE: z.enum(['web', 'worker']).optional(),
@@ -56,15 +70,18 @@ const parsePositiveInt = (value: number | undefined) => {
 const parsed = envSchema.safeParse(process.env)
 if (!parsed.success) {
   const issues = parsed.error.flatten().fieldErrors
+  console.error('[env] invalid variables', issues)
   throw new Error(`Invalid environment variables: ${JSON.stringify(issues)}`)
 }
 
 const raw = parsed.data
 
 if (raw.NODE_ENV === 'production' && !raw.JWT_SECRET) {
+  console.error('[env] missing JWT_SECRET in production')
   throw new Error('JWT_SECRET is required in production')
 }
 if (raw.NODE_ENV === 'production' && !raw.REDIS_URL) {
+  console.error('[env] missing REDIS_URL in production')
   throw new Error('REDIS_URL is required in production')
 }
 

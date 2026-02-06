@@ -53,6 +53,25 @@ fastify.log.info(
   'Chatwork env status'
 )
 
+const handleFatal = async (label: string, error: unknown) => {
+  fastify.log.error({ err: error, label }, 'process error')
+  try {
+    await fastify.close()
+  } catch (closeError) {
+    fastify.log.error({ err: closeError }, 'failed to close fastify')
+  } finally {
+    process.exit(1)
+  }
+}
+
+process.on('unhandledRejection', (reason) => {
+  void handleFatal('unhandledRejection', reason)
+})
+
+process.on('uncaughtException', (error) => {
+  void handleFatal('uncaughtException', error)
+})
+
 fastify.register(cors, {
   origin: env.corsOrigins.length
     ? (origin, callback) => {

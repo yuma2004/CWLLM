@@ -10,9 +10,9 @@ test('Login and basic navigation smoke test', async ({ page }) => {
   await page.getByRole('button', { name: 'ログイン' }).click()
   await page.waitForURL('**/')
 
-  await page.getByRole('link', { name: '企業管理' }).click()
+  await page.getByRole('link', { name: '企業一覧', exact: true }).click()
   await expect(page).toHaveURL(/\/companies(\?.*)?$/)
 
-  await page.getByRole('link', { name: /^タスク管理$/ }).click()
+  await page.getByRole('link', { name: /^タスク一覧$/ }).click()
   await expect(page).toHaveURL(/\/tasks(\?.*)?$/)
 })

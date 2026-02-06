@@ -1,4 +1,4 @@
-﻿BEGIN;
+BEGIN;
 
 -- LLM drafts are no longer used
 DROP TABLE IF EXISTS "summary_drafts";
@@ -12,9 +12,11 @@ ALTER TABLE "summaries" DROP COLUMN IF EXISTS "tokenUsage";
 -- Normalize summary types and remove auto
 UPDATE "summaries" SET "type" = 'manual' WHERE "type" = 'auto';
 CREATE TYPE "SummaryType_new" AS ENUM ('manual');
+ALTER TABLE "summaries" ALTER COLUMN "type" DROP DEFAULT;
 ALTER TABLE "summaries" ALTER COLUMN "type" TYPE "SummaryType_new" USING ("type"::text::"SummaryType_new");
 DROP TYPE "SummaryType";
 ALTER TYPE "SummaryType_new" RENAME TO "SummaryType";
+ALTER TABLE "summaries" ALTER COLUMN "type" SET DEFAULT 'manual';
 
 -- Remove obsolete job type before enum change
 DELETE FROM "jobs" WHERE "type" = 'summary_draft';
