@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ErrorAlert from '../components/ui/ErrorAlert'
@@ -24,34 +24,18 @@ import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants/labels'
 import type { Project, ProjectsFilters, User } from '../types'
 import { formatCurrency } from '../utils/format'
 import { apiRoutes } from '../lib/apiRoutes'
-
-type ProjectCreatePayload = {
-  companyId: string
-  name: string
-  status?: string
-  unitPrice?: number
-  conditions?: string
-  periodStart?: string
-  periodEnd?: string
-  ownerId?: string
-}
+import {
+  buildProjectCreatePayload,
+  type ProjectCreateFormState,
+  type ProjectCreatePayload,
+  validateProjectCreateForm,
+} from '../features/projects/form'
 
 const defaultFilters: ProjectsFilters = {
   q: '',
   status: '',
   companyId: '',
   ownerId: '',
-}
-
-type ProjectFormState = {
-  companyId: string
-  name: string
-  status: string
-  unitPrice: string
-  conditions: string
-  periodStart: string
-  periodEnd: string
-  ownerId: string
 }
 
 type ProjectsFiltersProps = {
@@ -187,12 +171,13 @@ function ProjectsFilters({
 
 type ProjectsCreateFormProps = {
   isOpen: boolean
-  form: ProjectFormState
-  onFormChange: (next: ProjectFormState) => void
+  form: ProjectCreateFormState
+  onFormChange: (next: ProjectCreateFormState) => void
   onSubmit: (event: React.FormEvent) => void
   onClose: () => void
   isCreating: boolean
   userOptions: User[]
+  nameInputRef: React.RefObject<HTMLInputElement>
 }
 
 function ProjectsCreateForm({
@@ -203,6 +188,7 @@ function ProjectsCreateForm({
   onClose,
   isCreating,
   userOptions,
+  nameInputRef,
 }: ProjectsCreateFormProps) {
   if (!isOpen) return null
 
@@ -238,6 +224,7 @@ function ProjectsCreateForm({
               案件名 <span className="text-rose-500">*</span>
             </div>
             <FormInput
+              ref={nameInputRef}
               placeholder="案件名を入力"
               value={form.name}
               onChange={(event) => onFormChange({ ...form, name: event.target.value })}
@@ -470,10 +457,11 @@ function ProjectsTable({
 function Projects() {
   const { canWrite } = usePermissions()
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const createNameRef = useRef<HTMLInputElement>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const { toast, showToast, clearToast } = useToast()
 
-  const [form, setForm] = useState<ProjectFormState>({
+  const [form, setForm] = useState<ProjectCreateFormState>({
     companyId: '',
     name: '',
     status: 'active',
@@ -508,11 +496,13 @@ function Projects() {
       transform: (value) => (typeof value === 'string' ? value.trim() : value),
     },
     fetchOptions: {
+      authMode: 'bearer',
       errorMessage: '案件一覧の取得に失敗しました。',
     },
   })
 
   const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
+    authMode: 'bearer',
     cacheTimeMs: 30_000,
   })
   const userOptions = usersData?.users ?? []
@@ -546,26 +536,28 @@ function Projects() {
 
   useKeyboardShortcut(shortcuts)
 
+  useEffect(() => {
+    if (!showCreateForm) return
+    const frameId = window.requestAnimationFrame(() => {
+      createNameRef.current?.focus()
+    })
+    return () => window.cancelAnimationFrame(frameId)
+  }, [showCreateForm])
+
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()
     setError('')
-    if (!form.companyId.trim() || !form.name.trim()) {
+    if (validateProjectCreateForm(form) !== null) {
       setError('企業と案件名は必須です。')
       return
     }
     try {
-      const payload: ProjectCreatePayload = {
-        companyId: form.companyId.trim(),
-        name: form.name.trim(),
-      }
-      if (form.status) payload.status = form.status
-      if (form.unitPrice) payload.unitPrice = Number(form.unitPrice)
-      if (form.conditions.trim()) payload.conditions = form.conditions.trim()
-      if (form.periodStart) payload.periodStart = form.periodStart
-      if (form.periodEnd) payload.periodEnd = form.periodEnd
-      if (form.ownerId) payload.ownerId = form.ownerId
+      const payload = buildProjectCreatePayload(form)
 
-      await createProject(payload, { errorMessage: '案件の作成に失敗しました。' })
+      await createProject(payload, {
+        authMode: 'bearer',
+        errorMessage: '案件の作成に失敗しました。',
+      })
       setForm({
         companyId: '',
         name: '',
@@ -599,7 +591,11 @@ function Projects() {
     try {
       await updateProjectOwner(
         { ownerId: nextOwnerId },
-        { url: apiRoutes.projects.detail(projectId), errorMessage: '担当者の更新に失敗しました。' }
+        {
+          authMode: 'bearer',
+          url: apiRoutes.projects.detail(projectId),
+          errorMessage: '担当者の更新に失敗しました。',
+        }
       )
       void refetchProjects(undefined, { ignoreCache: true })
       showToast('担当者を更新しました。', 'success')
@@ -664,6 +660,7 @@ function Projects() {
         onClose={() => setShowCreateForm(false)}
         isCreating={isCreating}
         userOptions={userOptions}
+        nameInputRef={createNameRef}
       />
 
       {!canWrite && (

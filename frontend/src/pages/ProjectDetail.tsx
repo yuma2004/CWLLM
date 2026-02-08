@@ -18,26 +18,25 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/ui/Toast'
 import { apiRoutes } from '../lib/apiRoutes'
+import {
+  buildProjectUpdatePayload,
+  buildWholesaleCreatePayload,
+  buildWholesaleUpdatePayload,
+  type ProjectUpdateFormState,
+  type WholesaleCreateFormState,
+  type WholesaleEditFormState,
+  validateProjectUpdateForm,
+} from '../features/projects/detailPayloads'
 import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants/labels'
 import { formatDate, formatDateInput } from '../utils/date'
 import { formatCurrency } from '../utils/format'
 import { Project, User, Wholesale } from '../types'
 
-type ProjectUpdatePayload = {
-  name?: string
-  status?: string
-  unitPrice?: number | null
-  conditions?: string | null
-  periodStart?: string | null
-  periodEnd?: string | null
-  ownerId?: string | null
-}
-
 function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const { canWrite } = usePermissions()
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<WholesaleCreateFormState>({
     companyId: '',
     status: 'active',
     unitPrice: '',
@@ -47,7 +46,7 @@ function ProjectDetail() {
   const [formError, setFormError] = useState('')
 
   const [isEditingProject, setIsEditingProject] = useState(false)
-  const [projectForm, setProjectForm] = useState({
+  const [projectForm, setProjectForm] = useState<ProjectUpdateFormState>({
     name: '',
     status: 'active',
     unitPrice: '',
@@ -59,7 +58,7 @@ function ProjectDetail() {
   const [projectFormError, setProjectFormError] = useState('')
 
   const [editingWholesale, setEditingWholesale] = useState<Wholesale | null>(null)
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<WholesaleEditFormState>({
     status: 'active',
     unitPrice: '',
     conditions: '',
@@ -77,6 +76,7 @@ function ProjectDetail() {
     refetch: refetchProject,
   } = useFetch<{ project: Project }>(id ? apiRoutes.projects.detail(id) : null, {
     enabled: Boolean(id),
+    authMode: 'bearer',
     cacheTimeMs: 10_000,
   })
 
@@ -87,6 +87,7 @@ function ProjectDetail() {
     refetch: refetchWholesales,
   } = useFetch<{ wholesales: Wholesale[] }>(id ? apiRoutes.projects.wholesales(id) : null, {
     enabled: Boolean(id),
+    authMode: 'bearer',
     cacheTimeMs: 10_000,
   })
 
@@ -146,10 +147,11 @@ function ProjectDetail() {
 
   const { mutate: updateProject, isLoading: isUpdatingProject } = useMutation<
     { project: Project },
-    ProjectUpdatePayload
+    ReturnType<typeof buildProjectUpdatePayload>
   >(apiRoutes.projects.base(), 'PATCH')
 
   const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
+    authMode: 'bearer',
     cacheTimeMs: 30_000,
   })
   const userOptions = usersData?.users ?? []
@@ -183,23 +185,16 @@ function ProjectDetail() {
     if (!id) return
     setProjectFormError('')
 
-    if (!projectForm.name.trim()) {
+    if (validateProjectUpdateForm(projectForm) !== null) {
       setProjectFormError('案件名を入力してください。')
       return
     }
 
     try {
-      const payload: ProjectUpdatePayload = {
-        name: projectForm.name.trim(),
-        status: projectForm.status || undefined,
-        unitPrice: projectForm.unitPrice ? Number(projectForm.unitPrice) : null,
-        conditions: projectForm.conditions.trim() || null,
-        periodStart: projectForm.periodStart || null,
-        periodEnd: projectForm.periodEnd || null,
-        ownerId: projectForm.ownerId || null,
-      }
+      const payload = buildProjectUpdatePayload(projectForm)
 
       await updateProject(payload, {
+        authMode: 'bearer',
         url: apiRoutes.projects.detail(id),
         errorMessage: '案件の更新に失敗しました。',
       })
@@ -221,13 +216,9 @@ function ProjectDetail() {
     }
 
     try {
-      await createWholesale({
-        projectId: id,
-        companyId: form.companyId,
-        status: form.status,
-        unitPrice: form.unitPrice ? parseFloat(form.unitPrice) : undefined,
-        conditions: form.conditions || undefined,
-        agreedDate: form.agreedDate || undefined,
+      await createWholesale(buildWholesaleCreatePayload(id, form), {
+        authMode: 'bearer',
+        errorMessage: '卸の作成に失敗しました。',
       })
       setForm({
         companyId: '',
@@ -261,17 +252,11 @@ function ProjectDetail() {
     setEditError('')
 
     try {
-      await updateWholesale(
-        {
-          status: editForm.status,
-          unitPrice: editForm.unitPrice ? parseFloat(editForm.unitPrice) : null,
-          conditions: editForm.conditions || null,
-          agreedDate: editForm.agreedDate || null,
-        },
-        {
-          url: apiRoutes.wholesales.detail(editingWholesale.id),
-        }
-      )
+      await updateWholesale(buildWholesaleUpdatePayload(editForm), {
+        authMode: 'bearer',
+        url: apiRoutes.wholesales.detail(editingWholesale.id),
+        errorMessage: '卸の更新に失敗しました。',
+      })
       setEditingWholesale(null)
       refreshData()
       showToast('卸を更新しました。', 'success')
@@ -291,7 +276,9 @@ function ProjectDetail() {
 
     try {
       await removeWholesale(undefined, {
+        authMode: 'bearer',
         url: apiRoutes.wholesales.detail(deleteTarget.id),
+        errorMessage: '卸の削除に失敗しました。',
       })
       setDeleteTarget(null)
       refreshData()

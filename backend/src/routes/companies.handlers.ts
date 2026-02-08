@@ -20,6 +20,15 @@ import {
   setCache,
 } from '../utils'
 import {
+  buildCompanyListWhere,
+  buildCompanySearchWhere,
+} from '../services/companies/companyQuery'
+import {
+  validateCompanyCreatePayload,
+  validateCompanyUpdatePayload,
+} from '../services/companies/companyValidation'
+import { mergeCompanies } from '../services/companies/companyMutations'
+import {
   CompanyCreateBody,
   CompanyListQuery,
   CompanyMergeBody,
@@ -37,33 +46,12 @@ const prismaErrorOverrides = {
 export const listCompaniesHandler = async (
   request: FastifyRequest<{ Querystring: CompanyListQuery }>
 ) => {
-  const { q, category, status, tag, ownerId } = request.query
   const { page, pageSize, skip } = parsePagination(
     request.query.page,
     request.query.pageSize,
     1000
   )
-
-  const where: Prisma.CompanyWhereInput = {}
-  if (q && q.trim() !== '') {
-    const normalized = normalizeCompanyName(q)
-    where.OR = [
-      { name: { contains: q, mode: 'insensitive' } },
-      { normalizedName: { contains: normalized } },
-    ]
-  }
-  if (category) {
-    where.category = category
-  }
-  if (status) {
-    where.status = status
-  }
-  if (tag) {
-    where.tags = { has: tag }
-  }
-  if (ownerId) {
-    where.ownerIds = { has: ownerId }
-  }
+  const where = buildCompanyListWhere(request.query)
 
   const [items, total] = await prisma.$transaction([
     prisma.company.findMany({
@@ -89,14 +77,8 @@ export const searchCompaniesHandler = async (
 
   const limit = parseLimit(request.query.limit)
 
-  const normalized = normalizeCompanyName(rawQuery)
   const items = await prisma.company.findMany({
-    where: {
-      OR: [
-        { name: { contains: rawQuery, mode: 'insensitive' } },
-        { normalizedName: { contains: normalized } },
-      ],
-    },
+    where: buildCompanySearchWhere(rawQuery),
     orderBy: { name: 'asc' },
     take: limit,
     select: {
@@ -117,16 +99,9 @@ export const createCompanyHandler = async (
 ) => {
   const { name, category, status, profile, ownerIds } = request.body
   const tags = parseStringArray(request.body.tags)
-
-  if (!isNonEmptyString(name)) {
-    return reply.code(400).send(badRequest('Name is required'))
-  }
-  if (tags === null) {
-    return reply.code(400).send(badRequest('Tags must be string array'))
-  }
-
-  if (ownerIds && (!Array.isArray(ownerIds) || ownerIds.some((id) => !isNonEmptyString(id)))) {
-    return reply.code(400).send(badRequest('Invalid ownerIds'))
+  const validationError = validateCompanyCreatePayload({ name, ownerIds, tags })
+  if (validationError) {
+    return reply.code(400).send(badRequest(validationError))
   }
 
   try {
@@ -180,22 +155,18 @@ export const updateCompanyHandler = async (
 ) => {
   const { name, category, status, profile, ownerIds } = request.body
   const tags = parseStringArray(request.body.tags)
-
-  if (name !== undefined && !isNonEmptyString(name)) {
-    return reply.code(400).send(badRequest('Name is required'))
+  const validationError = validateCompanyUpdatePayload({
+    name,
+    category,
+    status,
+    profile,
+    ownerIds,
+    tags,
+  })
+  if (validationError) {
+    return reply.code(400).send(badRequest(validationError))
   }
-  if (!isNullableString(category) || !isNullableString(profile)) {
-    return reply.code(400).send(badRequest('Invalid payload'))
-  }
-  if (status !== undefined && !isNonEmptyString(status)) {
-    return reply.code(400).send(badRequest('Status is required'))
-  }
-  if (ownerIds && (!Array.isArray(ownerIds) || ownerIds.some((id) => !isNonEmptyString(id)))) {
-    return reply.code(400).send(badRequest('Invalid ownerIds'))
-  }
-  if (tags === null) {
-    return reply.code(400).send(badRequest('Tags must be string array'))
-  }
+  const safeTags = tags === null ? undefined : tags
 
   const data: Prisma.CompanyUpdateInput = {}
   if (name !== undefined) {
@@ -222,8 +193,8 @@ export const updateCompanyHandler = async (
   if (profile !== undefined) {
     data.profile = profile
   }
-  if (tags !== undefined) {
-    data.tags = tags
+  if (safeTags !== undefined) {
+    data.tags = safeTags
   }
   if (ownerIds !== undefined) {
     data.ownerIds = ownerIds
@@ -488,101 +459,10 @@ export const mergeCompanyHandler = async (
     return reply.code(400).send(badRequest('sourceCompanyId must be different'))
   }
 
-  const [targetCompany, sourceCompany] = await prisma.$transaction([
-    prisma.company.findUnique({ where: { id: targetCompanyId } }),
-    prisma.company.findUnique({ where: { id: sourceCompanyId } }),
-  ])
-
-  if (!targetCompany) {
+  const updatedCompany = await mergeCompanies(targetCompanyId, sourceCompanyId)
+  if (!updatedCompany) {
     return reply.code(404).send(notFound('Company'))
   }
-  if (!sourceCompany) {
-    return reply.code(404).send(notFound('Company'))
-  }
-
-  const mergedTags = Array.from(
-    new Set([...(targetCompany.tags ?? []), ...(sourceCompany.tags ?? [])])
-  )
-  const mergedOwnerIds = Array.from(
-    new Set([...(targetCompany.ownerIds ?? []), ...(sourceCompany.ownerIds ?? [])])
-  )
-  const mergedCategory = targetCompany.category ?? sourceCompany.category ?? null
-  const mergedProfile = targetCompany.profile ?? sourceCompany.profile ?? null
-
-  const updatedCompany = await prisma.$transaction(async (tx) => {
-    const sourceContacts = await tx.contact.findMany({
-      where: { companyId: sourceCompanyId },
-      orderBy: [{ sortKey: 'asc' }, { createdAt: 'asc' }],
-    })
-
-    for (const contact of sourceContacts) {
-      await tx.contact.update({
-        where: { id: contact.id },
-        data: {
-          companyId: targetCompanyId,
-          sortKey: generateSortKey(),
-        },
-      })
-    }
-
-    await tx.project.updateMany({
-      where: { companyId: sourceCompanyId },
-      data: { companyId: targetCompanyId },
-    })
-    await tx.wholesale.updateMany({
-      where: { companyId: sourceCompanyId },
-      data: { companyId: targetCompanyId },
-    })
-    await tx.message.updateMany({
-      where: { companyId: sourceCompanyId },
-      data: { companyId: targetCompanyId },
-    })
-    await tx.summary.updateMany({
-      where: { companyId: sourceCompanyId },
-      data: { companyId: targetCompanyId },
-    })
-
-    const targetRoomLinks = await tx.companyRoomLink.findMany({
-      where: { companyId: targetCompanyId },
-      select: { chatworkRoomId: true },
-    })
-    const targetRoomIds = new Set(targetRoomLinks.map((link) => link.chatworkRoomId))
-    const sourceRoomLinks = await tx.companyRoomLink.findMany({
-      where: { companyId: sourceCompanyId },
-      select: { id: true, chatworkRoomId: true },
-    })
-    for (const link of sourceRoomLinks) {
-      if (targetRoomIds.has(link.chatworkRoomId)) {
-        await tx.companyRoomLink.delete({ where: { id: link.id } })
-      } else {
-        await tx.companyRoomLink.update({
-          where: { id: link.id },
-          data: { companyId: targetCompanyId },
-        })
-      }
-    }
-
-    await tx.task.updateMany({
-      where: { targetType: 'company', targetId: sourceCompanyId },
-      data: { targetId: targetCompanyId },
-    })
-
-    const company = await tx.company.update({
-      where: { id: targetCompanyId },
-      data: {
-        tags: mergedTags,
-        ownerIds: mergedOwnerIds,
-        category: mergedCategory,
-        profile: mergedProfile,
-      },
-    })
-
-    await tx.company.delete({ where: { id: sourceCompanyId } })
-
-    return company
-  })
-
-  deleteCache(CACHE_KEYS.companyOptions)
 
   return { company: updatedCompany }
 }

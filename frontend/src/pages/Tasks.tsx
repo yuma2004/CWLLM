@@ -27,6 +27,18 @@ import type { Task, TasksFilters, User } from '../types'
 import { apiRoutes } from '../lib/apiRoutes'
 import { TASK_STRINGS } from '../strings/tasks'
 import { targetTypeLabel } from '../constants/labels'
+import {
+  buildTaskCreatePayload,
+  type TaskCreateFormState,
+  type TaskCreateTargetType,
+  validateTaskCreateForm,
+} from '../features/tasks/createForm'
+import {
+  buildBulkTaskUpdatePayload,
+  toggleSelectAllTaskIds,
+  toggleTaskSelection,
+  validateBulkTaskUpdateInput,
+} from '../features/tasks/state'
 
 const defaultFilters: TasksFilters = {
   q: '',
@@ -37,7 +49,6 @@ const defaultFilters: TasksFilters = {
   dueTo: '',
 }
 
-const GENERAL_TARGET_ID = 'general'
 const CREATE_TARGET_OPTIONS = [
   { value: 'company', label: targetTypeLabel('company') },
   { value: 'general', label: targetTypeLabel('general') },
@@ -97,7 +108,7 @@ function Tasks() {
   const [bulkDueDate, setBulkDueDate] = useState('')
   const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
-  const [createForm, setCreateForm] = useState({
+  const [createForm, setCreateForm] = useState<TaskCreateFormState>({
     targetType: 'company',
     title: '',
     description: '',
@@ -200,6 +211,14 @@ function Tasks() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [isCreateDirty])
+
+  useEffect(() => {
+    if (!isCreateOpen) return
+    const frameId = window.requestAnimationFrame(() => {
+      createTitleRef.current?.focus()
+    })
+    return () => window.cancelAnimationFrame(frameId)
+  }, [isCreateOpen])
 
   const shortcuts = useMemo(() => [createSearchShortcut(searchInputRef)], [searchInputRef])
 
@@ -306,12 +325,12 @@ function Tasks() {
   const handleCreateTask = async (event: React.FormEvent) => {
     event.preventDefault()
     setCreateError('')
-    const nextErrors: { title?: string; companyId?: string } = {}
-    if (!createForm.title.trim()) {
-      nextErrors.title = TASK_STRINGS.errors.createTitleRequired
-    }
-    if (createForm.targetType === 'company' && !createForm.companyId) {
-      nextErrors.companyId = TASK_STRINGS.errors.createCompanyRequired
+    const validationErrors = validateTaskCreateForm(createForm)
+    const nextErrors: { title?: string; companyId?: string } = {
+      ...(validationErrors.title ? { title: TASK_STRINGS.errors.createTitleRequired } : {}),
+      ...(validationErrors.companyId
+        ? { companyId: TASK_STRINGS.errors.createCompanyRequired }
+        : {}),
     }
     if (Object.keys(nextErrors).length > 0) {
       setCreateFieldErrors(nextErrors)
@@ -325,17 +344,8 @@ function Tasks() {
     setCreateFieldErrors({})
 
     try {
-      const targetType = createForm.targetType
-      const targetId = targetType === 'general' ? GENERAL_TARGET_ID : createForm.companyId
       await createTask(
-        {
-          targetType,
-          targetId,
-          title: createForm.title.trim(),
-          description: createForm.description.trim() || undefined,
-          dueDate: createForm.dueDate || undefined,
-          assigneeId: createForm.assigneeId || undefined,
-        },
+        buildTaskCreatePayload(createForm),
         { authMode: 'bearer', errorMessage: TASK_STRINGS.errors.create }
       )
       showToast(TASK_STRINGS.success.create, 'success')
@@ -349,24 +359,28 @@ function Tasks() {
 
   const handleBulkUpdate = async () => {
     if (!canWrite) return
-    if (selectedIds.length === 0) {
-      setError(TASK_STRINGS.errors.bulkSelectTargets)
-      return
-    }
-    if (!bulkStatus && !bulkDueDate && !clearBulkDueDate) {
-      setError(TASK_STRINGS.errors.bulkSelectFields)
+    const validation = validateBulkTaskUpdateInput(
+      selectedIds,
+      bulkStatus,
+      bulkDueDate,
+      clearBulkDueDate
+    )
+    if (!validation.ok) {
+      setError(
+        validation.reason === 'missing-task-ids'
+          ? TASK_STRINGS.errors.bulkSelectTargets
+          : TASK_STRINGS.errors.bulkSelectFields
+      )
       return
     }
     setError('')
     try {
-      const payload: {
-        taskIds: string[]
-        status?: string
-        dueDate?: string | null
-      } = { taskIds: selectedIds }
-      if (bulkStatus) payload.status = bulkStatus
-      if (bulkDueDate) payload.dueDate = bulkDueDate
-      if (clearBulkDueDate) payload.dueDate = null
+      const payload = buildBulkTaskUpdatePayload(
+        selectedIds,
+        bulkStatus,
+        bulkDueDate,
+        clearBulkDueDate
+      )
       await bulkUpdateTasks(payload, { authMode: 'bearer', errorMessage: TASK_STRINGS.errors.bulk })
       setSelectedIds([])
       setBulkStatus('')
@@ -399,17 +413,11 @@ function Tasks() {
   const allSelected = tasks.length > 0 && selectedIds.length === tasks.length
 
   const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedIds([])
-    } else {
-      setSelectedIds(tasks.map((task) => task.id))
-    }
+    setSelectedIds(toggleSelectAllTaskIds(allSelected, tasks))
   }
 
   const toggleSelected = (taskId: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
-    )
+    setSelectedIds((prev) => toggleTaskSelection(prev, taskId))
   }
 
   const handlePageChange = (nextPage: number) => {
@@ -716,7 +724,8 @@ function Tasks() {
               label={TASK_STRINGS.labels.createTargetType}
               value={createForm.targetType}
               onChange={(event) => {
-                const nextType = event.target.value
+                const nextType: TaskCreateTargetType =
+                  event.target.value === 'general' ? 'general' : 'company'
                 setCreateForm((prev) => ({
                   ...prev,
                   targetType: nextType,
@@ -822,10 +831,6 @@ function Tasks() {
 }
 
 export default Tasks
-
-
-
-
 
 
 
