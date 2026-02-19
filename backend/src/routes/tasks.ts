@@ -1,4 +1,4 @@
-﻿import { FastifyInstance } from 'fastify'
+import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { requireAdmin, requireAuth, requireWriteAccess } from '../middleware/rbac'
@@ -29,8 +29,36 @@ import {
   updateTaskHandler,
 } from './tasks.handlers'
 
+type TargetTaskListRequest = import('fastify').FastifyRequest<{
+  Params: { id: string }
+  Querystring: TaskListQuery
+}>
+
+type TargetTaskListHandler = (
+  request: TargetTaskListRequest,
+  reply: import('fastify').FastifyReply
+) => Promise<unknown>
+
+const targetTaskListSchema = () => ({
+  tags: ['Tasks'],
+  params: taskParamsSchema,
+  querystring: taskListQuerySchema,
+  response: {
+    200: taskListResponseSchema,
+  },
+})
+
 export async function taskRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
+  const registerTargetTaskListRoute = (path: string, handler: TargetTaskListHandler) =>
+    app.get<{ Params: { id: string }; Querystring: TaskListQuery }>(
+      path,
+      {
+        preHandler: requireAuth(),
+        schema: targetTaskListSchema(),
+      },
+      handler
+    )
 
   app.get<{ Querystring: TaskListQuery }>(
     '/tasks',
@@ -138,51 +166,7 @@ export async function taskRoutes(fastify: FastifyInstance) {
     listMyTasksHandler
   )
 
-  app.get<{ Params: { id: string }; Querystring: TaskListQuery }>(
-    '/companies/:id/tasks',
-    {
-      preHandler: requireAuth(),
-      schema: {
-        tags: ['Tasks'],
-        params: taskParamsSchema,
-        querystring: taskListQuerySchema,
-        response: {
-          200: taskListResponseSchema,
-        },
-      },
-    },
-    listCompanyTasksHandler
-  )
-
-  app.get<{ Params: { id: string }; Querystring: TaskListQuery }>(
-    '/projects/:id/tasks',
-    {
-      preHandler: requireAuth(),
-      schema: {
-        tags: ['Tasks'],
-        params: taskParamsSchema,
-        querystring: taskListQuerySchema,
-        response: {
-          200: taskListResponseSchema,
-        },
-      },
-    },
-    listProjectTasksHandler
-  )
-
-  app.get<{ Params: { id: string }; Querystring: TaskListQuery }>(
-    '/wholesales/:id/tasks',
-    {
-      preHandler: requireAuth(),
-      schema: {
-        tags: ['Tasks'],
-        params: taskParamsSchema,
-        querystring: taskListQuerySchema,
-        response: {
-          200: taskListResponseSchema,
-        },
-      },
-    },
-    listWholesaleTasksHandler
-  )
+  registerTargetTaskListRoute('/companies/:id/tasks', listCompanyTasksHandler)
+  registerTargetTaskListRoute('/projects/:id/tasks', listProjectTasksHandler)
+  registerTargetTaskListRoute('/wholesales/:id/tasks', listWholesaleTasksHandler)
 }

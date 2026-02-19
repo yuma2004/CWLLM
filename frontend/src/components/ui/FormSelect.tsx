@@ -1,5 +1,6 @@
-﻿import { forwardRef, useId } from 'react'
+import { forwardRef, useId } from 'react'
 import { cn } from '../../lib/cn'
+import { FormFieldWrapper } from './FormFieldWrapper'
 
 type FormSelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
   label?: string
@@ -43,29 +44,16 @@ const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
     const describedBy = [ariaDescribedByProp, errorId].filter(Boolean).join(' ') || undefined
     const ariaInvalid = ariaInvalidProp ?? Boolean(error)
 
-    if (noContainer) {
-      return (
-        <select
-          ref={ref}
-          id={selectId}
-          className={selectClassName}
-          aria-label={ariaLabel}
-          aria-describedby={describedBy}
-          aria-invalid={ariaInvalid}
-          {...props}
-        >
-          {children}
-        </select>
-      )
-    }
-
     return (
-      <div className={containerClassName}>
-        {label && (
-          <label htmlFor={selectId} className="mb-1 block text-xs font-medium text-notion-text-secondary">
-            {label}
-          </label>
-        )}
+      <FormFieldWrapper
+        label={label}
+        fieldId={selectId}
+        error={error}
+        errorId={errorId}
+        hint={hint}
+        containerClassName={containerClassName}
+        noContainer={noContainer}
+      >
         <select
           ref={ref}
           id={selectId}
@@ -77,9 +65,7 @@ const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
         >
           {children}
         </select>
-        {error ? <p id={errorId} className="mt-1 text-xs text-rose-600">{error}</p> : null}
-        {hint && <p className="mt-1 text-xs text-notion-text-tertiary">{hint}</p>}
-      </div>
+      </FormFieldWrapper>
     )
   }
 )
@@ -87,4 +73,3 @@ const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
 FormSelect.displayName = 'FormSelect'
 
 export default FormSelect
-

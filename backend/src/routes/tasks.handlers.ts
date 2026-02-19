@@ -1,4 +1,4 @@
-﻿import { FastifyReply, FastifyRequest } from 'fastify'
+import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma, TaskStatus, TargetType } from '@prisma/client'
 import {
   badRequest,
@@ -25,6 +25,7 @@ import {
   buildTaskWhere,
   listTasks,
   parseTaskListFilters,
+  type TaskListFilterResult,
 } from '../services/tasks/taskQuery'
 import {
   TaskBulkUpdateBody,
@@ -36,59 +37,70 @@ import {
 const normalizeStatus = createEnumNormalizer(new Set(Object.values(TaskStatus)))
 const normalizeTargetType = createEnumNormalizer(new Set(Object.values(TargetType)))
 
-const listTasksForTarget = async (
-  targetType: TargetType,
-  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
+type TaskListFilters = Extract<TaskListFilterResult, { ok: true }>
+
+type TaskListRequestContext = {
+  user: JWTUser
+  filters: TaskListFilters
+  page: number
+  pageSize: number
+  skip: number
+  assigneeId?: string
+}
+
+const resolveTaskListRequestContext = (
+  request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
-) => {
+): TaskListRequestContext | FastifyReply => {
   const user = request.user as JWTUser | undefined
   if (!user?.userId) {
     return reply.code(401).send(unauthorized())
   }
+
   const filters = parseTaskListFilters(request.query)
   if (!filters.ok) {
     return reply.code(400).send(badRequest(filters.error))
   }
 
-  const { page, pageSize, skip } = parsePagination(
-    request.query.page,
-    request.query.pageSize
-  )
-
+  const { page, pageSize, skip } = parsePagination(request.query.page, request.query.pageSize)
   const assigneeId = resolveTaskAssigneeFilter(user, request.query.assigneeId)
-  const where = buildTaskWhere(filters, {
-    assigneeId,
+
+  return { user, filters, page, pageSize, skip, assigneeId }
+}
+
+const listTasksForTarget = async (
+  targetType: TargetType,
+  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
+  reply: FastifyReply
+) => {
+  const context = resolveTaskListRequestContext(request, reply)
+  if (!('user' in context)) {
+    return context
+  }
+
+  const where = buildTaskWhere(context.filters, {
+    assigneeId: context.assigneeId,
     targetType,
     targetId: request.params.id,
   })
-  return listTasks(where, page, pageSize, skip)
+  return listTasks(where, context.page, context.pageSize, context.skip)
 }
 
 export const listTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
-  const filters = parseTaskListFilters(request.query)
-  if (!filters.ok) {
-    return reply.code(400).send(badRequest(filters.error))
+  const context = resolveTaskListRequestContext(request, reply)
+  if (!('user' in context)) {
+    return context
   }
 
-  const { page, pageSize, skip } = parsePagination(
-    request.query.page,
-    request.query.pageSize
-  )
-
-  const assigneeId = resolveTaskAssigneeFilter(user, request.query.assigneeId)
-  const where = buildTaskWhere(filters, {
-    assigneeId,
-    targetType: filters.targetType,
+  const where = buildTaskWhere(context.filters, {
+    assigneeId: context.assigneeId,
+    targetType: context.filters.targetType,
     targetId: request.query.targetId,
   })
-  return listTasks(where, page, pageSize, skip)
+  return listTasks(where, context.page, context.pageSize, context.skip)
 }
 
 export const getTaskHandler = async (
@@ -314,27 +326,7 @@ export const listMyTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
-  const filters = parseTaskListFilters(request.query)
-  if (!filters.ok) {
-    return reply.code(400).send(badRequest(filters.error))
-  }
-
-  const { page, pageSize, skip } = parsePagination(
-    request.query.page,
-    request.query.pageSize
-  )
-
-  const assigneeId = resolveTaskAssigneeFilter(user, request.query.assigneeId)
-  const where = buildTaskWhere(filters, {
-    assigneeId,
-    targetType: filters.targetType,
-    targetId: request.query.targetId,
-  })
-  return listTasks(where, page, pageSize, skip)
+  return listTasksHandler(request, reply)
 }
 
 export const listCompanyTasksHandler = async (

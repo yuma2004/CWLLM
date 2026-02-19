@@ -1,5 +1,6 @@
 import { forwardRef, useId } from 'react'
 import { cn } from '../../lib/cn'
+import { FormFieldWrapper } from './FormFieldWrapper'
 
 type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string
@@ -43,28 +44,16 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
     const describedBy = [ariaDescribedByProp, errorId].filter(Boolean).join(' ') || undefined
     const ariaInvalid = ariaInvalidProp ?? Boolean(error)
 
-    if (noContainer) {
-      return (
-        <input
-          ref={ref}
-          id={inputId}
-          className={inputClassName}
-          placeholder={placeholder}
-          aria-label={ariaLabel}
-          aria-describedby={describedBy}
-          aria-invalid={ariaInvalid}
-          {...props}
-        />
-      )
-    }
-
     return (
-      <div className={containerClassName}>
-        {label && (
-          <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-notion-text-secondary">
-            {label}
-          </label>
-        )}
+      <FormFieldWrapper
+        label={label}
+        fieldId={inputId}
+        error={error}
+        errorId={errorId}
+        hint={hint}
+        containerClassName={containerClassName}
+        noContainer={noContainer}
+      >
         <input
           ref={ref}
           id={inputId}
@@ -75,9 +64,7 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
           aria-invalid={ariaInvalid}
           {...props}
         />
-        {error ? <p id={errorId} className="mt-1 text-xs text-rose-600">{error}</p> : null}
-        {hint && <p className="mt-1 text-xs text-notion-text-tertiary">{hint}</p>}
-      </div>
+      </FormFieldWrapper>
     )
   }
 )

@@ -1,5 +1,6 @@
 import { forwardRef, useId } from 'react'
 import { cn } from '../../lib/cn'
+import { FormFieldWrapper } from './FormFieldWrapper'
 
 type FormTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   label?: string
@@ -43,28 +44,16 @@ const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
     const describedBy = [ariaDescribedByProp, errorId].filter(Boolean).join(' ') || undefined
     const ariaInvalid = ariaInvalidProp ?? Boolean(error)
 
-    if (noContainer) {
-      return (
-        <textarea
-          ref={ref}
-          id={textareaId}
-          className={textareaClassName}
-          placeholder={placeholder}
-          aria-label={ariaLabel}
-          aria-describedby={describedBy}
-          aria-invalid={ariaInvalid}
-          {...props}
-        />
-      )
-    }
-
     return (
-      <div className={containerClassName}>
-        {label && (
-          <label htmlFor={textareaId} className="mb-1 block text-xs font-medium text-notion-text-secondary">
-            {label}
-          </label>
-        )}
+      <FormFieldWrapper
+        label={label}
+        fieldId={textareaId}
+        error={error}
+        errorId={errorId}
+        hint={hint}
+        containerClassName={containerClassName}
+        noContainer={noContainer}
+      >
         <textarea
           ref={ref}
           id={textareaId}
@@ -75,9 +64,7 @@ const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
           aria-invalid={ariaInvalid}
           {...props}
         />
-        {error ? <p id={errorId} className="mt-1 text-xs text-rose-600">{error}</p> : null}
-        {hint && <p className="mt-1 text-xs text-notion-text-tertiary">{hint}</p>}
-      </div>
+      </FormFieldWrapper>
     )
   }
 )
