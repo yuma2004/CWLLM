@@ -1,4 +1,5 @@
 export * from './chatwork'
 export * from './chatworkSync'
 export * from './jobQueue'
+export * from './messages'
 export * from './taskTargets'

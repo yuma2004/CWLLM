@@ -10,14 +10,9 @@ import Pagination from '../components/ui/Pagination'
 import EmptyState from '../components/ui/EmptyState'
 import ActiveFilters from '../components/ui/ActiveFilters'
 import FilterBadge from '../components/ui/FilterBadge'
-import { useFetch, useMutation } from '../hooks/useApi'
-import { usePermissions } from '../hooks/usePermissions'
-import { useToast } from '../hooks/useToast'
-import { apiSend } from '../lib/apiClient'
-import { apiRoutes } from '../lib/apiRoutes'
 import { cn } from '../lib/cn'
-import { toErrorMessage } from '../utils/errorState'
 import { ChatworkRoom, JobRecord } from '../types'
+import { useChatworkSettingsPage } from '../features/chatwork/useChatworkSettingsPage'
 
 type RefetchResult<T> = (
   overrideInit?: RequestInit,
@@ -31,15 +26,6 @@ type ChatworkJobProgressProps = {
   refetchRooms: RefetchResult<{ rooms: ChatworkRoom[] }>
   showToast: (message: string, variant: 'success' | 'error' | 'info' | undefined) => void
   onCancel: () => void
-}
-
-type RoomFilter = 'all' | 'active' | 'inactive' | 'error'
-
-const ROOM_FILTER_LABELS: Record<RoomFilter, string> = {
-  all: 'すべて',
-  active: '稼働中',
-  inactive: '停止中',
-  error: 'エラーあり',
 }
 
 function ChatworkJobProgress({
@@ -96,11 +82,11 @@ function ChatworkJobProgress({
     const previous = statusRef.current
     if (previous && previous !== activeJob.status) {
       if (activeJob.status === 'completed') {
-        showToast('同期が完了しました。', 'success')
+        showToast('同期が完亁E��ました、E, 'success')
       } else if (activeJob.status === 'failed') {
-        showToast('同期に失敗しました。', 'error')
+        showToast('同期に失敗しました、E, 'error')
       } else if (activeJob.status === 'canceled') {
-        showToast('同期をキャンセルしました。', 'info')
+        showToast('同期をキャンセルしました、E, 'info')
       }
     }
     statusRef.current = activeJob.status
@@ -131,7 +117,7 @@ function ChatworkJobProgress({
 
   return (
     <JobProgressCard
-      title={`ジョブ: ${activeJob.type ?? 'chatwork'}`}
+      title={`ジョチE ${activeJob.type ?? 'chatwork'}`}
       job={activeJob}
       progress={jobProgress}
       isPolling={isPolling}
@@ -141,231 +127,50 @@ function ChatworkJobProgress({
 }
 
 function ChatworkSettings() {
-  const { isAdmin } = usePermissions()
-  const canManageChatwork = isAdmin
-  const [activeJob, setActiveJob] = useState<JobRecord | null>(null)
-  const [actionError, setActionError] = useState('')
-  const [roomQuery, setRoomQuery] = useState('')
-  const [roomFilter, setRoomFilter] = useState<RoomFilter>('all')
-  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
-  const [roomPage, setRoomPage] = useState(1)
-  const [roomPageSize, setRoomPageSize] = useState(20)
-  const [isBulkUpdating, setIsBulkUpdating] = useState(false)
-  const { toast, showToast, clearToast } = useToast()
-
   const {
-    data: roomsData,
-    isLoading: isLoadingRooms,
-    error: roomsError,
-    refetch: refetchRooms,
-  } = useFetch<{ rooms: ChatworkRoom[] }>(
-    canManageChatwork ? apiRoutes.chatwork.rooms() : null,
-    {
-      enabled: canManageChatwork,
-      errorMessage: 'Chatworkルーム一覧の取得に失敗しました。',
-      cacheTimeMs: 10_000,
-    }
-  )
-
-  const filteredRooms = useMemo(() => {
-    const rooms = roomsData?.rooms ?? []
-    const query = roomQuery.trim().toLowerCase()
-    return rooms.filter((room) => {
-      if (roomFilter === 'active' && !room.isActive) return false
-      if (roomFilter === 'inactive' && room.isActive) return false
-      if (roomFilter === 'error' && !room.lastErrorMessage && !room.lastErrorAt) return false
-      if (!query) return true
-      const haystack = [room.name, room.roomId, room.description, room.lastErrorMessage]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(query)
-    })
-  }, [roomsData, roomFilter, roomQuery])
-
-  const totalRooms = filteredRooms.length
-  const totalPages = Math.max(1, Math.ceil(totalRooms / roomPageSize))
-  const currentPage = Math.min(roomPage, totalPages)
-  const pagedRooms = useMemo(() => {
-    const start = (currentPage - 1) * roomPageSize
-    return filteredRooms.slice(start, start + roomPageSize)
-  }, [currentPage, filteredRooms, roomPageSize])
-  const selectedRoomSet = useMemo(() => new Set(selectedRoomIds), [selectedRoomIds])
-  const allFilteredSelected =
-    filteredRooms.length > 0 && filteredRooms.every((room) => selectedRoomSet.has(room.id))
-  const hasRoomFilters = roomQuery.trim().length > 0 || roomFilter !== 'all'
-  const roomFilterLabel = ROOM_FILTER_LABELS[roomFilter]
-
-  const { mutate: queueRoomSync, isLoading: isQueueingRooms } = useMutation<
-    { jobId: string; status: JobRecord['status'] },
-    void
-  >(apiRoutes.chatwork.roomsSync(), 'POST')
-
-  const { mutate: queueMessageSync, isLoading: isQueueingMessages } = useMutation<
-    { jobId: string; status: JobRecord['status'] },
-    void
-  >(apiRoutes.chatwork.messagesSync(), 'POST')
-
-  const { mutate: toggleRoom } = useMutation<{ room: ChatworkRoom }, { isActive: boolean }>(
-    apiRoutes.chatwork.rooms(),
-    'PATCH'
-  )
-
-  const { mutate: cancelJob } = useMutation<{ job: JobRecord }, void>(apiRoutes.jobs.base(), 'POST')
-
-  const { data: jobData, error: jobError, refetch: refetchJob } = useFetch<{ job: JobRecord }>(
-    activeJob ? apiRoutes.jobs.detail(activeJob.id) : null,
-    {
-      enabled: false,
-      errorMessage: 'ジョブの取得に失敗しました。',
-    }
-  )
-
-  useEffect(() => {
-    if (!jobData?.job) return
-    setActiveJob(jobData.job)
-  }, [jobData])
-
-  const handleRoomSync = async () => {
-    setActionError('')
-    try {
-      const data = await queueRoomSync(undefined, {
-        errorMessage: 'ルーム同期に失敗しました。',
-      })
-      if (data) {
-        setActiveJob({ id: data.jobId, type: 'chatwork_rooms_sync', status: data.status })
-        showToast('ルーム同期を開始しました。', 'success')
-      }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'ルーム同期に失敗しました。')
-    }
-  }
-
-  const handleMessageSync = async () => {
-    setActionError('')
-    try {
-      const data = await queueMessageSync(undefined, {
-        errorMessage: 'メッセージ同期に失敗しました。',
-      })
-      if (data) {
-        setActiveJob({
-          id: data.jobId,
-          type: 'chatwork_messages_sync',
-          status: data.status,
-        })
-        showToast('メッセージ同期を開始しました。', 'success')
-      }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'メッセージ同期に失敗しました。')
-    }
-  }
-
-  const handleToggle = async (room: ChatworkRoom) => {
-    setActionError('')
-    try {
-      await toggleRoom(
-        { isActive: !room.isActive },
-        {
-          url: apiRoutes.chatwork.room(room.id),
-          errorMessage: 'ルームの状態更新に失敗しました。',
-          onSuccess: () => {
-            void refetchRooms(undefined, { ignoreCache: true })
-          },
-        }
-      )
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'ルームの状態更新に失敗しました。')
-    }
-  }
-
-  const handleRoomQueryChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setRoomQuery(event.target.value)
-    setRoomPage(1)
-    setSelectedRoomIds([])
-  }
-
-  const handleRoomFilterChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    setRoomFilter(event.target.value as RoomFilter)
-    setRoomPage(1)
-    setSelectedRoomIds([])
-  }
-
-  const handleClearRoomFilters = () => {
-    setRoomQuery('')
-    setRoomFilter('all')
-    setRoomPage(1)
-    setSelectedRoomIds([])
-  }
-
-  const handleRoomPageSizeChange = (pageSize: number) => {
-    setRoomPageSize(pageSize)
-    setRoomPage(1)
-  }
-
-  const toggleSelectRoom = (roomId: string) => {
-    setSelectedRoomIds((prev) =>
-      prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]
-    )
-  }
-
-  const toggleSelectAllFiltered = () => {
-    if (allFilteredSelected) {
-      setSelectedRoomIds((prev) =>
-        prev.filter((id) => !filteredRooms.some((room) => room.id === id))
-      )
-      return
-    }
-    setSelectedRoomIds((prev) => {
-      const next = new Set(prev)
-      filteredRooms.forEach((room) => next.add(room.id))
-      return Array.from(next)
-    })
-  }
-
-  const handleBulkToggle = async (nextActive: boolean) => {
-    if (selectedRoomIds.length === 0) return
-    setActionError('')
-    setIsBulkUpdating(true)
-    try {
-      await Promise.all(
-        selectedRoomIds.map((roomId) =>
-          apiSend(apiRoutes.chatwork.room(roomId), 'PATCH', { isActive: nextActive })
-        )
-      )
-      setSelectedRoomIds([])
-      void refetchRooms(undefined, { ignoreCache: true })
-      showToast(nextActive ? '選択ルームを有効化しました。' : '選択ルームを無効化しました。', 'success')
-    } catch (err) {
-      const message = toErrorMessage(err, '一括更新に失敗しました。')
-      setActionError(message)
-      showToast(message, 'error')
-    } finally {
-      setIsBulkUpdating(false)
-    }
-  }
-
-  const handleCancelJob = async () => {
-    if (!activeJob?.id) return
-    setActionError('')
-    try {
-      const data = await cancelJob(undefined, {
-        url: apiRoutes.jobs.cancel(activeJob.id),
-        errorMessage: 'ジョブのキャンセルに失敗しました。',
-      })
-      if (data?.job) {
-        setActiveJob(data.job)
-      }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'ジョブのキャンセルに失敗しました。')
-    }
-  }
-
-  const errorMessage = actionError || roomsError || jobError
-
+    canManageChatwork,
+    activeJob,
+    setActiveJob,
+    roomQuery,
+    setRoomQuery,
+    roomFilter,
+    setRoomFilter,
+    selectedRoomIds,
+    setSelectedRoomIds,
+    isBulkUpdating,
+    toast,
+    clearToast,
+    isLoadingRooms,
+    refetchRooms,
+    refetchJob,
+    showToast,
+    filteredRooms,
+    totalRooms,
+    currentPage,
+    pagedRooms,
+    selectedRoomSet,
+    allFilteredSelected,
+    hasRoomFilters,
+    roomFilterLabel,
+    isQueueingRooms,
+    isQueueingMessages,
+    errorMessage,
+    handleRoomSync,
+    handleMessageSync,
+    handleToggle,
+    handleRoomQueryChange,
+    handleRoomFilterChange,
+    handleClearRoomFilters,
+    handleRoomPageSizeChange,
+    toggleSelectRoom,
+    toggleSelectAllFiltered,
+    handleBulkToggle,
+    handleCancelJob,
+  } = useChatworkSettingsPage()
   if (!canManageChatwork) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-        権限が不足しているため、Chatwork設定を表示できません。
+        権限が不足してぁE��ため、Chatwork設定を表示できません、E
       </div>
     )
   }
@@ -374,7 +179,7 @@ function ChatworkSettings() {
     <div className="space-y-4">
       <div>
         <p className="text-sm uppercase text-slate-400">Chatwork</p>
-        <h2 className="text-3xl font-bold text-slate-900">Chatwork設定</h2>
+        <h2 className="text-3xl font-bold text-slate-900">Chatwork設宁E/h2>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -395,7 +200,7 @@ function ChatworkSettings() {
           isLoading={isQueueingMessages}
           loadingLabel="同期中..."
         >
-          メッセージ同期
+          メチE��ージ同期
         </Button>
       </div>
 
@@ -424,7 +229,7 @@ function ChatworkSettings() {
               className="rounded border-slate-300"
               disabled={filteredRooms.length === 0 || isBulkUpdating || isLoadingRooms}
             />
-            すべて選択
+            すべて選抁E
           </label>
         </div>
 
@@ -433,12 +238,12 @@ function ChatworkSettings() {
             label="検索"
             value={roomQuery}
             onChange={handleRoomQueryChange}
-            placeholder="ルーム名・ID・エラー内容"
+            placeholder="ルーム名�EID・エラー冁E��"
             name="roomSearch"
             autoComplete="off"
           />
           <FormSelect
-            label="状態"
+            label="状慁E
             value={roomFilter}
             onChange={handleRoomFilterChange}
             name="roomFilter"
@@ -474,7 +279,7 @@ function ChatworkSettings() {
           )}
           {roomFilter !== 'all' && (
             <FilterBadge
-              label={`状態: ${roomFilterLabel}`}
+              label={`状慁E ${roomFilterLabel}`}
               onRemove={() => {
                 setRoomFilter('all')
                 setRoomPage(1)
@@ -503,7 +308,7 @@ function ChatworkSettings() {
                 className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                 disabled={isBulkUpdating}
               >
-                一括有効化
+                一括有効匁E
               </button>
               <button
                 type="button"
@@ -511,7 +316,7 @@ function ChatworkSettings() {
                 className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                 disabled={isBulkUpdating}
               >
-                一括無効化
+                一括無効匁E
               </button>
               <button
                 type="button"
@@ -532,14 +337,14 @@ function ChatworkSettings() {
             <EmptyState
               data-testid="chatwork-room-empty"
               message="ルームが見つかりません"
-              description="同期を実行して最新のルーム一覧を取得してください。"
+              description="同期を実行して最新のルーム一覧を取得してください、E
               action={
                 <button
                   type="button"
                   onClick={handleRoomSync}
                   className="text-xs font-semibold text-sky-600 hover:text-sky-700"
                 >
-                  ルーム同期を実行
+                  ルーム同期を実衁E
                 </button>
               }
             />
@@ -622,3 +427,4 @@ function ChatworkSettings() {
 }
 
 export default ChatworkSettings
+

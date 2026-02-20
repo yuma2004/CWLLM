@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Modal from '../components/ui/Modal'
@@ -13,281 +12,52 @@ import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
 import DateInput from '../components/ui/DateInput'
 import StatusBadge from '../components/ui/StatusBadge'
-import { useFetch, useMutation } from '../hooks/useApi'
-import { usePermissions } from '../hooks/usePermissions'
-import { useToast } from '../hooks/useToast'
 import Toast from '../components/ui/Toast'
-import { apiRoutes } from '../lib/apiRoutes'
-import {
-  buildProjectUpdatePayload,
-  buildWholesaleCreatePayload,
-  buildWholesaleUpdatePayload,
-  type ProjectUpdateFormState,
-  type WholesaleCreateFormState,
-  type WholesaleEditFormState,
-  validateProjectUpdateForm,
-} from '../features/projects/detailPayloads'
 import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants/labels'
-import { formatDate, formatDateInput } from '../utils/date'
+import { formatDate } from '../utils/date'
 import { formatCurrency } from '../utils/format'
-import { Project, User, Wholesale } from '../types'
-
+import { useProjectDetailPage } from '../features/projects/useProjectDetailPage'
 function ProjectDetail() {
-  const { id } = useParams<{ id: string }>()
-  const { canWrite } = usePermissions()
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [form, setForm] = useState<WholesaleCreateFormState>({
-    companyId: '',
-    status: 'active',
-    unitPrice: '',
-    conditions: '',
-    agreedDate: '',
-  })
-  const [formError, setFormError] = useState('')
-
-  const [isEditingProject, setIsEditingProject] = useState(false)
-  const [projectForm, setProjectForm] = useState<ProjectUpdateFormState>({
-    name: '',
-    status: 'active',
-    unitPrice: '',
-    conditions: '',
-    periodStart: '',
-    periodEnd: '',
-    ownerId: '',
-  })
-  const [projectFormError, setProjectFormError] = useState('')
-
-  const [editingWholesale, setEditingWholesale] = useState<Wholesale | null>(null)
-  const [editForm, setEditForm] = useState<WholesaleEditFormState>({
-    status: 'active',
-    unitPrice: '',
-    conditions: '',
-    agreedDate: '',
-  })
-  const [editError, setEditError] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<Wholesale | null>(null)
-  const [deleteError, setDeleteError] = useState('')
-  const { toast, showToast, clearToast } = useToast()
-
   const {
-    data: projectData,
-    error: projectError,
-    isLoading: isLoadingProject,
-    refetch: refetchProject,
-  } = useFetch<{ project: Project }>(id ? apiRoutes.projects.detail(id) : null, {
-    enabled: Boolean(id),
-    authMode: 'bearer',
-    cacheTimeMs: 10_000,
-  })
-
-  const {
-    data: wholesalesData,
-    error: wholesalesError,
-    isLoading: isLoadingWholesales,
-    refetch: refetchWholesales,
-  } = useFetch<{ wholesales: Wholesale[] }>(id ? apiRoutes.projects.wholesales(id) : null, {
-    enabled: Boolean(id),
-    authMode: 'bearer',
-    cacheTimeMs: 10_000,
-  })
-
-  const project = projectData?.project ?? null
-  const wholesales = wholesalesData?.wholesales ?? []
-  const isLoading = isLoadingProject || isLoadingWholesales
-  const error = projectError || wholesalesError
-
-  const refreshData = useMemo(
-    () => () => {
-      void refetchProject(undefined, { ignoreCache: true })
-      void refetchWholesales(undefined, { ignoreCache: true })
-    },
-    [refetchProject, refetchWholesales]
-  )
-
-  useEffect(() => {
-    if (project) {
-      setProjectForm({
-        name: project.name,
-        status: project.status || 'active',
-        unitPrice: project.unitPrice?.toString() || '',
-        conditions: project.conditions || '',
-        periodStart: project.periodStart ? formatDateInput(project.periodStart) : '',
-        periodEnd: project.periodEnd ? formatDateInput(project.periodEnd) : '',
-        ownerId: project.ownerId || '',
-      })
-    }
-  }, [project])
-
-  const { mutate: createWholesale, isLoading: isCreatingWholesale } = useMutation<
-    { wholesale: Wholesale },
-    {
-      projectId: string
-      companyId: string
-      status: string
-      unitPrice?: number
-      conditions?: string
-      agreedDate?: string
-    }
-  >(apiRoutes.wholesales.base(), 'POST')
-
-  const { mutate: updateWholesale } = useMutation<
-    { wholesale: Wholesale },
-    {
-      status: string
-      unitPrice?: number | null
-      conditions?: string | null
-      agreedDate?: string | null
-    }
-  >(apiRoutes.wholesales.base(), 'PATCH')
-
-  const { mutate: removeWholesale, isLoading: isDeletingWholesale } = useMutation<
-    unknown,
-    void
-  >(apiRoutes.wholesales.base(), 'DELETE')
-
-  const { mutate: updateProject, isLoading: isUpdatingProject } = useMutation<
-    { project: Project },
-    ReturnType<typeof buildProjectUpdatePayload>
-  >(apiRoutes.projects.base(), 'PATCH')
-
-  const { data: usersData } = useFetch<{ users: User[] }>(apiRoutes.users.options(), {
-    authMode: 'bearer',
-    cacheTimeMs: 30_000,
-  })
-  const userOptions = usersData?.users ?? []
-  const ownerLabel = project
-    ? userOptions.find((user) => user.id === project.ownerId)?.name ||
-      userOptions.find((user) => user.id === project.ownerId)?.email ||
-      project.owner?.name ||
-      project.owner?.email ||
-      project.ownerId ||
-      '-'
-    : '-'
-
-  const handleCancelProjectEdit = () => {
-    if (project) {
-      setProjectForm({
-        name: project.name,
-        status: project.status || 'active',
-        unitPrice: project.unitPrice?.toString() || '',
-        conditions: project.conditions || '',
-        periodStart: project.periodStart ? formatDateInput(project.periodStart) : '',
-        periodEnd: project.periodEnd ? formatDateInput(project.periodEnd) : '',
-        ownerId: project.ownerId || '',
-      })
-    }
-    setProjectFormError('')
-    setIsEditingProject(false)
-  }
-
-  const handleUpdateProject = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!id) return
-    setProjectFormError('')
-
-    if (validateProjectUpdateForm(projectForm) !== null) {
-      setProjectFormError('案件名を入力してください。')
-      return
-    }
-
-    try {
-      const payload = buildProjectUpdatePayload(projectForm)
-
-      await updateProject(payload, {
-        authMode: 'bearer',
-        url: apiRoutes.projects.detail(id),
-        errorMessage: '案件の更新に失敗しました。',
-      })
-      setIsEditingProject(false)
-      refreshData()
-      showToast('案件を更新しました。', 'success')
-    } catch (err) {
-      setProjectFormError(err instanceof Error ? err.message : '案件の更新に失敗しました。')
-    }
-  }
-
-  const handleCreateWholesale = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!id) return
-    setFormError('')
-    if (!form.companyId) {
-      setFormError('企業を選択してください。')
-      return
-    }
-
-    try {
-      await createWholesale(buildWholesaleCreatePayload(id, form), {
-        authMode: 'bearer',
-        errorMessage: '卸の作成に失敗しました。',
-      })
-      setForm({
-        companyId: '',
-        status: 'active',
-        unitPrice: '',
-        conditions: '',
-        agreedDate: '',
-      })
-      setShowCreateForm(false)
-      refreshData()
-      showToast('卸を追加しました。', 'success')
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : '卸の作成に失敗しました。')
-    }
-  }
-
-  const openEditModal = (wholesale: Wholesale) => {
-    setEditingWholesale(wholesale)
-    setEditForm({
-      status: wholesale.status,
-      unitPrice: wholesale.unitPrice?.toString() || '',
-      conditions: wholesale.conditions || '',
-      agreedDate: wholesale.agreedDate ? wholesale.agreedDate.split('T')[0] : '',
-    })
-    setEditError('')
-  }
-
-  const handleUpdateWholesale = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!editingWholesale) return
-    setEditError('')
-
-    try {
-      await updateWholesale(buildWholesaleUpdatePayload(editForm), {
-        authMode: 'bearer',
-        url: apiRoutes.wholesales.detail(editingWholesale.id),
-        errorMessage: '卸の更新に失敗しました。',
-      })
-      setEditingWholesale(null)
-      refreshData()
-      showToast('卸を更新しました。', 'success')
-    } catch (err) {
-      setEditError(err instanceof Error ? err.message : '卸の更新に失敗しました。')
-    }
-  }
-
-  const handleDeleteWholesale = (wholesale: Wholesale) => {
-    setDeleteError('')
-    setDeleteTarget(wholesale)
-  }
-
-  const confirmDeleteWholesale = async () => {
-    if (!deleteTarget) return
-    setDeleteError('')
-
-    try {
-      await removeWholesale(undefined, {
-        authMode: 'bearer',
-        url: apiRoutes.wholesales.detail(deleteTarget.id),
-        errorMessage: '卸の削除に失敗しました。',
-      })
-      setDeleteTarget(null)
-      refreshData()
-      showToast('卸を削除しました。', 'success')
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : '卸の削除に失敗しました。')
-    }
-  }
-
+    id,
+    canWrite,
+    showCreateForm,
+    setShowCreateForm,
+    form,
+    setForm,
+    formError,
+    isEditingProject,
+    setIsEditingProject,
+    projectForm,
+    setProjectForm,
+    projectFormError,
+    editingWholesale,
+    setEditingWholesale,
+    editForm,
+    setEditForm,
+    editError,
+    deleteTarget,
+    setDeleteTarget,
+    deleteError,
+    toast,
+    clearToast,
+    project,
+    wholesales,
+    isLoading,
+    error,
+    isCreatingWholesale,
+    isDeletingWholesale,
+    isUpdatingProject,
+    userOptions,
+    ownerLabel,
+    handleCancelProjectEdit,
+    handleUpdateProject,
+    handleCreateWholesale,
+    openEditModal,
+    handleUpdateWholesale,
+    handleDeleteWholesale,
+    confirmDeleteWholesale,
+  } = useProjectDetailPage()
   if (isLoading) {
     return <LoadingState />
   }
@@ -297,7 +67,7 @@ function ProjectDetail() {
   }
 
   if (!project) {
-    return <div className="text-slate-500">案件が見つかりません。</div>
+    return <div className="text-slate-500">案件が見つかりません、E/div>
   }
 
   return (
@@ -315,13 +85,13 @@ function ProjectDetail() {
           <h2 className="text-3xl font-bold text-slate-900">{project.name}</h2>
         </div>
         <Link to="/projects" className="text-sm text-slate-500 hover:text-slate-700">
-          一覧に戻る
+          一覧に戻めE
         </Link>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">ステータス</div>
+          <div className="text-xs text-slate-500">スチE�Eタス</div>
           <div className="mt-1">
             <StatusBadge status={project.status ?? '-'} kind="project" />
           </div>
@@ -336,7 +106,7 @@ function ProjectDetail() {
           </Link>
         </div>
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">担当者</div>
+          <div className="text-xs text-slate-500">拁E��老E/div>
           <div className="mt-1 text-sm font-semibold text-slate-900">{ownerLabel}</div>
         </div>
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
@@ -359,7 +129,7 @@ function ProjectDetail() {
 
       <Card className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">案件情報</h3>
+          <h3 className="text-lg font-semibold text-slate-900">案件惁E��</h3>
           {canWrite && !isEditingProject && (
             <Button
               type="button"
@@ -368,7 +138,7 @@ function ProjectDetail() {
               size="sm"
               className="text-sky-600 hover:text-sky-700"
             >
-              編集
+              編雁E
             </Button>
           )}
         </div>
@@ -378,16 +148,16 @@ function ProjectDetail() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <div className="mb-1 block text-xs font-medium text-slate-600">
-                  案件名 <span className="text-rose-500">*</span>
+                  案件吁E<span className="text-rose-500">*</span>
                 </div>
                 <FormInput
                   value={projectForm.name}
                   onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
-                  placeholder="案件名を入力"
+                  placeholder="案件名を入劁E
                 />
               </div>
               <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">ステータス</div>
+                <div className="mb-1 block text-xs font-medium text-slate-600">スチE�Eタス</div>
                 <FormSelect
                   value={projectForm.status}
                   onChange={(e) => setProjectForm({ ...projectForm, status: e.target.value })}
@@ -405,16 +175,16 @@ function ProjectDetail() {
                   type="number"
                   value={projectForm.unitPrice}
                   onChange={(e) => setProjectForm({ ...projectForm, unitPrice: e.target.value })}
-                  placeholder="例: 50000"
+                  placeholder="侁E 50000"
                 />
               </div>
               <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">担当者</div>
+                <div className="mb-1 block text-xs font-medium text-slate-600">拁E��老E/div>
                 <FormSelect
                   value={projectForm.ownerId}
                   onChange={(e) => setProjectForm({ ...projectForm, ownerId: e.target.value })}
                 >
-                  <option value="">担当者未設定</option>
+                  <option value="">拁E��老E��設宁E/option>
                   {userOptions.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name || user.email}
@@ -430,7 +200,7 @@ function ProjectDetail() {
                 />
               </div>
               <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">終了日</div>
+                <div className="mb-1 block text-xs font-medium text-slate-600">終亁E��</div>
                 <DateInput
                   value={projectForm.periodEnd}
                   onChange={(e) => setProjectForm({ ...projectForm, periodEnd: e.target.value })}
@@ -441,7 +211,7 @@ function ProjectDetail() {
                 <FormTextarea
                   value={projectForm.conditions}
                   onChange={(e) => setProjectForm({ ...projectForm, conditions: e.target.value })}
-                  placeholder="条件や補足を入力"
+                  placeholder="条件めE��足を�E劁E
                   className="min-h-[80px]"
                 />
               </div>
@@ -456,14 +226,14 @@ function ProjectDetail() {
                 キャンセル
               </Button>
               <Button type="submit" size="sm" isLoading={isUpdatingProject} loadingLabel="保存中...">
-                保存
+                保孁E
               </Button>
             </div>
           </form>
         ) : (
           <dl className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase text-slate-400">ステータス</dt>
+              <dt className="text-xs uppercase text-slate-400">スチE�Eタス</dt>
               <dd className="mt-1">
                 <StatusBadge status={project.status ?? '-'} kind="project" />
               </dd>
@@ -481,7 +251,7 @@ function ProjectDetail() {
               <dd className="mt-1 text-slate-800">{formatCurrency(project.unitPrice)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase text-slate-400">担当者</dt>
+              <dt className="text-xs uppercase text-slate-400">拁E��老E/dt>
               <dd className="mt-1 text-slate-800">{ownerLabel}</dd>
             </div>
             <div>
@@ -528,7 +298,7 @@ function ProjectDetail() {
                 />
               </div>
               <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">ステータス</div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">スチE�Eタス</div>
                 <FormSelect
                   className="rounded-lg"
                   value={form.status}
@@ -536,14 +306,14 @@ function ProjectDetail() {
                 >
                   <option value="active">稼働中</option>
                   <option value="paused">一時停止</option>
-                  <option value="closed">終了</option>
+                  <option value="closed">終亁E/option>
                 </FormSelect>
               </div>
               <div>
                 <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
                 <FormInput
                   type="number"
-                  placeholder="例: 10000"
+                  placeholder="侁E 10000"
                   value={form.unitPrice}
                   onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
                   containerClassName="flex-1"
@@ -562,7 +332,7 @@ function ProjectDetail() {
                 <div className="block text-xs font-medium text-slate-600 mb-1">条件・メモ</div>
                 <FormInput
                   type="text"
-                  placeholder="条件や補足を入力"
+                  placeholder="条件めE��足を�E劁E
                   value={form.conditions}
                   onChange={(e) => setForm({ ...form, conditions: e.target.value })}
                   className="rounded-lg"
@@ -575,7 +345,7 @@ function ProjectDetail() {
               </div>
             )}
             <div className="mt-4 flex justify-end">
-              <Button type="submit" size="sm" isLoading={isCreatingWholesale} loadingLabel="作成中...">
+              <Button type="submit" size="sm" isLoading={isCreatingWholesale} loadingLabel="作�E中...">
                 追加
               </Button>
             </div>
@@ -590,11 +360,11 @@ function ProjectDetail() {
               <thead className="bg-slate-50/80 text-left text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">企業</th>
-                  <th className="px-4 py-3 font-medium">ステータス</th>
+                  <th className="px-4 py-3 font-medium">スチE�Eタス</th>
                   <th className="px-4 py-3 font-medium text-right">単価</th>
                   <th className="px-4 py-3 font-medium">成立日</th>
                   <th className="px-4 py-3 font-medium">条件</th>
-                  {canWrite && <th className="px-4 py-3 font-medium text-right">操作</th>}
+                  {canWrite && <th className="px-4 py-3 font-medium text-right">操佁E/th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -624,7 +394,7 @@ function ProjectDetail() {
                           size="sm"
                           className="text-sky-600 hover:text-sky-700 mr-2"
                         >
-                          編集
+                          編雁E
                         </Button>
                         <Button
                           onClick={() => handleDeleteWholesale(wholesale)}
@@ -647,7 +417,7 @@ function ProjectDetail() {
       <Modal
         isOpen={Boolean(editingWholesale)}
         onClose={() => setEditingWholesale(null)}
-        title="卸の編集"
+        title="卸の編雁E
         className="max-w-md"
       >
         {editingWholesale && (
@@ -660,7 +430,7 @@ function ProjectDetail() {
                 </div>
               </div>
               <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">ステータス</div>
+                <div className="block text-xs font-medium text-slate-600 mb-1">スチE�Eタス</div>
                 <FormSelect
                   className="rounded-lg"
                   value={editForm.status}
@@ -668,7 +438,7 @@ function ProjectDetail() {
                 >
                   <option value="active">稼働中</option>
                   <option value="paused">一時停止</option>
-                  <option value="closed">終了</option>
+                  <option value="closed">終亁E/option>
                 </FormSelect>
               </div>
               <div>
@@ -709,7 +479,7 @@ function ProjectDetail() {
                 キャンセル
               </Button>
               <Button type="submit" size="sm">
-                保存
+                保孁E
               </Button>
             </div>
           </form>
@@ -718,7 +488,7 @@ function ProjectDetail() {
 
       {!canWrite && (
         <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-          権限がないため、卸の追加・編集はできません。
+          権限がなぁE��め、卸の追加・編雁E�Eできません、E
         </div>
       )}
 
@@ -727,7 +497,7 @@ function ProjectDetail() {
         title="卸の削除"
         description={
           deleteTarget
-            ? `${deleteTarget.company?.name || deleteTarget.companyId} の卸を削除しますか？`
+            ? `${deleteTarget.company?.name || deleteTarget.companyId} の卸を削除しますか�E�`
             : undefined
         }
         confirmLabel="削除する"
@@ -749,3 +519,4 @@ function ProjectDetail() {
 }
 
 export default ProjectDetail
+
