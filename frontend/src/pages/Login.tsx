@@ -151,7 +151,7 @@ function Login() {
                         type="button"
                         onClick={() => setShowPassword((prev) => !prev)}
                         className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-semibold text-slate-500 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/30"
-                        aria-label={showPassword ? 'パスワードを隠す' : 'パスワードを表示'}
+                        aria-label={showPassword ? '入力内容を隠す' : '入力内容を表示'}
                       >
                         {showPassword ? '隠す' : '表示'}
                       </button>

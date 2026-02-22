@@ -31,10 +31,10 @@ describe('Login page', () => {
     const passwordInput = screen.getByLabelText('パスワード') as HTMLInputElement
     expect(passwordInput.type).toBe('password')
 
-    fireEvent.click(screen.getByRole('button', { name: 'パスワードを表示' }))
+    fireEvent.click(screen.getByRole('button', { name: '入力内容を表示' }))
     expect(passwordInput.type).toBe('text')
 
-    fireEvent.click(screen.getByRole('button', { name: 'パスワードを隠す' }))
+    fireEvent.click(screen.getByRole('button', { name: '入力内容を隠す' }))
     expect(passwordInput.type).toBe('password')
   })
 

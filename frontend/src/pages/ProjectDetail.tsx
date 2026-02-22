@@ -1,25 +1,25 @@
-import { Link } from 'react-router-dom'
+﻿import { Link } from 'react-router-dom'
 import { CompanySearchSelect } from '../components/SearchSelect'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Modal from '../components/ui/Modal'
-import ErrorAlert from '../components/ui/ErrorAlert'
-import EmptyState from '../components/ui/EmptyState'
-import LoadingState from '../components/ui/LoadingState'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import DateInput from '../components/ui/DateInput'
+import EmptyState from '../components/ui/EmptyState'
+import ErrorAlert from '../components/ui/ErrorAlert'
 import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import FormTextarea from '../components/ui/FormTextarea'
-import DateInput from '../components/ui/DateInput'
+import LoadingState from '../components/ui/LoadingState'
 import StatusBadge from '../components/ui/StatusBadge'
 import Toast from '../components/ui/Toast'
 import { PROJECT_STATUS_OPTIONS, statusLabel } from '../constants/labels'
+import { useProjectDetailPage } from '../features/projects/useProjectDetailPage'
 import { formatDate } from '../utils/date'
 import { formatCurrency } from '../utils/format'
-import { useProjectDetailPage } from '../features/projects/useProjectDetailPage'
+
 function ProjectDetail() {
   const {
-    id,
     canWrite,
     showCreateForm,
     setShowCreateForm,
@@ -58,6 +58,7 @@ function ProjectDetail() {
     handleDeleteWholesale,
     confirmDeleteWholesale,
   } = useProjectDetailPage()
+
   if (isLoading) {
     return <LoadingState />
   }
@@ -67,7 +68,7 @@ function ProjectDetail() {
   }
 
   if (!project) {
-    return <div className="text-slate-500">案件が見つかりません、E/div>
+    return <div className="text-slate-500">案件が見つかりません。</div>
   }
 
   return (
@@ -79,66 +80,23 @@ function ProjectDetail() {
         <span className="mx-2">/</span>
         <span className="text-slate-500">{project.name}</span>
       </nav>
-      <div className="flex items-center justify-between">
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm uppercase text-slate-400">案件詳細</p>
           <h2 className="text-3xl font-bold text-slate-900">{project.name}</h2>
         </div>
         <Link to="/projects" className="text-sm text-slate-500 hover:text-slate-700">
-          一覧に戻めE
+          一覧に戻る
         </Link>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">スチE�Eタス</div>
-          <div className="mt-1">
-            <StatusBadge status={project.status ?? '-'} kind="project" />
-          </div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">企業</div>
-          <Link
-            to={`/companies/${project.companyId}`}
-            className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700"
-          >
-            {project.company?.name || project.companyId}
-          </Link>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">拁E��老E/div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">{ownerLabel}</div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">期間</div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">
-            {project.periodStart || project.periodEnd
-              ? `${formatDate(project.periodStart)} ? ${formatDate(project.periodEnd)}`
-              : '-'}
-          </div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">単価</div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">
-            {formatCurrency(project.unitPrice)}
-          </div>
-        </div>
-      </div>
-
-      {deleteError && <ErrorAlert message={deleteError} />}
-
       <Card className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">案件惁E��</h3>
+          <h3 className="text-lg font-semibold text-slate-900">案件情報</h3>
           {canWrite && !isEditingProject && (
-            <Button
-              type="button"
-              onClick={() => setIsEditingProject(true)}
-              variant="ghost"
-              size="sm"
-              className="text-sky-600 hover:text-sky-700"
-            >
-              編雁E
+            <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditingProject(true)}>
+              編集
             </Button>
           )}
         </div>
@@ -146,125 +104,100 @@ function ProjectDetail() {
         {isEditingProject ? (
           <form onSubmit={handleUpdateProject} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">
-                  案件吁E<span className="text-rose-500">*</span>
-                </div>
-                <FormInput
-                  value={projectForm.name}
-                  onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
-                  placeholder="案件名を入劁E
-                />
-              </div>
-              <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">スチE�Eタス</div>
-                <FormSelect
-                  value={projectForm.status}
-                  onChange={(e) => setProjectForm({ ...projectForm, status: e.target.value })}
-                >
-                  {PROJECT_STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {statusLabel('project', status)}
-                    </option>
-                  ))}
-                </FormSelect>
-              </div>
-              <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">単価</div>
-                <FormInput
-                  type="number"
-                  value={projectForm.unitPrice}
-                  onChange={(e) => setProjectForm({ ...projectForm, unitPrice: e.target.value })}
-                  placeholder="侁E 50000"
-                />
-              </div>
-              <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">拁E��老E/div>
-                <FormSelect
-                  value={projectForm.ownerId}
-                  onChange={(e) => setProjectForm({ ...projectForm, ownerId: e.target.value })}
-                >
-                  <option value="">拁E��老E��設宁E/option>
-                  {userOptions.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name || user.email}
-                    </option>
-                  ))}
-                </FormSelect>
-              </div>
-              <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">開始日</div>
-                <DateInput
-                  value={projectForm.periodStart}
-                  onChange={(e) => setProjectForm({ ...projectForm, periodStart: e.target.value })}
-                />
-              </div>
-              <div>
-                <div className="mb-1 block text-xs font-medium text-slate-600">終亁E��</div>
-                <DateInput
-                  value={projectForm.periodEnd}
-                  onChange={(e) => setProjectForm({ ...projectForm, periodEnd: e.target.value })}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <div className="mb-1 block text-xs font-medium text-slate-600">条件・メモ</div>
-                <FormTextarea
-                  value={projectForm.conditions}
-                  onChange={(e) => setProjectForm({ ...projectForm, conditions: e.target.value })}
-                  placeholder="条件めE��足を�E劁E
-                  className="min-h-[80px]"
-                />
-              </div>
+              <FormInput
+                label="案件名"
+                value={projectForm.name}
+                onChange={(event) => setProjectForm({ ...projectForm, name: event.target.value })}
+                placeholder="案件名を入力"
+              />
+              <FormSelect
+                label="ステータス"
+                value={projectForm.status}
+                onChange={(event) => setProjectForm({ ...projectForm, status: event.target.value })}
+              >
+                {PROJECT_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {statusLabel('project', status)}
+                  </option>
+                ))}
+              </FormSelect>
+              <FormInput
+                label="単価"
+                type="number"
+                value={projectForm.unitPrice}
+                onChange={(event) => setProjectForm({ ...projectForm, unitPrice: event.target.value })}
+                placeholder="例: 50000"
+              />
+              <FormSelect
+                label="担当者"
+                value={projectForm.ownerId}
+                onChange={(event) => setProjectForm({ ...projectForm, ownerId: event.target.value })}
+              >
+                <option value="">担当者未設定</option>
+                {userOptions.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name || user.email}
+                  </option>
+                ))}
+              </FormSelect>
+              <DateInput
+                label="開始日"
+                value={projectForm.periodStart}
+                onChange={(event) => setProjectForm({ ...projectForm, periodStart: event.target.value })}
+              />
+              <DateInput
+                label="終了日"
+                value={projectForm.periodEnd}
+                onChange={(event) => setProjectForm({ ...projectForm, periodEnd: event.target.value })}
+              />
             </div>
-            {projectFormError && (
-              <div className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">
-                {projectFormError}
-              </div>
-            )}
-            <div className="flex justify-end gap-3">
-              <Button type="button" onClick={handleCancelProjectEdit} variant="secondary" size="sm">
+            <FormTextarea
+              label="条件・メモ"
+              value={projectForm.conditions}
+              onChange={(event) => setProjectForm({ ...projectForm, conditions: event.target.value })}
+              className="min-h-[88px]"
+            />
+            {projectFormError && <ErrorAlert message={projectFormError} />}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" size="sm" onClick={handleCancelProjectEdit}>
                 キャンセル
               </Button>
               <Button type="submit" size="sm" isLoading={isUpdatingProject} loadingLabel="保存中...">
-                保孁E
+                保存
               </Button>
             </div>
           </form>
         ) : (
-          <dl className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2">
+          <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase text-slate-400">スチE�Eタス</dt>
+              <dt className="text-xs uppercase text-slate-400">ステータス</dt>
               <dd className="mt-1">
-                <StatusBadge status={project.status ?? '-'} kind="project" />
+                <StatusBadge status={project.status ?? 'active'} kind="project" size="sm" />
               </dd>
             </div>
             <div>
               <dt className="text-xs uppercase text-slate-400">企業</dt>
-              <dd className="mt-1 text-slate-800">
-                <Link to={`/companies/${project.companyId}`} className="text-sky-600 hover:text-sky-700 hover:underline">
-                  {project.company?.name || project.companyId}
-                </Link>
-              </dd>
+              <dd className="mt-1 text-slate-800">{project.company?.name || project.companyId}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase text-slate-400">担当者</dt>
+              <dd className="mt-1 text-slate-800">{ownerLabel}</dd>
             </div>
             <div>
               <dt className="text-xs uppercase text-slate-400">単価</dt>
               <dd className="mt-1 text-slate-800">{formatCurrency(project.unitPrice)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase text-slate-400">拁E��老E/dt>
-              <dd className="mt-1 text-slate-800">{ownerLabel}</dd>
-            </div>
-            <div>
               <dt className="text-xs uppercase text-slate-400">期間</dt>
               <dd className="mt-1 text-slate-800">
                 {project.periodStart || project.periodEnd
-                  ? `${formatDate(project.periodStart)} ? ${formatDate(project.periodEnd)}`
+                  ? `${formatDate(project.periodStart)} - ${formatDate(project.periodEnd)}`
                   : '-'}
               </dd>
             </div>
             <div>
               <dt className="text-xs uppercase text-slate-400">条件</dt>
-              <dd className="mt-1 text-slate-800 whitespace-pre-wrap">{project.conditions || '-'}</dd>
+              <dd className="mt-1 whitespace-pre-wrap text-slate-800">{project.conditions || '-'}</dd>
             </div>
           </dl>
         )}
@@ -274,132 +207,104 @@ function ProjectDetail() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">卸一覧</h3>
-            <p className="text-xs text-slate-400 mt-1">{wholesales.length} 件</p>
+            <p className="text-xs text-slate-400">{wholesales.length} 件</p>
           </div>
           {canWrite && (
-            <Button onClick={() => setShowCreateForm(!showCreateForm)} size="sm">
-              {showCreateForm ? 'キャンセル' : '卸を追加'}
+            <Button type="button" size="sm" onClick={() => setShowCreateForm((prev) => !prev)}>
+              {showCreateForm ? '作成フォームを閉じる' : '卸を追加'}
             </Button>
           )}
         </div>
 
         {showCreateForm && canWrite && (
-          <form
-            onSubmit={handleCreateWholesale}
-            className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
-          >
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">企業 *</div>
-                <CompanySearchSelect
-                  value={form.companyId}
-                  onChange={(companyId) => setForm({ ...form, companyId })}
-                  placeholder="企業名で検索"
-                />
-              </div>
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">スチE�Eタス</div>
-                <FormSelect
-                  className="rounded-lg"
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
-                  <option value="active">稼働中</option>
-                  <option value="paused">一時停止</option>
-                  <option value="closed">終亁E/option>
-                </FormSelect>
-              </div>
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
-                <FormInput
-                  type="number"
-                  placeholder="侁E 10000"
-                  value={form.unitPrice}
-                  onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
-                  containerClassName="flex-1"
-                  className="rounded-lg"
-                />
-              </div>
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">成立日</div>
-                <DateInput
-                  value={form.agreedDate}
-                  onChange={(e) => setForm({ ...form, agreedDate: e.target.value })}
-                  className="rounded-lg"
-                />
-              </div>
-              <div className="md:col-span-2 lg:col-span-1">
-                <div className="block text-xs font-medium text-slate-600 mb-1">条件・メモ</div>
-                <FormInput
-                  type="text"
-                  placeholder="条件めE��足を�E劁E
-                  value={form.conditions}
-                  onChange={(e) => setForm({ ...form, conditions: e.target.value })}
-                  className="rounded-lg"
-                />
-              </div>
-            </div>
-            {formError && (
-              <div className="mt-3 rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">
-                {formError}
-              </div>
-            )}
-            <div className="mt-4 flex justify-end">
-              <Button type="submit" size="sm" isLoading={isCreatingWholesale} loadingLabel="作�E中...">
+          <form onSubmit={handleCreateWholesale} className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
+            <CompanySearchSelect
+              label="企業"
+              value={form.companyId}
+              onChange={(companyId) => setForm({ ...form, companyId })}
+              placeholder="企業名で検索"
+            />
+            <FormSelect
+              label="ステータス"
+              value={form.status}
+              onChange={(event) => setForm({ ...form, status: event.target.value })}
+            >
+              <option value="active">稼働中</option>
+              <option value="paused">一時停止</option>
+              <option value="closed">終了</option>
+            </FormSelect>
+            <FormInput
+              label="単価"
+              type="number"
+              value={form.unitPrice}
+              onChange={(event) => setForm({ ...form, unitPrice: event.target.value })}
+              placeholder="例: 10000"
+            />
+            <DateInput
+              label="成立日"
+              value={form.agreedDate}
+              onChange={(event) => setForm({ ...form, agreedDate: event.target.value })}
+            />
+            <FormTextarea
+              label="条件・メモ"
+              value={form.conditions}
+              onChange={(event) => setForm({ ...form, conditions: event.target.value })}
+              className="min-h-[88px] md:col-span-2"
+            />
+            <div className="md:col-span-2 flex justify-end">
+              <Button type="submit" size="sm" isLoading={isCreatingWholesale} loadingLabel="追加中...">
                 追加
               </Button>
             </div>
           </form>
         )}
 
-        <div className="mt-4 overflow-x-auto">
-          {wholesales.length === 0 ? (
-            <EmptyState className="py-8" message="卸がありません" />
-          ) : (
+        {formError && <ErrorAlert message={formError} />}
+        {deleteError && <ErrorAlert message={deleteError} />}
+
+        {wholesales.length === 0 ? (
+          <EmptyState message="卸がありません" description="必要に応じて卸データを追加してください。" />
+        ) : (
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-100 text-sm">
-              <thead className="bg-slate-50/80 text-left text-xs uppercase text-slate-500">
+              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-medium">企業</th>
-                  <th className="px-4 py-3 font-medium">スチE�Eタス</th>
-                  <th className="px-4 py-3 font-medium text-right">単価</th>
-                  <th className="px-4 py-3 font-medium">成立日</th>
-                  <th className="px-4 py-3 font-medium">条件</th>
-                  {canWrite && <th className="px-4 py-3 font-medium text-right">操佁E/th>}
+                  <th className="px-4 py-3">企業</th>
+                  <th className="px-4 py-3">ステータス</th>
+                  <th className="px-4 py-3 text-right">単価</th>
+                  <th className="px-4 py-3">成立日</th>
+                  <th className="px-4 py-3">条件</th>
+                  {canWrite && <th className="px-4 py-3 text-right">操作</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {wholesales.map((wholesale) => (
-                  <tr key={wholesale.id} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-3">
-                      <Link
-                        to={`/companies/${wholesale.companyId}`}
-                        className="font-medium text-slate-900 hover:text-sky-600"
-                      >
-                        {wholesale.company?.name || wholesale.companyId}
-                      </Link>
-                    </td>
+                  <tr key={wholesale.id}>
+                    <td className="px-4 py-3">{wholesale.company?.name || wholesale.companyId}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={wholesale.status} kind="wholesale" size="sm" />
                     </td>
-                    <td className="px-4 py-3 text-right font-mono">{formatCurrency(wholesale.unitPrice)}</td>
-                    <td className="px-4 py-3">{formatDate(wholesale.agreedDate)}</td>
-                    <td className="px-4 py-3 max-w-[200px] truncate" title={wholesale.conditions || undefined}>
-                      {wholesale.conditions || '-'}
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {formatCurrency(wholesale.unitPrice)}
                     </td>
+                    <td className="px-4 py-3">{formatDate(wholesale.agreedDate)}</td>
+                    <td className="px-4 py-3">{wholesale.conditions || '-'}</td>
                     {canWrite && (
                       <td className="px-4 py-3 text-right">
                         <Button
-                          onClick={() => openEditModal(wholesale)}
+                          type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-sky-600 hover:text-sky-700 mr-2"
+                          onClick={() => openEditModal(wholesale)}
+                          className="mr-2"
                         >
-                          編雁E
+                          編集
                         </Button>
                         <Button
-                          onClick={() => handleDeleteWholesale(wholesale)}
+                          type="button"
                           variant="ghost"
                           size="sm"
+                          onClick={() => handleDeleteWholesale(wholesale)}
                           className="text-rose-600 hover:text-rose-700"
                         >
                           削除
@@ -410,102 +315,81 @@ function ProjectDetail() {
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
       </Card>
 
       <Modal
         isOpen={Boolean(editingWholesale)}
         onClose={() => setEditingWholesale(null)}
-        title="卸の編雁E
+        title="卸を編集"
         className="max-w-md"
       >
         {editingWholesale && (
-          <form onSubmit={handleUpdateWholesale}>
-            <div className="space-y-4">
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">企業</div>
-                <div className="text-sm text-slate-800 bg-slate-50 px-3 py-2 rounded-lg">
-                  {editingWholesale.company?.name || editingWholesale.companyId}
-                </div>
-              </div>
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">スチE�Eタス</div>
-                <FormSelect
-                  className="rounded-lg"
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                >
-                  <option value="active">稼働中</option>
-                  <option value="paused">一時停止</option>
-                  <option value="closed">終亁E/option>
-                </FormSelect>
-              </div>
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">単価</div>
-                <FormInput
-                  type="number"
-                  value={editForm.unitPrice}
-                  onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
-                  containerClassName="flex-1"
-                  className="rounded-lg"
-                />
-              </div>
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">成立日</div>
-                <DateInput
-                  value={editForm.agreedDate}
-                  onChange={(e) => setEditForm({ ...editForm, agreedDate: e.target.value })}
-                  className="rounded-lg"
-                />
-              </div>
-              <div>
-                <div className="block text-xs font-medium text-slate-600 mb-1">条件・メモ</div>
-                <FormTextarea
-                  rows={3}
-                  value={editForm.conditions}
-                  onChange={(e) => setEditForm({ ...editForm, conditions: e.target.value })}
-                  className="rounded-lg"
-                />
-              </div>
+          <form onSubmit={handleUpdateWholesale} className="space-y-4">
+            <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {editingWholesale.company?.name || editingWholesale.companyId}
             </div>
-            {editError && (
-              <div className="mt-3 rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">
-                {editError}
-              </div>
-            )}
-            <div className="mt-6 flex justify-end gap-3">
-              <Button type="button" onClick={() => setEditingWholesale(null)} variant="secondary" size="sm">
+            <FormSelect
+              label="ステータス"
+              value={editForm.status}
+              onChange={(event) => setEditForm({ ...editForm, status: event.target.value })}
+            >
+              <option value="active">稼働中</option>
+              <option value="paused">一時停止</option>
+              <option value="closed">終了</option>
+            </FormSelect>
+            <FormInput
+              label="単価"
+              type="number"
+              value={editForm.unitPrice}
+              onChange={(event) => setEditForm({ ...editForm, unitPrice: event.target.value })}
+            />
+            <DateInput
+              label="成立日"
+              value={editForm.agreedDate}
+              onChange={(event) => setEditForm({ ...editForm, agreedDate: event.target.value })}
+            />
+            <FormTextarea
+              label="条件・メモ"
+              value={editForm.conditions}
+              onChange={(event) => setEditForm({ ...editForm, conditions: event.target.value })}
+              className="min-h-[88px]"
+            />
+            {editError && <ErrorAlert message={editError} />}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setEditingWholesale(null)}>
                 キャンセル
               </Button>
-              <Button type="submit" size="sm">
-                保孁E
-              </Button>
+              <Button type="submit">保存</Button>
             </div>
           </form>
         )}
       </Modal>
-
-      {!canWrite && (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-          権限がなぁE��め、卸の追加・編雁E�Eできません、E
-        </div>
-      )}
 
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
         title="卸の削除"
         description={
           deleteTarget
-            ? `${deleteTarget.company?.name || deleteTarget.companyId} の卸を削除しますか�E�`
+            ? `${deleteTarget.company?.name || deleteTarget.companyId} の卸を削除しますか?`
             : undefined
         }
         confirmLabel="削除する"
         cancelLabel="キャンセル"
         isLoading={isDeletingWholesale}
-        onConfirm={confirmDeleteWholesale}
+        onConfirm={() => {
+          void confirmDeleteWholesale()
+        }}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {!canWrite && (
+        <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
+          権限がないため、卸の追加・編集はできません。
+        </div>
+      )}
+
       {toast && (
         <Toast
           message={toast.message}
@@ -518,5 +402,4 @@ function ProjectDetail() {
   )
 }
 
-export default ProjectDetail
-
+export default ProjectDetail
