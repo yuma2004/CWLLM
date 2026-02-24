@@ -12,6 +12,17 @@ import {
 } from '../utils'
 import { FeedbackCreateBody, FeedbackListQuery, FeedbackUpdateBody } from './feedback.schemas'
 
+const feedbackUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+}
+
+const trimValue = (value: string | undefined) => value?.trim()
+
+const emptyStringToNull = (value: string | undefined) =>
+  value && value.length > 0 ? value : null
+
 export const createFeedbackHandler = async (
   request: FastifyRequest<{ Body: FeedbackCreateBody }>,
   reply: FastifyReply
@@ -21,13 +32,13 @@ export const createFeedbackHandler = async (
     return reply.code(401).send(unauthorized())
   }
 
-  const trimmedMessage = request.body.message?.trim()
+  const trimmedMessage = trimValue(request.body.message)
   if (!isNonEmptyString(trimmedMessage)) {
     return reply.code(400).send(badRequest('message is required'))
   }
 
-  const trimmedTitle = request.body.title?.trim()
-  const trimmedPageUrl = request.body.pageUrl?.trim()
+  const trimmedTitle = trimValue(request.body.title)
+  const trimmedPageUrl = trimValue(request.body.pageUrl)
   const type = request.body.type ?? FeedbackType.improvement
 
   try {
@@ -35,9 +46,9 @@ export const createFeedbackHandler = async (
       data: {
         userId,
         type,
-        title: trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : null,
+        title: emptyStringToNull(trimmedTitle),
         message: trimmedMessage,
-        pageUrl: trimmedPageUrl && trimmedPageUrl.length > 0 ? trimmedPageUrl : null,
+        pageUrl: emptyStringToNull(trimmedPageUrl),
       },
     })
 
@@ -64,11 +75,7 @@ export const listFeedbackHandler = async (
       orderBy: { updatedAt: 'desc' },
       include: {
         user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
+          select: feedbackUserSelect,
         },
       },
     })
@@ -109,8 +116,8 @@ export const updateFeedbackHandler = async (
 
     const hasTitle = request.body.title !== undefined
     const hasMessage = request.body.message !== undefined
-    const trimmedTitle = request.body.title?.trim()
-    const trimmedMessage = request.body.message?.trim()
+    const trimmedTitle = trimValue(request.body.title)
+    const trimmedMessage = trimValue(request.body.message)
 
     if (!hasTitle && !hasMessage) {
       return reply.code(400).send(badRequest('title or message is required'))
@@ -123,21 +130,12 @@ export const updateFeedbackHandler = async (
     const feedback = await prisma.feedback.update({
       where: { id: feedbackId },
       data: {
-        title:
-          hasTitle
-            ? (trimmedTitle?.length ?? 0) > 0
-              ? trimmedTitle
-              : null
-            : undefined,
+        title: hasTitle ? emptyStringToNull(trimmedTitle) : undefined,
         message: hasMessage ? trimmedMessage : undefined,
       },
       include: {
         user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
+          select: feedbackUserSelect,
         },
       },
     })

@@ -11,6 +11,10 @@ const terminalStatuses = new Set<JobStatus>([
   JobStatus.canceled,
 ])
 
+const jobNotFound = (reply: FastifyReply) => reply.code(404).send({ error: 'Job not found' })
+
+const forbidden = (reply: FastifyReply) => reply.code(403).send({ error: 'Forbidden' })
+
 const sanitizeJobError = (job: Job, isAdmin: boolean) => {
   if (isAdmin || !job.error || typeof job.error !== 'object') return job
   const error = job.error as { name?: unknown; message?: unknown }
@@ -21,6 +25,19 @@ const sanitizeJobError = (job: Job, isAdmin: boolean) => {
       message: typeof error.message === 'string' ? error.message : 'Unknown error',
     },
   }
+}
+
+const canAccessJob = (user: JWTUser, job: Job) => user.role === 'admin' || job.userId === user.userId
+
+const findJobOrReply = async (jobId: string, reply: FastifyReply) => {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+  })
+  if (!job) {
+    jobNotFound(reply)
+    return null
+  }
+  return job
 }
 
 export const listJobsHandler = async (
@@ -57,15 +74,10 @@ export const getJobHandler = async (
   reply: FastifyReply
 ) => {
   const user = request.user as JWTUser
-  const job = await prisma.job.findUnique({
-    where: { id: request.params.id },
-  })
-  if (!job) {
-    return reply.code(404).send({ error: 'Job not found' })
-  }
-
-  if (user.role !== 'admin' && job.userId !== user.userId) {
-    return reply.code(403).send({ error: 'Forbidden' })
+  const job = await findJobOrReply(request.params.id, reply)
+  if (!job) return reply
+  if (!canAccessJob(user, job)) {
+    return forbidden(reply)
   }
 
   return {
@@ -78,12 +90,10 @@ export const cancelJobHandler = async (
   reply: FastifyReply
 ) => {
   const user = request.user as JWTUser
-  const job = await prisma.job.findUnique({ where: { id: request.params.id } })
-  if (!job) {
-    return reply.code(404).send({ error: 'Job not found' })
-  }
-  if (user.role !== 'admin' && job.userId !== user.userId) {
-    return reply.code(403).send({ error: 'Forbidden' })
+  const job = await findJobOrReply(request.params.id, reply)
+  if (!job) return reply
+  if (!canAccessJob(user, job)) {
+    return forbidden(reply)
   }
   if (terminalStatuses.has(job.status)) {
     return reply.code(400).send({ error: 'Job already finished' })
@@ -91,7 +101,7 @@ export const cancelJobHandler = async (
 
   const updated = await cancelJob(request.params.id)
   if (!updated) {
-    return reply.code(404).send({ error: 'Job not found' })
+    return jobNotFound(reply)
   }
   return {
     job: sanitizeJobError(updated, user.role === 'admin'),

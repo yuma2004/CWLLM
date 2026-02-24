@@ -6,6 +6,9 @@
     "dev:db": "docker compose -f infra/docker-compose.yml up -d",
     "dev:db:down": "docker compose -f infra/docker-compose.yml down",
     "dev:backend": "npm --prefix backend run dev",
-    "dev:frontend": "npm --prefix frontend run dev"
+    "dev:frontend": "npm --prefix frontend run dev",
+    "test": "npm --prefix backend test -- --run && npm --prefix frontend test -- --run",
+    "test:coverage": "npm --prefix backend test -- --run --coverage && npm --prefix frontend test -- --run --coverage",
+    "test:all": "npm run test && npm --prefix frontend run test:e2e"
   }
 }

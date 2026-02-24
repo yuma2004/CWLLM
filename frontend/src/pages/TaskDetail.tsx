@@ -22,6 +22,44 @@ import { getTargetPath } from '../utils/routes'
 import type { Task, User } from '../types'
 import { TASK_STRINGS } from '../strings/tasks'
 
+type TaskUpdatePayload = {
+  title?: string
+  description?: string
+  status?: string
+  dueDate?: string | null
+  assigneeId?: string | null
+}
+
+const buildTaskUpdatePayload = (form: {
+  title: string
+  description: string
+  status: string
+  dueDate: string
+  assigneeId: string
+}): TaskUpdatePayload => ({
+  title: form.title.trim(),
+  description: form.description.trim() || undefined,
+  status: form.status,
+  dueDate: form.dueDate || null,
+  assigneeId: form.assigneeId || null,
+})
+
+const TaskTargetLink = ({ task, compact = false }: { task: Task; compact?: boolean }) => (
+  <Link
+    to={getTargetPath(task.targetType, task.targetId)}
+    className={
+      compact
+        ? 'inline-flex items-center gap-2 text-sky-600 hover:text-sky-700'
+        : 'mt-1 inline-flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700'
+    }
+  >
+    <span className={compact ? 'rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600' : 'rounded bg-white px-2 py-0.5 text-xs text-slate-600'}>
+      {targetTypeLabel(task.targetType)}
+    </span>
+    <span className={compact ? undefined : 'truncate'}>{task.target?.name || task.targetId}</span>
+  </Link>
+)
+
 function TaskDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -71,7 +109,7 @@ function TaskDetail() {
 
   const { mutate: updateTask, isLoading: isUpdating } = useMutation<
     { task: Task },
-    { title?: string; description?: string; status?: string; dueDate?: string | null; assigneeId?: string | null }
+    TaskUpdatePayload
   >(apiRoutes.tasks.base(), 'PATCH')
 
   const { mutate: deleteTask, isLoading: isDeleting } = useMutation<void, void>(
@@ -105,13 +143,7 @@ function TaskDetail() {
     }
     try {
       await updateTask(
-        {
-          title: form.title.trim(),
-          description: form.description.trim() || undefined,
-          status: form.status,
-          dueDate: form.dueDate || null,
-          assigneeId: form.assigneeId || null,
-        },
+        buildTaskUpdatePayload(form),
         {
           authMode: 'bearer',
           url: apiRoutes.tasks.detail(id),
@@ -232,15 +264,7 @@ function TaskDetail() {
         </div>
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
           <div className="text-xs text-slate-500">{TASK_STRINGS.labels.target}</div>
-          <Link
-            to={getTargetPath(task.targetType, task.targetId)}
-            className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700"
-          >
-            <span className="rounded bg-white px-2 py-0.5 text-xs text-slate-600">
-              {targetTypeLabel(task.targetType)}
-            </span>
-            <span className="truncate">{task.target?.name || task.targetId}</span>
-          </Link>
+          <TaskTargetLink task={task} />
         </div>
       </div>
 
@@ -384,17 +408,7 @@ function TaskDetail() {
                 <dt className="text-xs font-medium uppercase text-slate-500">
                   {TASK_STRINGS.labels.target}
                 </dt>
-                <dd className="mt-1">
-                  <Link
-                    to={getTargetPath(task.targetType, task.targetId)}
-                    className="inline-flex items-center gap-2 text-sky-600 hover:text-sky-700"
-                  >
-                    <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                      {targetTypeLabel(task.targetType)}
-                    </span>
-                    <span>{task.target?.name || task.targetId}</span>
-                  </Link>
-                </dd>
+                <dd className="mt-1"><TaskTargetLink task={task} compact /></dd>
               </div>
             </div>
           </dl>
