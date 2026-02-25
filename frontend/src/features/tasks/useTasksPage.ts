@@ -12,7 +12,6 @@ import { TASK_STRINGS } from '../../strings/tasks'
 import {
   buildTaskCreatePayload,
   type TaskCreateFormState,
-  type TaskCreateTargetType,
   validateTaskCreateForm,
 } from './createForm'
 import {

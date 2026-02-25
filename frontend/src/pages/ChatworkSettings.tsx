@@ -46,7 +46,6 @@ function ChatworkJobProgress({
     if (!activeJob?.id) return
 
     let isMounted = true
-    let timer: number | undefined
 
     const poll = async () => {
       try {
@@ -55,32 +54,26 @@ function ChatworkJobProgress({
         if (data?.job) {
           setActiveJob(data.job)
           if (['completed', 'failed', 'canceled'].includes(data.job.status)) {
-            if (timer) {
-              window.clearInterval(timer)
-            }
+            window.clearInterval(timer)
             setIsPolling(false)
           }
         }
       } catch {
         if (!isMounted) return
-        if (timer) {
-          window.clearInterval(timer)
-        }
+        window.clearInterval(timer)
         setIsPolling(false)
       }
     }
 
     setIsPolling(true)
-    timer = window.setInterval(() => {
+    const timer = window.setInterval(() => {
       void poll()
     }, 2000)
     void poll()
 
     return () => {
       isMounted = false
-      if (timer) {
-        window.clearInterval(timer)
-      }
+      window.clearInterval(timer)
       setIsPolling(false)
     }
   }, [activeJob?.id, refetchJob, setActiveJob])

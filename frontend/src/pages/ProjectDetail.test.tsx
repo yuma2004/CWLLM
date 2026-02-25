@@ -64,10 +64,16 @@ const createHookState = (
   userOptions: [],
   ownerLabel: '-',
   handleCancelProjectEdit: vi.fn(),
-  handleUpdateProject: vi.fn((event?: React.FormEvent) => event?.preventDefault()),
-  handleCreateWholesale: vi.fn((event?: React.FormEvent) => event?.preventDefault()),
+  handleUpdateProject: vi.fn(async (event?: React.FormEvent) => {
+    event?.preventDefault()
+  }),
+  handleCreateWholesale: vi.fn(async (event?: React.FormEvent) => {
+    event?.preventDefault()
+  }),
   openEditModal: vi.fn(),
-  handleUpdateWholesale: vi.fn((event?: React.FormEvent) => event?.preventDefault()),
+  handleUpdateWholesale: vi.fn(async (event?: React.FormEvent) => {
+    event?.preventDefault()
+  }),
   handleDeleteWholesale: vi.fn(),
   confirmDeleteWholesale: vi.fn(async () => {}),
   ...overrides,
@@ -122,4 +128,3 @@ describe('ProjectDetail page', () => {
     expect(screen.getByText('権限がないため、卸の追加・編集はできません。')).toBeInTheDocument()
   })
 })
-
