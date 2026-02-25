@@ -34,6 +34,17 @@ enum WholesaleStatus {
   closed
 }
 
+enum DealStatus {
+  pre_contact
+  contacting
+  negotiating
+  agreed
+  preparing_publish
+  publishing
+  stopped
+  dropped
+}
+
 enum TargetType {
   company
   project
@@ -64,6 +75,14 @@ enum FeedbackType {
   other
 }
 
+enum NoteType {
+  negotiation
+  request
+  report
+  confirmation
+  other
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -73,11 +92,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projects   Project[]
-  wholesales Wholesale[]
-  tasks      Task[]
-  jobs       Job[]
-  feedbacks  Feedback[]
+  projects         Project[]
+  wholesales       Wholesale[]
+  tasks            Task[]
+  jobs             Job[]
+  feedbacks        Feedback[]
+  dealNegotiations DealNegotiation[]
+  notes            Note[]
 
   @@map("users")
 }
@@ -94,12 +115,13 @@ model Company {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  contacts  Contact[]
-  projects  Project[]
+  contacts   Contact[]
+  projects   Project[]
   wholesales Wholesale[]
-  messages      Message[]
-  summaries     Summary[]
-  roomLinks     CompanyRoomLink[]
+  messages   Message[]
+  summaries  Summary[]
+  roomLinks  CompanyRoomLink[]
+  notes      Note[]
 
   @@unique([normalizedName])
   @@map("companies")
@@ -125,52 +147,79 @@ model Contact {
 }
 
 model Project {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   companyId   String
   name        String
   conditions  String?
   unitPrice   Float?
   periodStart DateTime?
   periodEnd   DateTime?
-  status      ProjectStatus   @default(active)
+  status      ProjectStatus @default(active)
   ownerId     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  owner      User?      @relation(fields: [ownerId], references: [id])
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner      User?       @relation(fields: [ownerId], references: [id])
   wholesales Wholesale[]
   messages   Message[]
+  notes      Note[]
 
   @@index([companyId])
   @@map("projects")
 }
 
 model Wholesale {
-  id         String   @id @default(cuid())
-  projectId  String
-  companyId  String
-  conditions String?
-  unitPrice  Float?
-  margin     Float?
-  status     WholesaleStatus   @default(active)
-  agreedDate DateTime?
-  ownerId    String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                String          @id @default(cuid())
+  projectId         String
+  companyId         String
+  conditions        String?
+  unitPrice         Float?
+  margin            Float?
+  status            WholesaleStatus @default(active)
+  agreedDate        DateTime?
+  ownerId           String?
+  dealStatus        DealStatus      @default(pre_contact)
+  proposedUnitPrice Float?
+  agreedUnitPrice   Float?
+  nextActionAt      DateTime?
+  specialConditions String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
-  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  company  Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  owner    User?   @relation(fields: [ownerId], references: [id])
-  messages Message[]
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner        User?             @relation(fields: [ownerId], references: [id])
+  messages     Message[]
+  negotiations DealNegotiation[]
+  notes        Note[]
 
   @@index([companyId, projectId])
   @@map("wholesales")
 }
 
-model ChatworkRoom {
+model DealNegotiation {
   id               String   @id @default(cuid())
-  roomId           String   @unique
+  wholesaleId      String
+  actorId          String?
+  offeredUnitPrice Float?
+  agreedUnitPrice  Float?
+  note             String?
+  actionAt         DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  wholesale Wholesale @relation(fields: [wholesaleId], references: [id], onDelete: Cascade)
+  actor     User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([wholesaleId, actionAt])
+  @@index([actorId])
+  @@map("deal_negotiations")
+}
+
+model ChatworkRoom {
+  id               String    @id @default(cuid())
+  roomId           String    @unique
   name             String
   description      String?
   lastSyncAt       DateTime?
@@ -178,9 +227,9 @@ model ChatworkRoom {
   lastErrorAt      DateTime?
   lastErrorMessage String?
   lastErrorStatus  Int?
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   messages  Message[]
   roomLinks CompanyRoomLink[]
@@ -189,12 +238,12 @@ model ChatworkRoom {
 }
 
 model CompanyRoomLink {
-  id            String   @id @default(cuid())
-  companyId     String
+  id             String   @id @default(cuid())
+  companyId      String
   chatworkRoomId String
-  createdAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
 
-  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   room    ChatworkRoom @relation(fields: [chatworkRoomId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, chatworkRoomId])
@@ -202,19 +251,19 @@ model CompanyRoomLink {
 }
 
 model Message {
-  id            String   @id @default(cuid())
+  id             String   @id @default(cuid())
   chatworkRoomId String
-  roomId        String
-  messageId     String
-  sender        String
-  body          String
-  sentAt        DateTime
-  labels        String[] @default([])
-  companyId     String?
-  projectId     String?
-  wholesaleId   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  roomId         String
+  messageId      String
+  sender         String
+  body           String
+  sentAt         DateTime
+  labels         String[] @default([])
+  companyId      String?
+  projectId      String?
+  wholesaleId    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   chatworkRoom ChatworkRoom @relation(fields: [chatworkRoomId], references: [id], onDelete: Cascade)
   company      Company?     @relation(fields: [companyId], references: [id])
@@ -229,15 +278,15 @@ model Message {
 }
 
 model Summary {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   companyId   String
   periodStart DateTime
   periodEnd   DateTime
   content     String
-  type        SummaryType   @default(manual)
+  type        SummaryType @default(manual)
   sourceLinks String[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -245,16 +294,16 @@ model Summary {
 }
 
 model Task {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   targetType  TargetType
   targetId    String
   assigneeId  String?
   title       String
   description String?
   dueDate     DateTime?
-  status      TaskStatus   @default(todo)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      TaskStatus @default(todo)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   assignee User? @relation(fields: [assigneeId], references: [id])
 
@@ -262,6 +311,29 @@ model Task {
   @@index([dueDate, status])
   @@index([assigneeId])
   @@map("tasks")
+}
+
+model Note {
+  id          String   @id @default(cuid())
+  type        NoteType @default(other)
+  content     String
+  companyId   String?
+  projectId   String?
+  wholesaleId String?
+  authorId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wholesale Wholesale? @relation(fields: [wholesaleId], references: [id], onDelete: Cascade)
+  author    User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([wholesaleId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("notes")
 }
 
 model Feedback {

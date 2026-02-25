@@ -2,15 +2,18 @@ import { FastifyInstance } from 'fastify'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import {
   createWholesaleHandler,
+  createWholesaleNegotiationHandler,
   deleteWholesaleHandler,
   getWholesaleHandler,
   listCompanyWholesalesHandler,
+  listWholesaleNegotiationsHandler,
   listWholesalesHandler,
   updateWholesaleHandler,
 } from './wholesales.handlers'
 import type {
   WholesaleCreateBody,
   WholesaleListQuery,
+  WholesaleNegotiationCreateBody,
   WholesaleUpdateBody,
 } from './wholesales.schemas'
 
@@ -49,5 +52,17 @@ export async function wholesaleRoutes(fastify: FastifyInstance) {
     '/companies/:id/wholesales',
     { preHandler: requireAuth() },
     listCompanyWholesalesHandler
+  )
+
+  fastify.get<{ Params: { id: string } }>(
+    '/wholesales/:id/negotiations',
+    { preHandler: requireAuth() },
+    listWholesaleNegotiationsHandler
+  )
+
+  fastify.post<{ Params: { id: string }; Body: WholesaleNegotiationCreateBody }>(
+    '/wholesales/:id/negotiations',
+    { preHandler: requireWriteAccess() },
+    createWholesaleNegotiationHandler
   )
 }

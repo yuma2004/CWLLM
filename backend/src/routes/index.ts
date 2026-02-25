@@ -4,6 +4,7 @@ import { chatworkRoutes } from './chatwork'
 import { companyRoutes } from './companies'
 import { dashboardRoutes } from './dashboard'
 import { messageRoutes } from './messages'
+import { noteRoutes } from './notes'
 import { projectRoutes } from './projects'
 import { searchRoutes } from './search'
 import { summaryRoutes } from './summaries'
@@ -20,6 +21,7 @@ const ROUTES = [
   chatworkRoutes,
   messageRoutes,
   jobRoutes,
+  noteRoutes,
   taskRoutes,
   projectRoutes,
   wholesaleRoutes,
