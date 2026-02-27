@@ -167,7 +167,7 @@ export const useProjectDetailPage = () => {
     if (!id) return
     setProjectFormError('')
     if (validateProjectUpdateForm(projectForm) !== null) {
-      setProjectFormError('Project name is required.')
+      setProjectFormError('案件名は必須です。')
       return
     }
     try {
@@ -175,13 +175,13 @@ export const useProjectDetailPage = () => {
       await updateProject(payload, {
         authMode: 'bearer',
         url: apiRoutes.projects.detail(id),
-        errorMessage: 'Failed to update project.',
+        errorMessage: '案件の更新に失敗しました。',
       })
       setIsEditingProject(false)
       refreshData()
-      showToast('Project updated.', 'success')
+      showToast('案件を更新しました。', 'success')
     } catch (err) {
-      setProjectFormError(err instanceof Error ? err.message : 'Failed to update project.')
+      setProjectFormError(err instanceof Error ? err.message : '案件の更新に失敗しました。')
     }
   }
 
@@ -190,13 +190,13 @@ export const useProjectDetailPage = () => {
     if (!id) return
     setFormError('')
     if (!form.companyId) {
-      setFormError('Company is required.')
+      setFormError('企業は必須です。')
       return
     }
     try {
       await createWholesale(buildWholesaleCreatePayload(id, form), {
         authMode: 'bearer',
-        errorMessage: 'Failed to create wholesale record.',
+        errorMessage: '卸の作成に失敗しました。',
       })
       setForm({
         companyId: '',
@@ -207,9 +207,9 @@ export const useProjectDetailPage = () => {
       })
       setShowCreateForm(false)
       refreshData()
-      showToast('Wholesale record created.', 'success')
+      showToast('卸を作成しました。', 'success')
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to create wholesale record.')
+      setFormError(err instanceof Error ? err.message : '卸の作成に失敗しました。')
     }
   }
 
@@ -232,13 +232,13 @@ export const useProjectDetailPage = () => {
       await updateWholesale(buildWholesaleUpdatePayload(editForm), {
         authMode: 'bearer',
         url: apiRoutes.wholesales.detail(editingWholesale.id),
-        errorMessage: 'Failed to update wholesale record.',
+        errorMessage: '卸の更新に失敗しました。',
       })
       setEditingWholesale(null)
       refreshData()
-      showToast('Wholesale record updated.', 'success')
+      showToast('卸を更新しました。', 'success')
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Failed to update wholesale record.')
+      setEditError(err instanceof Error ? err.message : '卸の更新に失敗しました。')
     }
   }
 
@@ -254,13 +254,13 @@ export const useProjectDetailPage = () => {
       await removeWholesale(undefined, {
         authMode: 'bearer',
         url: apiRoutes.wholesales.detail(deleteTarget.id),
-        errorMessage: 'Failed to delete wholesale record.',
+        errorMessage: '卸の削除に失敗しました。',
       })
       setDeleteTarget(null)
       refreshData()
-      showToast('Wholesale record deleted.', 'success')
+      showToast('卸を削除しました。', 'success')
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete wholesale record.')
+      setDeleteError(err instanceof Error ? err.message : '卸の削除に失敗しました。')
     }
   }
 

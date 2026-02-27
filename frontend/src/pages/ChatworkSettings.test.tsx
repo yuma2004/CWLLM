@@ -30,12 +30,12 @@ const createHookState = (
   showToast: vi.fn(),
   filteredRooms: [],
   totalRooms: 0,
+  totalPages: 1,
   currentPage: 1,
+  roomPageSize: 20,
   pagedRooms: [],
   selectedRoomSet: new Set<string>(),
   allFilteredSelected: false,
-  hasRoomFilters: false,
-  roomFilterLabel: 'All',
   isQueueingRooms: false,
   isQueueingMessages: false,
   errorMessage: '',
@@ -45,6 +45,7 @@ const createHookState = (
   handleRoomQueryChange: vi.fn(),
   handleRoomFilterChange: vi.fn(),
   handleClearRoomFilters: vi.fn(),
+  handleRoomPageChange: vi.fn(),
   handleRoomPageSizeChange: vi.fn(),
   toggleSelectRoom: vi.fn(),
   toggleSelectAllFiltered: vi.fn(),
@@ -108,5 +109,42 @@ describe('ChatworkSettings page', () => {
     expect(handleToggle).toHaveBeenCalledWith(room)
     expect(toggleSelectRoom).toHaveBeenCalledWith('room-local-1')
   })
-})
 
+  it('triggers bulk select toggle and pagination actions', () => {
+    const handleRoomPageChange = vi.fn()
+    const toggleSelectAllFiltered = vi.fn()
+    const room = {
+      id: 'room-local-1',
+      roomId: '100',
+      name: '営業部',
+      isActive: true,
+      description: null,
+      lastSyncAt: null,
+      lastErrorAt: null,
+      lastErrorMessage: null,
+      lastErrorStatus: null,
+    }
+
+    mockUseChatworkSettingsPage.mockReturnValue(
+      createHookState({
+        totalRooms: 25,
+        totalPages: 2,
+        currentPage: 1,
+        roomPageSize: 20,
+        selectedRoomIds: ['room-local-1'],
+        pagedRooms: [room],
+        filteredRooms: [room],
+        handleRoomPageChange,
+        toggleSelectAllFiltered,
+      })
+    )
+
+    render(<ChatworkSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: '絞り込み対象を全選択' }))
+    fireEvent.click(screen.getByRole('button', { name: '次のページ' }))
+
+    expect(toggleSelectAllFiltered).toHaveBeenCalledTimes(1)
+    expect(handleRoomPageChange).toHaveBeenCalledWith(2)
+  })
+})

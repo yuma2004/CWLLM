@@ -9,13 +9,6 @@ import type { ChatworkRoom, JobRecord } from '../../types'
 
 export type RoomFilter = 'all' | 'active' | 'inactive' | 'error'
 
-export const ROOM_FILTER_LABELS: Record<RoomFilter, string> = {
-  all: 'All',
-  active: 'Active',
-  inactive: 'Inactive',
-  error: 'Error',
-}
-
 export const useChatworkSettingsPage = () => {
   const { isAdmin } = usePermissions()
   const canManageChatwork = isAdmin
@@ -38,7 +31,7 @@ export const useChatworkSettingsPage = () => {
     canManageChatwork ? apiRoutes.chatwork.rooms() : null,
     {
       enabled: canManageChatwork,
-      errorMessage: 'Failed to fetch chatwork rooms.',
+      errorMessage: 'Chatworkルームの取得に失敗しました。',
       cacheTimeMs: 10_000,
     }
   )
@@ -69,8 +62,6 @@ export const useChatworkSettingsPage = () => {
   const selectedRoomSet = useMemo(() => new Set(selectedRoomIds), [selectedRoomIds])
   const allFilteredSelected =
     filteredRooms.length > 0 && filteredRooms.every((room) => selectedRoomSet.has(room.id))
-  const hasRoomFilters = roomQuery.trim().length > 0 || roomFilter !== 'all'
-  const roomFilterLabel = ROOM_FILTER_LABELS[roomFilter]
 
   const { mutate: queueRoomSync, isLoading: isQueueingRooms } = useMutation<
     { jobId: string; status: JobRecord['status'] },
@@ -93,7 +84,7 @@ export const useChatworkSettingsPage = () => {
     activeJob ? apiRoutes.jobs.detail(activeJob.id) : null,
     {
       enabled: false,
-      errorMessage: 'Failed to fetch job.',
+      errorMessage: 'ジョブの取得に失敗しました。',
     }
   )
 
@@ -106,14 +97,16 @@ export const useChatworkSettingsPage = () => {
     setActionError('')
     try {
       const data = await queueRoomSync(undefined, {
-        errorMessage: 'Failed to enqueue room sync.',
+        errorMessage: 'ルーム同期ジョブの起動に失敗しました。',
       })
       if (data) {
         setActiveJob({ id: data.jobId, type: 'chatwork_rooms_sync', status: data.status })
-        showToast('Room sync queued.', 'success')
+        showToast('ルーム同期ジョブを開始しました。', 'success')
       }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to enqueue room sync.')
+      setActionError(
+        err instanceof Error ? err.message : 'ルーム同期ジョブの起動に失敗しました。'
+      )
     }
   }
 
@@ -121,7 +114,7 @@ export const useChatworkSettingsPage = () => {
     setActionError('')
     try {
       const data = await queueMessageSync(undefined, {
-        errorMessage: 'Failed to enqueue message sync.',
+        errorMessage: 'メッセージ同期ジョブの起動に失敗しました。',
       })
       if (data) {
         setActiveJob({
@@ -129,10 +122,12 @@ export const useChatworkSettingsPage = () => {
           type: 'chatwork_messages_sync',
           status: data.status,
         })
-        showToast('Message sync queued.', 'success')
+        showToast('メッセージ同期ジョブを開始しました。', 'success')
       }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to enqueue message sync.')
+      setActionError(
+        err instanceof Error ? err.message : 'メッセージ同期ジョブの起動に失敗しました。'
+      )
     }
   }
 
@@ -143,14 +138,14 @@ export const useChatworkSettingsPage = () => {
         { isActive: !room.isActive },
         {
           url: apiRoutes.chatwork.room(room.id),
-          errorMessage: 'Failed to update room status.',
+          errorMessage: 'ルーム状態の更新に失敗しました。',
           onSuccess: () => {
             void refetchRooms(undefined, { ignoreCache: true })
           },
         }
       )
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to update room status.')
+      setActionError(err instanceof Error ? err.message : 'ルーム状態の更新に失敗しました。')
     }
   }
 
@@ -176,6 +171,15 @@ export const useChatworkSettingsPage = () => {
   const handleRoomPageSizeChange = (pageSize: number) => {
     setRoomPageSize(pageSize)
     setRoomPage(1)
+  }
+
+  const handleRoomPageChange = (nextPage: number) => {
+    if (totalPages <= 1) {
+      setRoomPage(1)
+      return
+    }
+    const normalizedPage = Math.max(1, Math.min(nextPage, totalPages))
+    setRoomPage(normalizedPage)
   }
 
   const toggleSelectRoom = (roomId: string) => {
@@ -208,9 +212,12 @@ export const useChatworkSettingsPage = () => {
       )
       setSelectedRoomIds([])
       void refetchRooms(undefined, { ignoreCache: true })
-      showToast(nextActive ? 'Rooms activated.' : 'Rooms deactivated.', 'success')
+      showToast(
+        nextActive ? '選択したルームを有効化しました。' : '選択したルームを無効化しました。',
+        'success'
+      )
     } catch (err) {
-      const message = toErrorMessage(err, 'Failed to bulk update rooms.')
+      const message = toErrorMessage(err, 'ルームの一括更新に失敗しました。')
       setActionError(message)
       showToast(message, 'error')
     } finally {
@@ -224,13 +231,13 @@ export const useChatworkSettingsPage = () => {
     try {
       const data = await cancelJob(undefined, {
         url: apiRoutes.jobs.cancel(activeJob.id),
-        errorMessage: 'Failed to cancel job.',
+        errorMessage: 'ジョブのキャンセルに失敗しました。',
       })
       if (data?.job) {
         setActiveJob(data.job)
       }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to cancel job.')
+      setActionError(err instanceof Error ? err.message : 'ジョブのキャンセルに失敗しました。')
     }
   }
 
@@ -255,12 +262,12 @@ export const useChatworkSettingsPage = () => {
     showToast,
     filteredRooms,
     totalRooms,
+    totalPages,
     currentPage,
+    roomPageSize,
     pagedRooms,
     selectedRoomSet,
     allFilteredSelected,
-    hasRoomFilters,
-    roomFilterLabel,
     isQueueingRooms,
     isQueueingMessages,
     errorMessage,
@@ -270,6 +277,7 @@ export const useChatworkSettingsPage = () => {
     handleRoomQueryChange,
     handleRoomFilterChange,
     handleClearRoomFilters,
+    handleRoomPageChange,
     handleRoomPageSizeChange,
     toggleSelectRoom,
     toggleSelectAllFiltered,

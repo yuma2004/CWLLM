@@ -1,0 +1,4 @@
+﻿interface:
+  display_name: "React Test"
+  short_description: "ReactとTesting Library向け振る舞い重視テスト作成規約"
+  default_prompt: "Use $react-test to write behavior-focused React tests in Japanese."

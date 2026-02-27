@@ -12,6 +12,7 @@ import Toast from '../components/ui/Toast'
 import { createSearchShortcut, useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { useListPage } from '../hooks/useListPage'
 import { apiRoutes } from '../lib/apiRoutes'
+import { toErrorMessage } from '../utils/errorState'
 import {
   COMPANY_CATEGORY_DEFAULT_OPTIONS,
   COMPANY_STATUS_DEFAULT_OPTIONS,
@@ -88,9 +89,7 @@ function Companies() {
         tags: data?.tags ?? [],
       })
     },
-    onError: (message) => {
-      console.error('企業オプションの取得エラー:', message)
-    },
+    onError: setError,
   })
 
   const { isLoading: isLoadingRooms } = useFetch<{ rooms?: ChatworkRoom[] }>(
@@ -202,6 +201,7 @@ function Companies() {
       .filter((tag) => tag.length > 0)
 
     try {
+      let chatworkLinkWarning = ''
       const companyData = await createCompany(
         {
           name: form.name,
@@ -221,8 +221,11 @@ function Companies() {
             { roomId: selectedRoomId },
             { url: apiRoutes.companies.chatworkRooms(newCompanyId) }
           )
-        } catch (err) {
-          console.error('Chatworkルームの紐付けに失敗しました:', err)
+        } catch (error) {
+          chatworkLinkWarning = toErrorMessage(
+            error,
+            '企業は作成されましたが、Chatworkルーム連携に失敗しました。設定画面から再試行してください。'
+          )
         }
       }
 
@@ -239,7 +242,11 @@ function Companies() {
       setShowCreateForm(false)
       void refetchCompanies()
       void refetchOptions()
-      showToast('企業を作成しました。', 'success')
+      if (chatworkLinkWarning) {
+        showToast(chatworkLinkWarning, 'info')
+      } else {
+        showToast('企業を作成しました。', 'success')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存中にエラーが発生しました。')
     }

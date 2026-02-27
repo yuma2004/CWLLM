@@ -84,4 +84,67 @@ describe('Companies page', () => {
       expect(searchCall).toBeTruthy()
     })
   })
+
+  it('shows info toast when company is created but Chatwork link fails', async () => {
+    const jsonResponse = (payload: unknown, status = 200) =>
+      ({
+        ok: status >= 200 && status < 300,
+        status,
+        text: async () => JSON.stringify(payload),
+        json: async () => payload,
+      } as Response)
+
+    mockFetch.mockImplementation(async (input, init) => {
+      const url = String(input)
+      const method = (init?.method || 'GET').toUpperCase()
+
+      if (method === 'POST' && url.includes('/chatwork-rooms')) {
+        return jsonResponse({ error: '企業は作成されましたが、Chatwork連携に失敗しました。' }, 500)
+      }
+
+      if (method === 'POST' && url.endsWith('/api/companies')) {
+        return jsonResponse({
+          company: { id: 'c-new', name: 'Acme', status: 'active', tags: [], ownerIds: [] },
+        })
+      }
+
+      if (method === 'GET' && url.includes('/api/chatwork/rooms')) {
+        return jsonResponse({
+          rooms: [{ id: 'r1', roomId: '100', name: '営業ルーム', description: '' }],
+        })
+      }
+
+      if (method === 'GET' && url.includes('/api/companies/options')) {
+        return jsonResponse({ categories: [], statuses: [], tags: [] })
+      }
+
+      if (method === 'GET' && url.includes('/api/users/options')) {
+        return jsonResponse({ users: [] })
+      }
+
+      if (method === 'GET' && url.includes('/api/companies')) {
+        return jsonResponse({
+          items: [{ id: 'c-new', name: 'Acme', status: 'active', tags: [], ownerIds: [] }],
+          pagination: { page: 1, pageSize: 20, total: 1 },
+        })
+      }
+
+      return jsonResponse({})
+    })
+
+    render(
+      <MemoryRouter>
+        <Companies />
+      </MemoryRouter>
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: '企業を作成' }))
+    fireEvent.click(await screen.findByText('営業ルーム'))
+    fireEvent.change(screen.getByPlaceholderText('企業名（必須）'), {
+      target: { value: 'Acme' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '登録' }))
+
+    expect(await screen.findByText('企業は作成されましたが、Chatwork連携に失敗しました。')).toBeInTheDocument()
+  })
 })

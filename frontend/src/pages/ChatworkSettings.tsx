@@ -6,6 +6,7 @@ import FormInput from '../components/ui/FormInput'
 import FormSelect from '../components/ui/FormSelect'
 import JobProgressCard from '../components/ui/JobProgressCard'
 import LoadingState from '../components/ui/LoadingState'
+import Pagination from '../components/ui/Pagination'
 import Toast from '../components/ui/Toast'
 import { useChatworkSettingsPage } from '../features/chatwork/useChatworkSettingsPage'
 import { cn } from '../lib/cn'
@@ -148,8 +149,11 @@ function ChatworkSettings() {
     refetchJob,
     showToast,
     totalRooms,
+    currentPage,
+    roomPageSize,
     pagedRooms,
     selectedRoomSet,
+    allFilteredSelected,
     isQueueingRooms,
     isQueueingMessages,
     errorMessage,
@@ -159,7 +163,10 @@ function ChatworkSettings() {
     handleRoomQueryChange,
     handleRoomFilterChange,
     handleClearRoomFilters,
+    handleRoomPageChange,
+    handleRoomPageSizeChange,
     toggleSelectRoom,
+    toggleSelectAllFiltered,
     handleBulkToggle,
     handleCancelJob,
   } = useChatworkSettingsPage()
@@ -249,6 +256,14 @@ function ChatworkSettings() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
             <span className="text-slate-600">{selectedRoomIds.length} 件選択中</span>
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSelectAllFiltered}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50"
+                disabled={isBulkUpdating}
+              >
+                {allFilteredSelected ? '絞り込み対象の選択解除' : '絞り込み対象を全選択'}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -351,6 +366,17 @@ function ChatworkSettings() {
             </div>
           )}
         </div>
+        {totalRooms > 0 && (
+          <div className="mt-6 border-t border-slate-100 pt-4">
+            <Pagination
+              page={currentPage}
+              pageSize={roomPageSize}
+              total={totalRooms}
+              onPageChange={handleRoomPageChange}
+              onPageSizeChange={handleRoomPageSizeChange}
+            />
+          </div>
+        )}
       </div>
 
       {toast && (

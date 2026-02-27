@@ -64,7 +64,7 @@ export const useProjectsPage = () => {
     },
     fetchOptions: {
       authMode: 'bearer',
-      errorMessage: 'Failed to load projects.',
+      errorMessage: '案件一覧の取得に失敗しました。',
     },
   })
 
@@ -114,21 +114,21 @@ export const useProjectsPage = () => {
     event.preventDefault()
     setError('')
     if (validateProjectCreateForm(form) !== null) {
-      setError('Company and project name are required.')
+      setError('企業と案件名は必須です。')
       return
     }
     try {
       const payload = buildProjectCreatePayload(form)
       await createProject(payload, {
         authMode: 'bearer',
-        errorMessage: 'Failed to create project.',
+        errorMessage: '案件の作成に失敗しました。',
       })
       setForm(createInitialForm())
       setShowCreateForm(false)
       void refetchProjects(undefined, { ignoreCache: true })
-      showToast('Project created.', 'success')
+      showToast('案件を作成しました。', 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unexpected error occurred.')
+      setError(err instanceof Error ? err.message : '不明なエラーが発生しました。')
     }
   }
 
@@ -142,13 +142,13 @@ export const useProjectsPage = () => {
         {
           authMode: 'bearer',
           url: apiRoutes.projects.detail(projectId),
-          errorMessage: 'Failed to update project owner.',
+          errorMessage: '担当者の更新に失敗しました。',
         }
       )
       void refetchProjects(undefined, { ignoreCache: true })
-      showToast('Project owner updated.', 'success')
+      showToast('担当者を更新しました。', 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update project owner.')
+      setError(err instanceof Error ? err.message : '担当者の更新に失敗しました。')
     }
   }
 
