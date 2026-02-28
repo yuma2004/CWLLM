@@ -1,5 +1,11 @@
+import Fastify from 'fastify'
 import { afterEach, describe, expect, it } from 'vitest'
-import { prisma, connectOrDisconnect, mapPrismaError } from './prisma'
+import {
+  connectOrDisconnect,
+  handlePrismaError,
+  mapPrismaError,
+  prisma,
+} from './prisma'
 
 const companyPrefix = `prisma-util-company-${Date.now()}`
 const projectPrefix = `prisma-util-project-${Date.now()}`
@@ -13,24 +19,24 @@ const captureError = async (operation: () => Promise<unknown>) => {
   return null
 }
 
-describe('mapPrismaError', () => {
-  afterEach(async () => {
-    await prisma.project.deleteMany({
-      where: {
-        name: {
-          startsWith: projectPrefix,
-        },
+afterEach(async () => {
+  await prisma.project.deleteMany({
+    where: {
+      name: {
+        startsWith: projectPrefix,
       },
-    })
-    await prisma.company.deleteMany({
-      where: {
-        normalizedName: {
-          startsWith: companyPrefix,
-        },
-      },
-    })
+    },
   })
+  await prisma.company.deleteMany({
+    where: {
+      normalizedName: {
+        startsWith: companyPrefix,
+      },
+    },
+  })
+})
 
+describe('mapPrismaError', () => {
   it('returns null for non prisma errors', () => {
     expect(mapPrismaError(new Error('x'))).toBeNull()
   })
@@ -111,5 +117,68 @@ describe('connectOrDisconnect', () => {
 
   it('returns undefined when id is undefined', () => {
     expect(connectOrDisconnect(undefined)).toBeUndefined()
+  })
+})
+
+describe('handlePrismaError', () => {
+  it('returns mapped status and payload when prisma error is known', async () => {
+    const normalizedName = `${companyPrefix}-handle`
+    await prisma.company.create({
+      data: {
+        name: 'Prisma Handle Company',
+        normalizedName,
+        status: 'active',
+        tags: [],
+      },
+    })
+    const error = await captureError(() =>
+      prisma.company.create({
+        data: {
+          name: 'Prisma Handle Company 2',
+          normalizedName,
+          status: 'active',
+          tags: [],
+        },
+      })
+    )
+    expect(error).not.toBeNull()
+
+    const app = Fastify()
+    app.get('/known', async (_request, reply) => handlePrismaError(reply, error))
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/known',
+    })
+    await app.close()
+
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toEqual({
+      error: {
+        code: 'CONFLICT',
+        message: 'Conflict',
+      },
+    })
+  })
+
+  it('returns 500 payload for unmapped errors', async () => {
+    const app = Fastify()
+    app.get('/unknown', async (_request, reply) =>
+      handlePrismaError(reply, new Error('boom'))
+    )
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/unknown',
+    })
+    await app.close()
+
+    expect(response.statusCode).toBe(500)
+    expect(response.json()).toEqual({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Internal server error',
+      },
+    })
   })
 })

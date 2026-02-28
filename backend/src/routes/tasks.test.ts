@@ -438,4 +438,78 @@ describe('Task endpoints', () => {
     expect(body.items).toHaveLength(1)
     expect(body.items[0].id).toBe(soonTask.id)
   })
+
+  it('updates multiple tasks in bulk for assignee', async () => {
+    const user = await createUser(`task-bulk-${Date.now()}@example.com`, UserRole.employee)
+    const token = fastify.jwt.sign({ userId: user.id, role: 'employee' })
+
+    const company = await prisma.company.create({
+      data: {
+        name: 'Bulk Task Co',
+        normalizedName: `bulktaskco-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    const taskA = await prisma.task.create({
+      data: {
+        targetType: 'company',
+        targetId: company.id,
+        title: 'Bulk task A',
+        status: 'todo',
+        assigneeId: user.id,
+      },
+    })
+    const taskB = await prisma.task.create({
+      data: {
+        targetType: 'company',
+        targetId: company.id,
+        title: 'Bulk task B',
+        status: 'todo',
+        assigneeId: user.id,
+      },
+    })
+
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: '/api/tasks/bulk',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        taskIds: [taskA.id, taskB.id],
+        status: 'done',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(JSON.parse(response.body).updated).toBe(2)
+
+    const updated = await prisma.task.findMany({
+      where: { id: { in: [taskA.id, taskB.id] } },
+      orderBy: { title: 'asc' },
+    })
+    expect(updated[0]?.status).toBe('done')
+    expect(updated[1]?.status).toBe('done')
+  })
+
+  it('returns 400 for invalid dueDate in bulk update', async () => {
+    const user = await createUser(`task-bulk-invalid-${Date.now()}@example.com`, UserRole.employee)
+    const token = fastify.jwt.sign({ userId: user.id, role: 'employee' })
+
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: '/api/tasks/bulk',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        taskIds: ['task-1'],
+        dueDate: 'not-a-date',
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+  })
 })

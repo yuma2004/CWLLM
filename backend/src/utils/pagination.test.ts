@@ -32,6 +32,14 @@ describe('parsePagination', () => {
       skip: 4,
     })
   })
+
+  it('floors decimals for stable integer pagination', () => {
+    expect(parsePagination('2.9', '3.8', 80)).toEqual({
+      page: 2,
+      pageSize: 3,
+      skip: 3,
+    })
+  })
 })
 
 describe('parseLimit', () => {

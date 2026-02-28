@@ -366,4 +366,178 @@ describe('Message endpoints', () => {
     const updated = await prisma.message.findUnique({ where: { id: message.id } })
     expect(updated?.companyId).toBe(company.id)
   })
+
+  it('bulk assigns company to multiple messages', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const company = await prisma.company.create({
+      data: {
+        name: 'Bulk Assign Co',
+        normalizedName: `bulkassignco-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+    const room = await prisma.chatworkRoom.create({
+      data: {
+        roomId: `room-${Date.now()}`,
+        name: 'Bulk Assign Room',
+      },
+    })
+    const messageA = await prisma.message.create({
+      data: {
+        chatworkRoomId: room.id,
+        roomId: room.roomId,
+        messageId: 'bulk-a',
+        sender: 'sender',
+        body: 'bulk assign a',
+        sentAt: new Date(),
+      },
+    })
+    const messageB = await prisma.message.create({
+      data: {
+        chatworkRoomId: room.id,
+        roomId: room.roomId,
+        messageId: 'bulk-b',
+        sender: 'sender',
+        body: 'bulk assign b',
+        sentAt: new Date(),
+      },
+    })
+
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: '/api/messages/assign-company',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        companyId: company.id,
+        messageIds: [messageA.id, messageB.id],
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = JSON.parse(response.body)
+    expect(body.updated).toBe(2)
+
+    const updated = await prisma.message.findMany({
+      where: { id: { in: [messageA.id, messageB.id] } },
+      orderBy: { messageId: 'asc' },
+    })
+    expect(updated[0]?.companyId).toBe(company.id)
+    expect(updated[1]?.companyId).toBe(company.id)
+  })
+
+  it('supports bulk add and remove labels', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const company = await prisma.company.create({
+      data: {
+        name: 'Bulk Label Co',
+        normalizedName: `bulklabelco-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+    const room = await prisma.chatworkRoom.create({
+      data: {
+        roomId: `room-${Date.now()}`,
+        name: 'Bulk Label Room',
+      },
+    })
+    const messageA = await prisma.message.create({
+      data: {
+        chatworkRoomId: room.id,
+        roomId: room.roomId,
+        messageId: 'label-a',
+        sender: 'sender',
+        body: 'bulk label a',
+        sentAt: new Date(),
+        companyId: company.id,
+      },
+    })
+    const messageB = await prisma.message.create({
+      data: {
+        chatworkRoomId: room.id,
+        roomId: room.roomId,
+        messageId: 'label-b',
+        sender: 'sender',
+        body: 'bulk label b',
+        sentAt: new Date(),
+        companyId: company.id,
+      },
+    })
+
+    const add = await fastify.inject({
+      method: 'POST',
+      url: '/api/messages/labels/bulk',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        messageIds: [messageA.id, messageB.id],
+        label: 'BulkVIP',
+      },
+    })
+    expect(add.statusCode).toBe(200)
+    expect(JSON.parse(add.body).updated).toBe(2)
+
+    const added = await prisma.message.findMany({
+      where: { id: { in: [messageA.id, messageB.id] } },
+      orderBy: { messageId: 'asc' },
+    })
+    expect(added[0]?.labels).toContain('BulkVIP')
+    expect(added[1]?.labels).toContain('BulkVIP')
+
+    const remove = await fastify.inject({
+      method: 'POST',
+      url: '/api/messages/labels/bulk/remove',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        messageIds: [messageA.id, messageB.id],
+        label: 'BulkVIP',
+      },
+    })
+    expect(remove.statusCode).toBe(200)
+    expect(JSON.parse(remove.body).updated).toBe(2)
+
+    const removed = await prisma.message.findMany({
+      where: { id: { in: [messageA.id, messageB.id] } },
+      orderBy: { messageId: 'asc' },
+    })
+    expect(removed[0]?.labels).not.toContain('BulkVIP')
+    expect(removed[1]?.labels).not.toContain('BulkVIP')
+  })
+
+  it('returns validation errors for invalid message filters and bulk payload', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const company = await prisma.company.create({
+      data: {
+        name: 'Invalid Filter Co',
+        normalizedName: `invalidfilterco-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    const invalidList = await fastify.inject({
+      method: 'GET',
+      url: `/api/companies/${company.id}/messages?from=not-a-date`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(invalidList.statusCode).toBe(400)
+
+    const invalidSearch = await fastify.inject({
+      method: 'GET',
+      url: '/api/messages/search?q=hello&to=not-a-date',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(invalidSearch.statusCode).toBe(400)
+
+    const invalidBulkAssign = await fastify.inject({
+      method: 'PATCH',
+      url: '/api/messages/assign-company',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        companyId: company.id,
+        messageIds: [],
+      },
+    })
+    expect(invalidBulkAssign.statusCode).toBe(400)
+  })
 })

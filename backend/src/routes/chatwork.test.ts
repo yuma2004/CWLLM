@@ -404,4 +404,101 @@ describe('Chatwork sync', () => {
     const messages = await prisma.message.findMany({ where: { roomId: '500' } })
     expect(messages.length).toBe(1)
   })
+
+  it('assigns existing unassigned messages when linking a room to a company', async () => {
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
+
+    const room = await prisma.chatworkRoom.create({
+      data: {
+        roomId: 'link-room-1',
+        name: 'Link Room',
+        isActive: true,
+      },
+    })
+    const company = await prisma.company.create({
+      data: {
+        name: 'Link Co',
+        normalizedName: `linkco-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    const message = await prisma.message.create({
+      data: {
+        chatworkRoomId: room.id,
+        roomId: room.roomId,
+        messageId: 'link-message-1',
+        sender: 'sender',
+        body: 'before link',
+        sentAt: new Date(),
+      },
+    })
+
+    const linkResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/companies/${company.id}/chatwork-rooms`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { roomId: room.roomId },
+    })
+
+    expect(linkResponse.statusCode).toBe(201)
+    const updated = await prisma.message.findUnique({ where: { id: message.id } })
+    expect(updated?.companyId).toBe(company.id)
+  })
+
+  it('skips duplicate webhook enqueue during cooldown window', async () => {
+    mockFetch.mockImplementation((input) => {
+      const url = input.toString()
+      if (url.includes('/rooms/700/messages')) {
+        return buildResponse([
+          {
+            message_id: '701',
+            body: 'webhook',
+            send_time: 1700000300,
+            account: { account_id: 5, name: 'user5' },
+          },
+        ])
+      }
+      return buildResponse([])
+    })
+
+    await prisma.chatworkRoom.create({
+      data: {
+        roomId: '700',
+        name: 'Room Cooldown',
+        isActive: true,
+      },
+    })
+
+    const first = await fastify.inject({
+      method: 'POST',
+      url: '/api/chatwork/webhook',
+      payload: {
+        webhook_event_type: 'message_created',
+        webhook_event: {
+          room_id: 700,
+          message_id: '701',
+        },
+      },
+    })
+    expect(first.statusCode).toBe(200)
+    expect(JSON.parse(first.body).enqueued).toBe(true)
+
+    const second = await fastify.inject({
+      method: 'POST',
+      url: '/api/chatwork/webhook',
+      payload: {
+        webhook_event_type: 'message_created',
+        webhook_event: {
+          room_id: 700,
+          message_id: '701',
+        },
+      },
+    })
+    expect(second.statusCode).toBe(200)
+    const secondBody = JSON.parse(second.body)
+    expect(secondBody.enqueued).toBe(false)
+    expect(secondBody.reason).toBe('cooldown')
+  })
 })

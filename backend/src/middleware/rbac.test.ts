@@ -137,4 +137,58 @@ describe('RBAC middleware', () => {
 
     expect(response.statusCode).toBe(200)
   })
+
+  it('should return 401 when userId is missing', async () => {
+    const token = fastify.jwt.sign({ role: 'admin' })
+
+    fastify.get('/protected', { preHandler: requireAuth() }, async () => {
+      return { message: 'ok' }
+    })
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(401)
+  })
+
+  it('should allow access when allowedRoles is empty', async () => {
+    const token = fastify.jwt.sign({ userId: '123', role: 'admin' })
+
+    fastify.get('/role-agnostic', { preHandler: requireAuth([]) }, async () => {
+      return { message: 'ok' }
+    })
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/role-agnostic',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+  })
+
+  it('should deny admin when only employee role is allowed', async () => {
+    const token = fastify.jwt.sign({ userId: '123', role: 'admin' })
+
+    fastify.get('/employee-only', { preHandler: requireAuth(['employee']) }, async () => {
+      return { message: 'ok' }
+    })
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/employee-only',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
+  })
 })

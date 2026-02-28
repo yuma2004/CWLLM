@@ -109,4 +109,98 @@ describe('Summary endpoints', () => {
     expect(candidates.length).toBeGreaterThan(0)
   })
 
+  it('returns 404 when creating summary for missing company', async () => {
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/companies/missing-company/summaries',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        content: 'content',
+        type: 'manual',
+        periodStart: new Date('2026-01-01T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2026-01-02T00:00:00.000Z').toISOString(),
+        sourceLinks: [],
+      },
+    })
+
+    expect(response.statusCode).toBe(404)
+  })
+
+  it('validates period range and summary type', async () => {
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
+    const company = await prisma.company.create({
+      data: {
+        name: 'Summary Validation Co',
+        normalizedName: `summaryvalidationco-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    const invalidPeriod = await fastify.inject({
+      method: 'POST',
+      url: `/api/companies/${company.id}/summaries`,
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        content: 'content',
+        type: 'manual',
+        periodStart: new Date('2026-02-10T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2026-02-01T00:00:00.000Z').toISOString(),
+        sourceLinks: [],
+      },
+    })
+    expect(invalidPeriod.statusCode).toBe(400)
+
+    const invalidType = await fastify.inject({
+      method: 'POST',
+      url: `/api/companies/${company.id}/summaries`,
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        content: 'content',
+        type: 'other',
+        periodStart: new Date('2026-02-01T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2026-02-10T00:00:00.000Z').toISOString(),
+        sourceLinks: [],
+      },
+    })
+    expect(invalidType.statusCode).toBe(400)
+
+    const invalidSourceLinks = await fastify.inject({
+      method: 'POST',
+      url: `/api/companies/${company.id}/summaries`,
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        content: 'content',
+        type: 'manual',
+        periodStart: new Date('2026-02-01T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2026-02-10T00:00:00.000Z').toISOString(),
+        sourceLinks: 'not-array',
+      },
+    })
+    expect(invalidSourceLinks.statusCode).toBe(400)
+  })
+
+  it('returns 404 for missing summary on candidates endpoint', async () => {
+    const token = fastify.jwt.sign({ userId, role: 'admin' })
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/summaries/missing-summary/tasks/candidates',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(404)
+  })
 })

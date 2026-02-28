@@ -203,8 +203,10 @@ describe('Characterization for uncovered routes', () => {
   it('feedback create/list/patch preserve current auth and validation behavior', async () => {
     const owner = await createUser(UserRole.employee)
     const other = await createUser(UserRole.employee)
+    const admin = await createUser(UserRole.admin)
     const ownerToken = fastify.jwt.sign({ userId: owner.id, role: 'employee' })
     const otherToken = fastify.jwt.sign({ userId: other.id, role: 'employee' })
+    const adminToken = fastify.jwt.sign({ userId: admin.id, role: 'admin' })
 
     const unauthorized = await fastify.inject({
       method: 'POST',
@@ -270,6 +272,38 @@ describe('Characterization for uncovered routes', () => {
     expect(invalidPatch.statusCode).toBe(400)
     const invalidPatchBody = JSON.parse(invalidPatch.body)
     expect(invalidPatchBody.error.message).toBe('only improvement feedback can be edited')
+
+    const emptyPatch = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/feedback/${createdFeedback.id}`,
+      headers: authHeaders(ownerToken),
+      payload: {},
+    })
+    expect(emptyPatch.statusCode).toBe(400)
+    const emptyPatchBody = JSON.parse(emptyPatch.body)
+    expect(JSON.stringify(emptyPatchBody)).toContain('title or message is required')
+
+    const adminPatch = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/feedback/${createdFeedback.id}`,
+      headers: authHeaders(adminToken),
+      payload: {
+        title: 'admin edited title',
+      },
+    })
+    expect(adminPatch.statusCode).toBe(200)
+    const adminPatchBody = JSON.parse(adminPatch.body)
+    expect(adminPatchBody.feedback.title).toBe('admin edited title')
+
+    const notFoundPatch = await fastify.inject({
+      method: 'PATCH',
+      url: '/api/feedback/missing-feedback-id',
+      headers: authHeaders(ownerToken),
+      payload: {
+        message: 'missing',
+      },
+    })
+    expect(notFoundPatch.statusCode).toBe(404)
   })
 
   it('jobs list/get/cancel preserve visibility and terminal-status behavior', async () => {

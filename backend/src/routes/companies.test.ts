@@ -395,4 +395,92 @@ describe('Company endpoints', () => {
     expect(updatedTarget?.category).toBe('existing-category')
     expect(updatedTarget?.profile).toBe('existing-profile')
   })
+
+  it('reorders contacts and rejects mismatched orderedIds', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const company = await prisma.company.create({
+      data: {
+        name: 'Reorder Co',
+        normalizedName: `reorderco-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+    const contactA = await prisma.contact.create({
+      data: {
+        companyId: company.id,
+        name: 'A',
+        sortOrder: 1,
+      },
+    })
+    const contactB = await prisma.contact.create({
+      data: {
+        companyId: company.id,
+        name: 'B',
+        sortOrder: 2,
+      },
+    })
+
+    const success = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/companies/${company.id}/contacts/reorder`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        orderedIds: [contactB.id, contactA.id],
+      },
+    })
+    expect(success.statusCode).toBe(204)
+
+    const reordered = await prisma.contact.findMany({
+      where: { companyId: company.id },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, sortOrder: true },
+    })
+    expect(reordered[0]?.id).toBe(contactB.id)
+    expect(reordered[0]?.sortOrder).toBe(1)
+    expect(reordered[1]?.id).toBe(contactA.id)
+    expect(reordered[1]?.sortOrder).toBe(2)
+
+    const mismatch = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/companies/${company.id}/contacts/reorder`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        orderedIds: [contactA.id, 'missing-contact-id'],
+      },
+    })
+    expect(mismatch.statusCode).toBe(400)
+  })
+
+  it('validates merge payload boundaries', async () => {
+    const token = fastify.jwt.sign({ userId: 'admin', role: 'admin' })
+    const target = await prisma.company.create({
+      data: {
+        name: 'Merge Target',
+        normalizedName: `mergetarget-${Date.now()}`,
+        status: 'active',
+        tags: [],
+      },
+    })
+
+    const sameId = await fastify.inject({
+      method: 'POST',
+      url: `/api/companies/${target.id}/merge`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        sourceCompanyId: target.id,
+      },
+    })
+    expect(sameId.statusCode).toBe(400)
+
+    const missingSource = await fastify.inject({
+      method: 'POST',
+      url: `/api/companies/${target.id}/merge`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        sourceCompanyId: 'missing-company-id',
+      },
+    })
+    expect(missingSource.statusCode).toBe(404)
+  })
 })

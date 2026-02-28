@@ -141,6 +141,29 @@ describe('env config', () => {
     ).rejects.toThrow('REDIS_URL is required in production')
   })
 
+  it('throws when JWT_SECRET is missing in production', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.doMock('dotenv', () => ({
+      default: {
+        config: () => ({}),
+      },
+    }))
+
+    try {
+      await expect(
+        loadEnvModule({
+          NODE_ENV: 'production',
+          BACKEND_PORT: '3000',
+          JWT_SECRET: undefined,
+          REDIS_URL: 'redis://localhost:6379',
+        })
+      ).rejects.toThrow('JWT_SECRET is required in production')
+    } finally {
+      vi.doUnmock('dotenv')
+    }
+  })
+
   it('defaults job worker to disabled in production', async () => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
 

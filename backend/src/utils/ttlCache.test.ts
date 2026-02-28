@@ -52,4 +52,23 @@ describe('ttlCache', () => {
     expect(getCache<string>(b)).toBeNull()
     expect(getCache<string>(other)).toBe('C')
   })
+
+  it('runs periodic prune every 100 sets', () => {
+    const expired = `${prefix}:expired`
+    setCache(expired, 'stale', 500)
+    vi.advanceTimersByTime(501)
+
+    for (let i = 0; i < 100; i += 1) {
+      setCache(`${prefix}:bulk:${i}`, i, 10_000)
+    }
+
+    expect(getCache<string>(expired)).toBeNull()
+  })
+
+  it('ignores empty prefix delete requests', () => {
+    const key = `${prefix}:keep`
+    setCache(key, 'alive', 10_000)
+    deleteCacheByPrefix('')
+    expect(getCache<string>(key)).toBe('alive')
+  })
 })

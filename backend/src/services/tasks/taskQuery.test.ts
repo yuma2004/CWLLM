@@ -42,6 +42,34 @@ describe('taskQuery', () => {
     })
   })
 
+  it('returns explicit error when targetType is invalid', () => {
+    const parsed = parseTaskListFilters({ targetType: 'wrong' })
+    expect(parsed).toEqual({
+      ok: false,
+      error: TASK_FILTER_ERROR_MESSAGES.targetType,
+    })
+  })
+
+  it('returns explicit error when dueTo date is invalid', () => {
+    const parsed = parseTaskListFilters({ dueTo: 'invalid-date' })
+    expect(parsed).toEqual({
+      ok: false,
+      error: TASK_FILTER_ERROR_MESSAGES.dueTo,
+    })
+  })
+
+  it('normalizes empty text query to undefined', () => {
+    const parsed = parseTaskListFilters({ q: '   ' })
+    expect(parsed).toEqual({
+      ok: true,
+      q: undefined,
+      status: undefined,
+      targetType: undefined,
+      dueFrom: undefined,
+      dueTo: undefined,
+    })
+  })
+
   it('builds prisma where clause from parsed filters', () => {
     const dueFrom = new Date('2026-01-01T00:00:00.000Z')
     const dueTo = new Date('2026-01-31T00:00:00.000Z')
@@ -72,5 +100,20 @@ describe('taskQuery', () => {
       ],
     })
     expect(where.dueDate).toEqual({ gte: dueFrom, lte: dueTo })
+  })
+
+  it('builds dueDate filter with only dueTo', () => {
+    const dueTo = new Date('2026-01-31T00:00:00.000Z')
+    const where = buildTaskWhere(
+      {
+        ok: true,
+        dueTo,
+      },
+      {}
+    )
+
+    expect(where).toEqual({
+      dueDate: { lte: dueTo },
+    })
   })
 })

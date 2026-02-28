@@ -28,6 +28,27 @@ describe('buildErrorPayload', () => {
       },
     })
   })
+
+  it('maps additional status codes and fallback code', () => {
+    expect(buildErrorPayload(422, 'invalid')).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'invalid',
+      },
+    })
+    expect(buildErrorPayload(429, 'slow down')).toEqual({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'slow down',
+      },
+    })
+    expect(buildErrorPayload(418, 'teapot')).toEqual({
+      error: {
+        code: 'ERROR',
+        message: 'teapot',
+      },
+    })
+  })
 })
 
 describe('normalizeErrorPayload', () => {
@@ -61,6 +82,15 @@ describe('normalizeErrorPayload', () => {
     expect(normalizeErrorPayload({ error: {} }, 500)).toEqual({
       error: {
         code: 'INTERNAL_SERVER_ERROR',
+        message: 'Unknown error',
+      },
+    })
+  })
+
+  it('normalizes non-object error payloads with unknown message', () => {
+    expect(normalizeErrorPayload({ error: 123 }, 429)).toEqual({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
         message: 'Unknown error',
       },
     })

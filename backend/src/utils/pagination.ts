@@ -7,8 +7,8 @@ export const parsePagination = (
   const rawPageSize = Number(pageSizeValue)
   const safePage = Number.isFinite(rawPage) ? rawPage : NaN
   const safePageSize = Number.isFinite(rawPageSize) ? rawPageSize : NaN
-  const page = Math.max(safePage || 1, 1)
-  const pageSize = Math.min(Math.max(safePageSize || 20, 1), maxPageSize)
+  const page = Math.max(Math.floor(safePage || 1), 1)
+  const pageSize = Math.min(Math.max(Math.floor(safePageSize || 20), 1), maxPageSize)
   return { page, pageSize, skip: (page - 1) * pageSize }
 }
 
