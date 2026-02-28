@@ -1,0 +1,4 @@
+﻿interface:
+  display_name: "Backend Test"
+  short_description: "Create behavior-focused tests for Node.js and TypeScript APIs"
+  default_prompt: "Use $backend-test to add behavior-focused backend tests in Japanese."

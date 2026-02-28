@@ -1,7 +1,17 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-const root = process.cwd()
+const args = process.argv.slice(2)
+const explicitRootArg = args.find((arg) => arg.startsWith('--root='))
+const explicitRoot =
+  explicitRootArg?.split('=').slice(1).join('=') ??
+  (() => {
+    const rootFlagIndex = args.findIndex((arg) => arg === '--root')
+    if (rootFlagIndex < 0) return null
+    return args[rootFlagIndex + 1] ?? null
+  })()
+const root = path.resolve(process.cwd(), explicitRoot ?? '.')
+const skillName = 'frontend-react-test-skill'
 const jpPattern = /[ぁ-んァ-ヶ一-龠]/
 const testTitlePattern = /\b(?:describe|it|test)\s*\(\s*(["'`])([\s\S]*?)\1/g
 const fireEventPattern = /\bfireEvent\b/g
@@ -66,7 +76,7 @@ const run = async () => {
   }
 
   if (files.length === 0) {
-    console.error('No test files found.')
+    console.error(`[${skillName}] No test files found under ${root}.`)
     process.exit(1)
   }
 
@@ -108,7 +118,7 @@ const run = async () => {
   }
 
   if (violations.length > 0) {
-    console.error(`SKILL violations: ${violations.length}`)
+    console.error(`[${skillName}] SKILL violations: ${violations.length}`)
     for (const violation of violations) {
       console.error(
         `${violation.rule}\t${violation.file}:${violation.line}\t${violation.detail}`
@@ -117,7 +127,7 @@ const run = async () => {
     process.exit(1)
   }
 
-  console.log(`SKILL checks passed for ${files.length} files.`)
+  console.log(`[${skillName}] SKILL checks passed for ${files.length} files.`)
 }
 
 void run()

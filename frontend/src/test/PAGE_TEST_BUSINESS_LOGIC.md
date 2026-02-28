@@ -3,6 +3,14 @@
 このドキュメントは、`src/pages/*.test.tsx` が何を業務的に保証しているかを把握するための一覧です。
 実装詳細ではなく、画面として守るべき振る舞いを基準に整理しています。
 
+## テスト運用コマンド（Frontend React）
+- Frontend React向けテストスキル: `npm run test:skill:frontend:react`
+- 互換エイリアス: `npm run test:skill` / `npm run test:skill:react`
+- グローバルコマンド: `frontend-react-test-skill`
+- 他プロジェクトを対象に実行する場合:
+  - `node ./scripts/check-test-skill.mjs --root <対象ディレクトリ>`
+  - 例: `node ./scripts/check-test-skill.mjs --root C:/path/to/another-frontend`
+
 ## AccountCreate
 - 対象: `src/pages/AccountCreate.test.tsx`
 - 業務上の保証:
