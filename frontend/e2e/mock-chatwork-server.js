@@ -20,6 +20,13 @@ const messages = {
   '202': [],
 }
 
+const defaultMode = {
+  roomsShouldFail: false,
+  messagesShouldFail: false,
+}
+
+let mode = { ...defaultMode }
+
 const sendJson = (res, status, payload) => {
   res.writeHead(status, {
     'Content-Type': 'application/json',
@@ -27,31 +34,86 @@ const sendJson = (res, status, payload) => {
   res.end(JSON.stringify(payload))
 }
 
+const readRequestJson = (req) =>
+  new Promise((resolve, reject) => {
+    let body = ''
+
+    req.on('data', (chunk) => {
+      body += chunk.toString('utf8')
+    })
+    req.on('end', () => {
+      if (!body) {
+        resolve({})
+        return
+      }
+      try {
+        resolve(JSON.parse(body))
+      } catch (error) {
+        reject(error)
+      }
+    })
+    req.on('error', reject)
+  })
+
 const server = http.createServer((req, res) => {
-  if (!req.url) {
-    sendJson(res, 400, { error: 'Missing url' })
-    return
-  }
+  void (async () => {
+    if (!req.url) {
+      sendJson(res, 400, { error: 'Missing url' })
+      return
+    }
 
-  const url = new URL(req.url, `http://${req.headers.host}`)
-  if (req.method === 'GET' && url.pathname === '/healthz') {
-    sendJson(res, 200, { status: 'ok' })
-    return
-  }
+    const url = new URL(req.url, `http://${req.headers.host}`)
+    if (req.method === 'GET' && url.pathname === '/healthz') {
+      sendJson(res, 200, { status: 'ok', mode })
+      return
+    }
 
-  if (req.method === 'GET' && url.pathname === '/v2/rooms') {
-    sendJson(res, 200, rooms)
-    return
-  }
+    if (req.method === 'POST' && url.pathname === '/__test/reset') {
+      mode = { ...defaultMode }
+      sendJson(res, 200, { ok: true, mode })
+      return
+    }
 
-  const roomMessageMatch = url.pathname.match(/^\/v2\/rooms\/(\d+)\/messages$/)
-  if (req.method === 'GET' && roomMessageMatch) {
-    const roomId = roomMessageMatch[1]
-    sendJson(res, 200, messages[roomId] || [])
-    return
-  }
+    if (req.method === 'POST' && url.pathname === '/__test/mode') {
+      try {
+        const payload = await readRequestJson(req)
+        mode = {
+          roomsShouldFail: Boolean(payload.roomsShouldFail),
+          messagesShouldFail: Boolean(payload.messagesShouldFail),
+        }
+        sendJson(res, 200, { ok: true, mode })
+      } catch {
+        sendJson(res, 400, { error: 'Invalid JSON body' })
+      }
+      return
+    }
 
-  sendJson(res, 404, { error: 'Not found' })
+    if (req.method === 'GET' && url.pathname === '/v2/rooms') {
+      if (mode.roomsShouldFail) {
+        sendJson(res, 500, { error: 'Mock rooms failure' })
+        return
+      }
+      sendJson(res, 200, rooms)
+      return
+    }
+
+    const roomMessageMatch = url.pathname.match(/^\/v2\/rooms\/(\d+)\/messages$/)
+    if (req.method === 'GET' && roomMessageMatch) {
+      if (mode.messagesShouldFail) {
+        sendJson(res, 500, { error: 'Mock messages failure' })
+        return
+      }
+      const roomId = roomMessageMatch[1]
+      sendJson(res, 200, messages[roomId] || [])
+      return
+    }
+
+    sendJson(res, 404, { error: 'Not found' })
+  })().catch((error) => {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'Unknown server error',
+    })
+  })
 })
 
 server.listen(port, () => {

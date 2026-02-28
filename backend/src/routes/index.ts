@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify'
+import { env } from '../config/env'
 import { authRoutes } from './auth'
 import { chatworkRoutes } from './chatwork'
 import { companyRoutes } from './companies'
@@ -9,6 +10,7 @@ import { projectRoutes } from './projects'
 import { searchRoutes } from './search'
 import { summaryRoutes } from './summaries'
 import { taskRoutes } from './tasks'
+import { testRoutes } from './test'
 import { userRoutes } from './users'
 import { wholesaleRoutes } from './wholesales'
 import { jobRoutes } from './jobs'
@@ -32,7 +34,8 @@ const ROUTES = [
 ]
 
 export const registerRoutes = (fastify: FastifyInstance) => {
-  ROUTES.forEach((route) => {
+  const routes = env.nodeEnv === 'test' ? [...ROUTES, testRoutes] : ROUTES
+  routes.forEach((route) => {
     fastify.register(route, { prefix: '/api' })
   })
 }

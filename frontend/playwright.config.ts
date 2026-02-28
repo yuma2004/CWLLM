@@ -12,9 +12,13 @@ const adminPassword = rootEnv.ADMIN_PASSWORD || 'admin123'
 const mockChatworkPort = rootEnv.MOCK_CHATWORK_PORT || '9101'
 const chatworkBaseUrl =
   rootEnv.CHATWORK_API_BASE_URL || `http://localhost:${mockChatworkPort}/v2`
+const backendBaseUrl = `http://localhost:${backendPort}`
+const mockChatworkBaseUrl = `http://localhost:${mockChatworkPort}`
 
 process.env.E2E_ADMIN_EMAIL ||= adminEmail
 process.env.E2E_ADMIN_PASSWORD ||= adminPassword
+process.env.E2E_BACKEND_URL ||= backendBaseUrl
+process.env.E2E_MOCK_CHATWORK_URL ||= mockChatworkBaseUrl
 
 const baseEnv = {
   ...process.env,
