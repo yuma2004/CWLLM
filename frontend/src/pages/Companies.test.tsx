@@ -1,150 +1,151 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
 import Companies from './Companies'
-import { useAuth } from '../contexts/AuthContext'
+import { AuthProvider } from '../contexts/AuthContext'
+import { clearAuthToken, setAuthToken } from '../lib/authToken'
+import { createUser } from '../test/msw/factory'
+import { server } from '../test/msw/server'
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn(),
-}))
+type CompanyItem = {
+  id: string
+  name: string
+  status: string
+  tags: string[]
+  ownerIds: string[]
+}
 
-const mockUseAuth = vi.mocked(useAuth)
+type SetupCompaniesHandlersOptions = {
+  initialCompanies?: CompanyItem[]
+  failChatworkLink?: boolean
+}
 
-const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+const renderCompaniesPage = () =>
+  render(
+    <MemoryRouter>
+      <AuthProvider>
+        <Companies />
+      </AuthProvider>
+    </MemoryRouter>
+  )
 
-const queueResponse = (payload: unknown) =>
-  mockFetch.mockResolvedValueOnce({
-    ok: true,
-    text: async () => JSON.stringify(payload),
-    json: async () => payload,
-  } as Response)
+const setupCompaniesHandlers = ({
+  initialCompanies = [{ id: 'c1', name: 'Acme', status: 'active', tags: [], ownerIds: [] }],
+  failChatworkLink = false,
+}: SetupCompaniesHandlersOptions = {}) => {
+  let companies = initialCompanies.map((item) => ({ ...item }))
+  let hasSearchQueryCall = false
+  let createdCompanyId = 0
 
-describe('Companies page', () => {
-  beforeEach(() => {
-    mockUseAuth.mockReturnValue({
-      user: { id: '1', email: 'admin@example.com', role: 'admin' },
-      login: vi.fn(async () => {}),
-      logout: vi.fn(async () => {}),
-      isLoading: false,
-      isAuthenticated: true,
+  server.use(
+    http.get('/api/auth/me', () =>
+      HttpResponse.json({
+        user: createUser({
+          id: 'u-admin',
+          email: 'admin@example.com',
+          role: 'admin',
+          name: '管理者',
+        }),
+      })
+    ),
+    http.get('/api/users/options', () => HttpResponse.json({ users: [] })),
+    http.get('/api/companies/options', () =>
+      HttpResponse.json({ categories: ['カテゴリA'], statuses: ['active'], tags: ['VIP'] })
+    ),
+    http.get('/api/chatwork/rooms', () =>
+      HttpResponse.json({
+        rooms: [{ id: 'r1', roomId: '100', name: '営業ルーム', description: '' }],
+      })
+    ),
+    http.get('/api/companies', ({ request }) => {
+      const url = new URL(request.url)
+      const q = url.searchParams.get('q')?.trim() ?? ''
+      if (q) {
+        hasSearchQueryCall = true
+      }
+      const filtered = q
+        ? companies.filter((company) => company.name.toLowerCase().includes(q.toLowerCase()))
+        : companies
+      return HttpResponse.json({
+        items: filtered,
+        pagination: { page: 1, pageSize: 20, total: filtered.length },
+      })
+    }),
+    http.post('/api/companies', async ({ request }) => {
+      const payload = (await request.json()) as { name?: string }
+      const name = payload.name?.trim() ?? ''
+      createdCompanyId += 1
+      const created = {
+        id: `c-new-${createdCompanyId}`,
+        name,
+        status: 'active',
+        tags: [],
+        ownerIds: [],
+      }
+      companies = [created, ...companies]
+      return HttpResponse.json({ company: created }, { status: 201 })
+    }),
+    http.post('/api/companies/:id/chatwork-rooms', () => {
+      if (failChatworkLink) {
+        return HttpResponse.json(
+          { error: '企業は作成されましたが、Chatwork連携に失敗しました。' },
+          { status: 500 }
+        )
+      }
+      return HttpResponse.json({ linked: true })
     })
-    mockFetch.mockReset()
-    globalThis.fetch = mockFetch as unknown as typeof fetch
+  )
+
+  return {
+    hasSearchQueryCall: () => hasSearchQueryCall,
+  }
+}
+
+describe('企業一覧ページ', () => {
+  beforeEach(() => {
+    setAuthToken('test-token')
   })
 
-  it('renders company list from API', async () => {
-    queueResponse({
-      items: [
-        { id: 'c1', name: 'Acme', status: 'active', tags: [], ownerIds: [] },
-      ],
-      pagination: { page: 1, pageSize: 20, total: 1 },
-    })
-    queueResponse({ categories: [], statuses: [], tags: [] })
-    queueResponse({ users: [] })
+  afterEach(() => {
+    clearAuthToken()
+  })
 
-    render(
-      <MemoryRouter>
-        <Companies />
-      </MemoryRouter>
-    )
+  it('企業一覧APIから取得した企業を表示する', async () => {
+    setupCompaniesHandlers()
+
+    renderCompaniesPage()
 
     expect(await screen.findByText('Acme')).toBeInTheDocument()
   })
 
-  it('updates API call when filters change', async () => {
-    queueResponse({
-      items: [],
-      pagination: { page: 1, pageSize: 20, total: 0 },
-    })
-    queueResponse({
-      categories: ['カテゴリA'],
-      statuses: ['active'],
-      tags: ['VIP'],
-    })
-    queueResponse({ users: [] })
-    queueResponse({
-      items: [],
-      pagination: { page: 1, pageSize: 20, total: 0 },
-    })
-
-    render(
-      <MemoryRouter>
-        <Companies />
-      </MemoryRouter>
-    )
+  it('検索フィルタを変更するとクエリ付きで再取得する', async () => {
+    const user = userEvent.setup()
+    const state = setupCompaniesHandlers()
+    renderCompaniesPage()
 
     const searchInput = await screen.findByPlaceholderText('企業名で検索 (/ で移動)')
-    fireEvent.change(searchInput, { target: { value: 'Acme' } })
+    await user.type(searchInput, 'Acme')
 
     await waitFor(() => {
-      const searchCall = mockFetch.mock.calls
-        .map(([url]) => url as string)
-        .find((url) => url.includes('/api/companies') && url.includes('q=Acme'))
-
-      expect(searchCall).toBeTruthy()
+      expect(state.hasSearchQueryCall()).toBe(true)
     })
   })
 
-  it('shows info toast when company is created but Chatwork link fails', async () => {
-    const jsonResponse = (payload: unknown, status = 200) =>
-      ({
-        ok: status >= 200 && status < 300,
-        status,
-        text: async () => JSON.stringify(payload),
-        json: async () => payload,
-      } as Response)
+  it('企業作成成功後にChatwork連携が失敗した場合は情報トーストを表示する', async () => {
+    const user = userEvent.setup()
+    setupCompaniesHandlers({ failChatworkLink: true })
 
-    mockFetch.mockImplementation(async (input, init) => {
-      const url = String(input)
-      const method = (init?.method || 'GET').toUpperCase()
+    renderCompaniesPage()
 
-      if (method === 'POST' && url.includes('/chatwork-rooms')) {
-        return jsonResponse({ error: '企業は作成されましたが、Chatwork連携に失敗しました。' }, 500)
-      }
+    await user.click(await screen.findByRole('button', { name: '企業を作成' }))
+    await user.click(await screen.findByRole('button', { name: /営業ルーム/ }))
+    await user.type(screen.getByPlaceholderText('企業名（必須）'), 'Acme')
+    await user.click(screen.getByRole('button', { name: '登録' }))
 
-      if (method === 'POST' && url.endsWith('/api/companies')) {
-        return jsonResponse({
-          company: { id: 'c-new', name: 'Acme', status: 'active', tags: [], ownerIds: [] },
-        })
-      }
-
-      if (method === 'GET' && url.includes('/api/chatwork/rooms')) {
-        return jsonResponse({
-          rooms: [{ id: 'r1', roomId: '100', name: '営業ルーム', description: '' }],
-        })
-      }
-
-      if (method === 'GET' && url.includes('/api/companies/options')) {
-        return jsonResponse({ categories: [], statuses: [], tags: [] })
-      }
-
-      if (method === 'GET' && url.includes('/api/users/options')) {
-        return jsonResponse({ users: [] })
-      }
-
-      if (method === 'GET' && url.includes('/api/companies')) {
-        return jsonResponse({
-          items: [{ id: 'c-new', name: 'Acme', status: 'active', tags: [], ownerIds: [] }],
-          pagination: { page: 1, pageSize: 20, total: 1 },
-        })
-      }
-
-      return jsonResponse({})
-    })
-
-    render(
-      <MemoryRouter>
-        <Companies />
-      </MemoryRouter>
-    )
-
-    fireEvent.click(await screen.findByRole('button', { name: '企業を作成' }))
-    fireEvent.click(await screen.findByText('営業ルーム'))
-    fireEvent.change(screen.getByPlaceholderText('企業名（必須）'), {
-      target: { value: 'Acme' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: '登録' }))
-
-    expect(await screen.findByText('企業は作成されましたが、Chatwork連携に失敗しました。')).toBeInTheDocument()
+    expect(
+      await screen.findByText('企業は作成されましたが、Chatwork連携に失敗しました。')
+    ).toBeInTheDocument()
   })
 })

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 const adminEmail = process.env.E2E_ADMIN_EMAIL || 'admin@example.com'
 const adminPassword = process.env.E2E_ADMIN_PASSWORD || 'admin123'
 
-test('Chatwork rooms from external API are displayed after sync', async ({ page }) => {
+test('外部APIから同期したChatworkルームを一覧表示できる', async ({ page }) => {
   await page.goto('/login')
   await page.locator('input[name="email"]').fill(adminEmail)
   await page.locator('input[name="password"]').fill(adminPassword)

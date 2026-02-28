@@ -1,100 +1,84 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
 import ProtectedRoute from './ProtectedRoute'
-import { useAuth } from '../contexts/AuthContext'
+import { AuthProvider } from '../contexts/AuthContext'
+import { clearAuthToken, setAuthToken } from '../lib/authToken'
+import { createUser } from '../test/msw/factory'
+import { server } from '../test/msw/server'
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn(),
-}))
+const renderProtectedRoute = (allowedRoles?: string[]) =>
+  render(
+    <MemoryRouter initialEntries={['/protected']}>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<div>ログインページ</div>} />
+          <Route
+            path="/protected"
+            element={
+              <ProtectedRoute allowedRoles={allowedRoles}>
+                <div>秘密ページ</div>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </MemoryRouter>
+  )
 
-const mockUseAuth = vi.mocked(useAuth)
-
-const buildAuthState = (overrides: Partial<ReturnType<typeof useAuth>> = {}) => ({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  login: vi.fn(async () => {}),
-  logout: vi.fn(async () => {}),
-  ...overrides,
-})
-
-describe('ProtectedRoute', () => {
+describe('保護ルート制御', () => {
   beforeEach(() => {
-    mockUseAuth.mockReset()
+    clearAuthToken()
   })
 
-  it('redirects unauthenticated users to login', () => {
-    mockUseAuth.mockReturnValue(buildAuthState({ isAuthenticated: false }))
-
-    render(
-      <MemoryRouter initialEntries={['/protected']}>
-        <Routes>
-          <Route path="/login" element={<div>login page</div>} />
-          <Route
-            path="/protected"
-            element={
-              <ProtectedRoute>
-                <div>secret</div>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
-    )
-
-    expect(screen.getByText('login page')).toBeInTheDocument()
+  afterEach(() => {
+    clearAuthToken()
   })
 
-  it('shows forbidden message when role is not allowed', () => {
-    mockUseAuth.mockReturnValue(
-      buildAuthState({
-        isAuthenticated: true,
-        user: { id: '1', email: 'employee@example.com', role: 'employee' },
-      })
-    )
+  it('未認証ユーザーはログインページへリダイレクトする', async () => {
+    renderProtectedRoute()
 
-    render(
-      <MemoryRouter initialEntries={['/protected']}>
-        <Routes>
-          <Route
-            path="/protected"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <div>secret</div>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
-    )
-
-    expect(screen.getByText('アクセス権限がありません')).toBeInTheDocument()
+    expect(await screen.findByText('ログインページ')).toBeInTheDocument()
   })
 
-  it('renders children when authenticated and authorized', () => {
-    mockUseAuth.mockReturnValue(
-      buildAuthState({
-        isAuthenticated: true,
-        user: { id: '2', email: 'admin@example.com', role: 'admin' },
-      })
+  it('権限不足の場合はアクセス不可メッセージを表示する', async () => {
+    setAuthToken('employee-token')
+    server.use(
+      http.get('/api/auth/me', () =>
+        HttpResponse.json({
+          user: createUser({
+            id: 'employee-1',
+            email: 'employee@example.com',
+            role: 'employee',
+            name: '担当者',
+          }),
+        })
+      )
     )
 
-    render(
-      <MemoryRouter initialEntries={['/protected']}>
-        <Routes>
-          <Route
-            path="/protected"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <div>secret</div>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
+    renderProtectedRoute(['admin'])
+
+    expect(await screen.findByText('アクセス権限がありません')).toBeInTheDocument()
+  })
+
+  it('認証済みかつ許可ロールの場合は子要素を表示する', async () => {
+    setAuthToken('admin-token')
+    server.use(
+      http.get('/api/auth/me', () =>
+        HttpResponse.json({
+          user: createUser({
+            id: 'admin-1',
+            email: 'admin@example.com',
+            role: 'admin',
+            name: '管理者',
+          }),
+        })
+      )
     )
 
-    expect(screen.getByText('secret')).toBeInTheDocument()
+    renderProtectedRoute(['admin'])
+
+    expect(await screen.findByText('秘密ページ')).toBeInTheDocument()
   })
 })

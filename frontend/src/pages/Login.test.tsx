@@ -1,67 +1,60 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
 import Login from './Login'
-import { useAuth } from '../contexts/AuthContext'
+import { AuthProvider } from '../contexts/AuthContext'
+import { clearAuthToken } from '../lib/authToken'
+import { server } from '../test/msw/server'
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn(),
-}))
+const renderLoginPage = () =>
+  render(
+    <MemoryRouter initialEntries={['/login']}>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+        </Routes>
+      </AuthProvider>
+    </MemoryRouter>
+  )
 
-const mockUseAuth = vi.mocked(useAuth)
-
-describe('Login page', () => {
+describe('ログインページ', () => {
   beforeEach(() => {
-    mockUseAuth.mockReturnValue({
-      user: null,
-      login: vi.fn(async () => {}),
-      logout: vi.fn(async () => {}),
-      isLoading: false,
-      isAuthenticated: false,
-    })
+    clearAuthToken()
   })
 
-  it('toggles password visibility', () => {
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>
-    )
+  afterEach(() => {
+    clearAuthToken()
+  })
+
+  it('表示切り替えボタンでパスワード入力の表示形式を切り替えられる', async () => {
+    const user = userEvent.setup()
+    renderLoginPage()
 
     const passwordInput = screen.getByLabelText('パスワード') as HTMLInputElement
     expect(passwordInput.type).toBe('password')
 
-    fireEvent.click(screen.getByRole('button', { name: '入力内容を表示' }))
+    await user.click(screen.getByRole('button', { name: '入力内容を表示' }))
     expect(passwordInput.type).toBe('text')
 
-    fireEvent.click(screen.getByRole('button', { name: '入力内容を隠す' }))
+    await user.click(screen.getByRole('button', { name: '入力内容を隠す' }))
     expect(passwordInput.type).toBe('password')
   })
 
-  it('clears auth error while user edits fields', async () => {
-    const loginMock = vi.fn(async () => {
-      throw new Error('unauthorized')
-    })
-    mockUseAuth.mockReturnValue({
-      user: null,
-      login: loginMock,
-      logout: vi.fn(async () => {}),
-      isLoading: false,
-      isAuthenticated: false,
-    })
-
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>
+  it('認証エラー表示中に入力を変更するとエラーをクリアする', async () => {
+    const user = userEvent.setup()
+    server.use(
+      http.post('/api/auth/login', () =>
+        HttpResponse.json({ error: 'unauthorized' }, { status: 401 })
+      )
     )
 
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
+    renderLoginPage()
 
-    fireEvent.change(emailInput, { target: { value: 'admin@example.com' } })
-    fireEvent.change(passwordInput, { target: { value: 'wrong-password' } })
-    fireEvent.click(screen.getByRole('button', { name: 'ログイン' }))
+    await user.type(screen.getByLabelText('メールアドレス'), 'admin@example.com')
+    await user.type(screen.getByLabelText('パスワード'), 'wrong-password')
+    await user.click(screen.getByRole('button', { name: 'ログイン' }))
 
     await waitFor(() => {
       expect(
@@ -69,7 +62,8 @@ describe('Login page', () => {
       ).toBeInTheDocument()
     })
 
-    fireEvent.change(emailInput, { target: { value: 'admin2@example.com' } })
+    await user.type(screen.getByLabelText('メールアドレス'), '2')
+
     expect(
       screen.queryByText('メールアドレスまたはパスワードが正しくありません。')
     ).not.toBeInTheDocument()

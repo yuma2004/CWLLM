@@ -5,8 +5,8 @@ import {
   validateTaskCreateForm,
 } from './createForm'
 
-describe('task create form helpers', () => {
-  it('validates required fields', () => {
+describe('タスク作成フォームヘルパー', () => {
+  it('必須項目を検証する', () => {
     expect(
       validateTaskCreateForm({
         targetType: 'company',
@@ -29,7 +29,7 @@ describe('task create form helpers', () => {
     })
   })
 
-  it('builds payload for company target', () => {
+  it('企業紐づけタスクの作成ペイロードを生成する', () => {
     expect(
       buildTaskCreatePayload({
         targetType: 'company',
@@ -49,7 +49,7 @@ describe('task create form helpers', () => {
     })
   })
 
-  it('builds payload for general target', () => {
+  it('一般タスクの作成ペイロードを生成する', () => {
     expect(
       buildTaskCreatePayload({
         targetType: 'general',

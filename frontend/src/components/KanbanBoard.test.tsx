@@ -13,8 +13,8 @@ const baseTask: Task = {
   dueDate: '2024-01-01',
 }
 
-describe('KanbanBoard', () => {
-  it('renders a drag handle for each card', () => {
+describe('カンバンボード', () => {
+  it('各カードにドラッグハンドルを表示する', () => {
     render(
       <MemoryRouter>
         <KanbanBoard

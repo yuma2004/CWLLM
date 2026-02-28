@@ -118,13 +118,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  const isCheckingAuth = hasToken && !user && (isAuthLoading || !authError)
+
   return (
     <AuthContext.Provider
       value={{
         user,
         login,
         logout,
-        isLoading: MOCK_AUTH ? false : isAuthLoading && !user,
+        isLoading: MOCK_AUTH ? false : isCheckingAuth,
         isAuthenticated: !!user,
       }}
     >
@@ -141,4 +143,3 @@ export function useAuth() {
   }
   return context
 }
-

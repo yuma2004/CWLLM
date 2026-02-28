@@ -15,8 +15,8 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('useFetch', () => {
-  it('aborts the previous request on consecutive refetch without setting error', async () => {
+describe('useFetchフック', () => {
+  it('連続再取得時に先行リクエストを中断してエラー状態にしない', async () => {
     vi.useFakeTimers()
     const pendingRequests: Array<{ signal?: AbortSignal }> = []
 
@@ -62,7 +62,7 @@ describe('useFetch', () => {
     expect(result.current.isLoading).toBe(false)
   })
 
-  it('returns cached data without leaving loading true', async () => {
+  it('キャッシュヒット時に読み込み状態を解除してデータを返す', async () => {
     const cached = { ok: true }
     setCache('cache-key', cached, 10_000)
     apiRequestMock.mockResolvedValue({ ok: false })
@@ -82,8 +82,8 @@ describe('useFetch', () => {
   })
 })
 
-describe('useMutation', () => {
-  it('clears loading state when aborted', async () => {
+describe('useMutationフック', () => {
+  it('リクエスト中断時に読み込み状態を解除する', async () => {
     const controller = new AbortController()
 
     apiRequestMock.mockImplementation((_url: string, options: { signal?: AbortSignal }) => {

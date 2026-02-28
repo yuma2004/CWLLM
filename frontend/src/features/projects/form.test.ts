@@ -5,8 +5,8 @@ import {
   validateProjectCreateForm,
 } from './form'
 
-describe('projects form helpers', () => {
-  it('validates required fields', () => {
+describe('案件作成フォームヘルパー', () => {
+  it('必須項目を検証する', () => {
     expect(
       validateProjectCreateForm({
         companyId: '',
@@ -34,7 +34,7 @@ describe('projects form helpers', () => {
     ).toBeNull()
   })
 
-  it('builds create payload from form', () => {
+  it('フォーム入力から作成ペイロードを生成する', () => {
     const form: ProjectCreateFormState = {
       companyId: '  company-1  ',
       name: '  Project A  ',
@@ -58,7 +58,7 @@ describe('projects form helpers', () => {
     })
   })
 
-  it('omits optional fields when empty', () => {
+  it('任意項目が空文字のときはペイロードから除外する', () => {
     const form: ProjectCreateFormState = {
       companyId: 'company-1',
       name: 'Project A',

@@ -1,158 +1,126 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
 import TaskDetail from './TaskDetail'
-import { useAuth } from '../contexts/AuthContext'
+import { AuthProvider } from '../contexts/AuthContext'
 import { clearAuthToken, setAuthToken } from '../lib/authToken'
+import { createUser } from '../test/msw/factory'
+import { server } from '../test/msw/server'
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn(),
-}))
+type SetupTaskDetailHandlersOptions = {
+  role?: string
+}
 
-const mockUseAuth = vi.mocked(useAuth)
-const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+const renderTaskDetailPage = () =>
+  render(
+    <MemoryRouter initialEntries={['/tasks/t1']}>
+      <AuthProvider>
+        <Routes>
+          <Route path="/tasks/:id" element={<TaskDetail />} />
+        </Routes>
+      </AuthProvider>
+    </MemoryRouter>
+  )
 
-const buildResponse = (payload: unknown) =>
-  Promise.resolve({
-    ok: true,
-    text: async () => JSON.stringify(payload),
-    json: async () => payload,
-  } as Response)
+const setupTaskDetailHandlers = ({ role = 'admin' }: SetupTaskDetailHandlersOptions = {}) => {
+  let updatedPayload: Record<string, unknown> | null = null
+  const initialTask = {
+    id: 't1',
+    title: 'Follow up',
+    description: '詳細',
+    status: 'todo',
+    targetType: 'company',
+    targetId: 'c1',
+    dueDate: '2026-02-10T00:00:00.000Z',
+    assigneeId: 'u1',
+    assignee: {
+      id: 'u1',
+      email: 'admin@example.com',
+      name: 'Admin',
+    },
+    target: {
+      id: 'c1',
+      type: 'company',
+      name: 'Acme',
+    },
+  }
+  const patchedTask = {
+    ...initialTask,
+    title: 'Updated title',
+  }
+  let isPatched = false
 
-describe('TaskDetail page', () => {
+  server.use(
+    http.get('/api/auth/me', () =>
+      HttpResponse.json({
+        user: createUser({
+          id: 'u1',
+          email: 'admin@example.com',
+          role,
+          name: role === 'viewer' ? '閲覧者' : '管理者',
+        }),
+      })
+    ),
+    http.get('/api/users/options', () =>
+      HttpResponse.json({
+        users: [{ id: 'u1', email: 'admin@example.com', name: 'Admin' }],
+      })
+    ),
+    http.get('/api/tasks/:id', () => HttpResponse.json({ task: isPatched ? patchedTask : initialTask })),
+    http.patch('/api/tasks/:id', async ({ request }) => {
+      updatedPayload = (await request.json()) as Record<string, unknown>
+      isPatched = true
+      return HttpResponse.json({ task: patchedTask })
+    })
+  )
+
+  return {
+    getUpdatedPayload: () => updatedPayload,
+  }
+}
+
+describe('タスク詳細ページ', () => {
   beforeEach(() => {
     setAuthToken('test-token')
-    mockUseAuth.mockReturnValue({
-      user: { id: 'u1', email: 'admin@example.com', role: 'admin' },
-      login: vi.fn(async () => {}),
-      logout: vi.fn(async () => {}),
-      isLoading: false,
-      isAuthenticated: true,
-    })
-    mockFetch.mockReset()
-    globalThis.fetch = mockFetch as unknown as typeof fetch
   })
 
   afterEach(() => {
     clearAuthToken()
   })
 
-  it('shows readonly notice for non-writable role', async () => {
-    mockUseAuth.mockReturnValue({
-      user: { id: 'u2', email: 'viewer@example.com', role: 'viewer' },
-      login: vi.fn(async () => {}),
-      logout: vi.fn(async () => {}),
-      isLoading: false,
-      isAuthenticated: true,
-    })
+  it('書き込み権限がない場合は閲覧専用メッセージを表示する', async () => {
+    setupTaskDetailHandlers({ role: 'viewer' })
 
-    mockFetch.mockImplementation((input) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
-      if (url === '/api/tasks/t1') {
-        return buildResponse({
-          task: {
-            id: 't1',
-            title: '閲覧専用タスク',
-            status: 'todo',
-            targetType: 'company',
-            targetId: 'c1',
-            dueDate: null,
-          },
-        })
-      }
-      if (url === '/api/users/options') {
-        return buildResponse({ users: [] })
-      }
-      return buildResponse({})
-    })
+    renderTaskDetailPage()
 
-    render(
-      <MemoryRouter initialEntries={['/tasks/t1']}>
-        <Routes>
-          <Route path="/tasks/:id" element={<TaskDetail />} />
-        </Routes>
-      </MemoryRouter>
-    )
-
-    expect(await screen.findByRole('heading', { name: '閲覧専用タスク' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Follow up' })).toBeInTheDocument()
     expect(screen.getByText('権限がないため、タスクの編集・削除はできません。')).toBeInTheDocument()
   })
 
-  it('validates title and sends patch update', async () => {
-    let updated = false
+  it('タイトル必須バリデーション後に更新リクエストを送信できる', async () => {
+    const user = userEvent.setup()
+    const state = setupTaskDetailHandlers({ role: 'admin' })
 
-    const initialTask = {
-      id: 't1',
-      title: 'Follow up',
-      description: '詳細',
-      status: 'todo',
-      targetType: 'company',
-      targetId: 'c1',
-      dueDate: '2026-02-10T00:00:00.000Z',
-      assigneeId: 'u1',
-      assignee: {
-        id: 'u1',
-        email: 'admin@example.com',
-        name: 'Admin',
-      },
-      target: {
-        id: 'c1',
-        type: 'company',
-        name: 'Acme',
-      },
-    }
-    const patchedTask = {
-      ...initialTask,
-      title: 'Updated title',
-    }
-
-    mockFetch.mockImplementation((input, init) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
-      if (url === '/api/tasks/t1' && (!init?.method || init.method === 'GET')) {
-        return buildResponse({ task: updated ? patchedTask : initialTask })
-      }
-      if (url === '/api/users/options') {
-        return buildResponse({
-          users: [{ id: 'u1', email: 'admin@example.com', name: 'Admin' }],
-        })
-      }
-      if (url === '/api/tasks/t1' && init?.method === 'PATCH') {
-        updated = true
-        return buildResponse({ task: patchedTask })
-      }
-      return buildResponse({})
-    })
-
-    render(
-      <MemoryRouter initialEntries={['/tasks/t1']}>
-        <Routes>
-          <Route path="/tasks/:id" element={<TaskDetail />} />
-        </Routes>
-      </MemoryRouter>
-    )
+    renderTaskDetailPage()
 
     expect(await screen.findByRole('heading', { name: 'Follow up' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '編集' }))
+    await user.click(screen.getByRole('button', { name: '編集' }))
 
     const titleInput = await screen.findByPlaceholderText('タスクのタイトル')
-    fireEvent.change(titleInput, { target: { value: '   ' } })
-    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await user.clear(titleInput)
+    await user.type(titleInput, '   ')
+    await user.click(screen.getByRole('button', { name: '保存' }))
     expect(await screen.findByText('タイトルは必須です')).toBeInTheDocument()
 
-    fireEvent.change(titleInput, { target: { value: 'Updated title' } })
-    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await user.clear(titleInput)
+    await user.type(titleInput, 'Updated title')
+    await user.click(screen.getByRole('button', { name: '保存' }))
 
     await waitFor(() => {
-      const patchCall = mockFetch.mock.calls.find(
-        ([url, init]) => url === '/api/tasks/t1' && init?.method === 'PATCH'
-      )
-      expect(patchCall).toBeTruthy()
-      if (!patchCall) return
-      const [, init] = patchCall
-      const payload = JSON.parse(String(init?.body))
-      expect(payload.title).toBe('Updated title')
+      expect(state.getUpdatedPayload()).not.toBeNull()
     })
+    expect(state.getUpdatedPayload()?.title).toBe('Updated title')
   })
 })

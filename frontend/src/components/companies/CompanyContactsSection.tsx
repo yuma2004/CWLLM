@@ -300,6 +300,7 @@ function CompanyContactsSection({
                             type="button"
                             onClick={() => onMoveContact(index, -1)}
                             disabled={index === 0 || isReorderWorking}
+                            aria-label={`${contact.name}を上へ移動`}
                             className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
                           >
                             <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -310,6 +311,7 @@ function CompanyContactsSection({
                             type="button"
                             onClick={() => onMoveContact(index, 1)}
                             disabled={index === contacts.length - 1 || isReorderWorking}
+                            aria-label={`${contact.name}を下へ移動`}
                             className="rounded border border-slate-200 p-1 text-slate-500 hover:text-slate-700 disabled:opacity-40"
                           >
                             <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

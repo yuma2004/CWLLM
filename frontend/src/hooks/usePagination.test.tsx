@@ -5,8 +5,8 @@ import { usePagination } from './usePagination'
 import { usePaginationSync } from './usePaginationSync'
 import type { PaginationState } from '../types'
 
-describe('usePagination', () => {
-  it('initializes with provided page size and builds query string', () => {
+describe('usePaginationフック', () => {
+  it('指定したページサイズで初期化しクエリ文字列を構築する', () => {
     const { result } = renderHook(() => usePagination(50))
 
     expect(result.current.pagination).toEqual({
@@ -17,7 +17,7 @@ describe('usePagination', () => {
     expect(result.current.paginationQuery).toBe('page=1&pageSize=50')
   })
 
-  it('updates page, resets page on page size change, and resets all values', () => {
+  it('ページ更新・ページサイズ変更時のリセット・全体リセットができる', () => {
     const { result } = renderHook(() => usePagination(20))
 
     act(() => {
@@ -48,8 +48,8 @@ describe('usePagination', () => {
   })
 })
 
-describe('usePaginationSync', () => {
-  it('merges pagination response into existing pagination state', () => {
+describe('usePaginationSyncフック', () => {
+  it('レスポンスのページ情報を既存状態へマージする', () => {
     const { result } = renderHook(() => {
       const [pagination, setPagination] = useState<PaginationState>({
         page: 2,
@@ -73,7 +73,7 @@ describe('usePaginationSync', () => {
     })
   })
 
-  it('does nothing when response is empty or pagination is missing', () => {
+  it('レスポンスが空またはページ情報欠落時は状態を変更しない', () => {
     const { result } = renderHook(() => {
       const [pagination, setPagination] = useState<PaginationState>({
         page: 1,

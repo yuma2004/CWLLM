@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import Modal from './Modal'
 
-describe('Modal', () => {
-  it('renders dialog role', () => {
+describe('モーダルコンポーネント', () => {
+  it('開いた状態でダイアログ要素を表示する', () => {
     render(
       <Modal isOpen onClose={vi.fn()}>
         <div>content</div>
@@ -13,7 +14,8 @@ describe('Modal', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
-  it('closes on Escape', () => {
+  it('Escキー入力で閉じるハンドラーを呼び出す', async () => {
+    const user = userEvent.setup()
     const onClose = vi.fn()
     render(
       <Modal isOpen onClose={onClose}>
@@ -21,12 +23,12 @@ describe('Modal', () => {
       </Modal>
     )
 
-    fireEvent.keyDown(document, { key: 'Escape' })
+    await user.keyboard('{Escape}')
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('moves focus to modal on open', async () => {
+  it('表示時にフォーカスがモーダルへ移動する', async () => {
     render(
       <>
         <button type="button">trigger</button>

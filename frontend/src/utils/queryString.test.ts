@@ -1,7 +1,7 @@
 import { buildQueryString } from './queryString'
 
-describe('buildQueryString', () => {
-  it('skips empty and nullish values', () => {
+describe('buildQueryString関数', () => {
+  it('空文字とnullish値を除外してクエリを組み立てる', () => {
     const query = buildQueryString({
       q: '',
       status: 'active',
@@ -14,7 +14,7 @@ describe('buildQueryString', () => {
     expect(query).toBe('status=active&page=1&pageSize=20')
   })
 
-  it('stringifies non-string values', () => {
+  it('文字列以外の値を文字列化してクエリを組み立てる', () => {
     const query = buildQueryString({
       page: 2,
       pageSize: 50,

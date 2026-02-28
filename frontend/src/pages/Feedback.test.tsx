@@ -1,156 +1,167 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
 import Feedback from './Feedback'
-import { useAuth } from '../contexts/AuthContext'
+import { AuthProvider } from '../contexts/AuthContext'
 import { clearAuthToken, setAuthToken } from '../lib/authToken'
+import { createUser } from '../test/msw/factory'
+import { server } from '../test/msw/server'
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn(),
-}))
-
-const mockUseAuth = vi.mocked(useAuth)
-const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-
-const buildResponse = (payload: unknown) =>
-  Promise.resolve({
-    ok: true,
-    text: async () => JSON.stringify(payload),
-    json: async () => payload,
-  } as Response)
-
-const feedbackItem = {
-  id: 'f1',
-  userId: 'u1',
-  type: 'improvement' as const,
-  title: '改善案',
-  message: '現状メッセージ',
-  pageUrl: 'http://localhost/page',
-  createdAt: new Date('2026-02-01T00:00:00.000Z').toISOString(),
-  updatedAt: new Date('2026-02-01T00:00:00.000Z').toISOString(),
+type FeedbackItem = {
+  id: string
+  userId: string
+  type: 'bug' | 'improvement' | 'other'
+  title?: string | null
+  message: string
+  pageUrl?: string | null
+  createdAt: string
+  updatedAt: string
   user: {
-    id: 'u1',
-    email: 'admin@example.com',
-    name: 'Admin',
-  },
+    id: string
+    email: string
+    name?: string | null
+  }
 }
 
-describe('Feedback page', () => {
+const renderFeedbackPage = () =>
+  render(
+    <MemoryRouter initialEntries={['/feedback']}>
+      <AuthProvider>
+        <Routes>
+          <Route path="/feedback" element={<Feedback />} />
+        </Routes>
+      </AuthProvider>
+    </MemoryRouter>
+  )
+
+const setupAuthHandler = () => {
+  server.use(
+    http.get('/api/auth/me', () =>
+      HttpResponse.json({
+        user: createUser({
+          id: 'u1',
+          email: 'admin@example.com',
+          role: 'admin',
+          name: '管理者',
+        }),
+      })
+    )
+  )
+}
+
+describe('フィードバックページ', () => {
   beforeEach(() => {
     setAuthToken('test-token')
-    mockUseAuth.mockReturnValue({
-      user: { id: 'u1', email: 'admin@example.com', role: 'admin' },
-      login: vi.fn(async () => {}),
-      logout: vi.fn(async () => {}),
-      isLoading: false,
-      isAuthenticated: true,
-    })
-    mockFetch.mockReset()
-    globalThis.fetch = mockFetch as unknown as typeof fetch
+    setupAuthHandler()
   })
 
   afterEach(() => {
     clearAuthToken()
   })
 
-  it('validates message input before submit', async () => {
-    mockFetch.mockImplementation((input) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
-      if (url === '/api/feedback?type=improvement') {
-        return buildResponse({ feedbacks: [] })
-      }
-      return buildResponse({})
-    })
+  it('内容が空白のみで送信するとバリデーションエラーを表示する', async () => {
+    const user = userEvent.setup()
+    let postCalled = false
+    server.use(
+      http.get('/api/feedback', () => HttpResponse.json({ feedbacks: [] })),
+      http.post('/api/feedback', () => {
+        postCalled = true
+        return HttpResponse.json({ feedback: { id: 'created-feedback' } }, { status: 201 })
+      })
+    )
 
-    render(<Feedback />)
+    renderFeedbackPage()
 
-    fireEvent.change(await screen.findByLabelText('内容'), {
-      target: { value: '   ' },
-    })
-    fireEvent.click(await screen.findByRole('button', { name: '送信する' }))
+    await user.type(await screen.findByLabelText('内容'), '   ')
+    await user.click(screen.getByRole('button', { name: '送信する' }))
+
     expect(await screen.findByText('内容を入力してください')).toBeInTheDocument()
+    expect(postCalled).toBe(false)
   })
 
-  it('submits trimmed feedback payload', async () => {
-    mockFetch.mockImplementation((input, init) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
-      if (url === '/api/feedback?type=improvement') {
-        return buildResponse({ feedbacks: [] })
-      }
-      if (url === '/api/feedback' && init?.method === 'POST') {
-        return buildResponse({ feedback: { id: 'created-feedback' } })
-      }
-      return buildResponse({})
-    })
+  it('送信時に前後空白を除去したペイロードを保存する', async () => {
+    const user = userEvent.setup()
+    let submittedPayload: Record<string, unknown> | null = null
+    server.use(
+      http.get('/api/feedback', () => HttpResponse.json({ feedbacks: [] })),
+      http.post('/api/feedback', async ({ request }) => {
+        submittedPayload = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ feedback: { id: 'created-feedback' } }, { status: 201 })
+      })
+    )
 
-    render(<Feedback />)
+    renderFeedbackPage()
 
-    fireEvent.change(await screen.findByLabelText('タイトル（任意）'), {
-      target: { value: '  新しいタイトル  ' },
-    })
-    fireEvent.change(await screen.findByLabelText('内容'), {
-      target: { value: '  送信メッセージ  ' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: '送信する' }))
+    await user.type(await screen.findByLabelText('タイトル（任意）'), '  新しいタイトル  ')
+    await user.type(await screen.findByLabelText('内容'), '  送信メッセージ  ')
+    await user.click(screen.getByRole('button', { name: '送信する' }))
 
     await waitFor(() => {
-      const postCall = mockFetch.mock.calls.find(
-        ([url, init]) => url === '/api/feedback' && init?.method === 'POST'
-      )
-      expect(postCall).toBeTruthy()
-      if (!postCall) return
-      const [, init] = postCall
-      const payload = JSON.parse(String(init?.body))
-      expect(payload.type).toBe('bug')
-      expect(payload.title).toBe('新しいタイトル')
-      expect(payload.message).toBe('送信メッセージ')
-      expect(typeof payload.pageUrl).toBe('string')
+      expect(submittedPayload).not.toBeNull()
     })
-
+    expect(submittedPayload?.type).toBe('bug')
+    expect(submittedPayload?.title).toBe('新しいタイトル')
+    expect(submittedPayload?.message).toBe('送信メッセージ')
+    expect(typeof submittedPayload?.pageUrl).toBe('string')
     expect(
       await screen.findByText('フィードバックを送信しました。ありがとうございます。')
     ).toBeInTheDocument()
   })
 
-  it('updates improvement item in place', async () => {
-    mockFetch.mockImplementation((input, init) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
-      if (url === '/api/feedback?type=improvement') {
-        return buildResponse({ feedbacks: [feedbackItem] })
-      }
-      if (url === '/api/feedback/f1' && init?.method === 'PATCH') {
-        return buildResponse({
-          feedback: {
-            ...feedbackItem,
-            title: '更新タイトル',
-            message: '更新後メッセージ',
-            updatedAt: new Date('2026-02-02T00:00:00.000Z').toISOString(),
-          },
-        })
-      }
-      return buildResponse({})
-    })
+  it('改善案を編集して保存すると一覧に反映される', async () => {
+    const user = userEvent.setup()
+    let improvements: FeedbackItem[] = [
+      {
+        id: 'f1',
+        userId: 'u1',
+        type: 'improvement',
+        title: '改善案',
+        message: '現状メッセージ',
+        pageUrl: 'http://localhost/page',
+        createdAt: new Date('2026-02-01T00:00:00.000Z').toISOString(),
+        updatedAt: new Date('2026-02-01T00:00:00.000Z').toISOString(),
+        user: {
+          id: 'u1',
+          email: 'admin@example.com',
+          name: '管理者',
+        },
+      },
+    ]
+    server.use(
+      http.get('/api/feedback', () => HttpResponse.json({ feedbacks: improvements })),
+      http.patch('/api/feedback/:id', async ({ params, request }) => {
+        const id = String(params.id)
+        const payload = (await request.json()) as { title?: string; message?: string }
+        improvements = improvements.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                title: payload.title ?? item.title,
+                message: payload.message ?? item.message,
+                updatedAt: new Date('2026-02-02T00:00:00.000Z').toISOString(),
+              }
+            : item
+        )
+        const updated = improvements.find((item) => item.id === id)
+        return HttpResponse.json({ feedback: updated })
+      })
+    )
 
-    render(<Feedback />)
+    renderFeedbackPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: '編集する' }))
+    await user.click(await screen.findByRole('button', { name: '編集する' }))
     const titleInputs = await screen.findAllByLabelText('タイトル（任意）')
     const messageInputs = await screen.findAllByLabelText('内容')
-    fireEvent.change(titleInputs[titleInputs.length - 1], { target: { value: '更新タイトル' } })
-    fireEvent.change(messageInputs[messageInputs.length - 1], {
-      target: { value: '更新後メッセージ' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: '保存する' }))
-
-    await waitFor(() => {
-      const patchCall = mockFetch.mock.calls.find(
-        ([url, init]) => url === '/api/feedback/f1' && init?.method === 'PATCH'
-      )
-      expect(patchCall).toBeTruthy()
-    })
+    await user.clear(titleInputs[titleInputs.length - 1])
+    await user.type(titleInputs[titleInputs.length - 1], '更新タイトル')
+    await user.clear(messageInputs[messageInputs.length - 1])
+    await user.type(messageInputs[messageInputs.length - 1], '更新後メッセージ')
+    await user.click(screen.getByRole('button', { name: '保存する' }))
 
     expect(await screen.findByText('改善案を更新しました。')).toBeInTheDocument()
+    expect(await screen.findByText('更新タイトル')).toBeInTheDocument()
+    expect(await screen.findByText('更新後メッセージ')).toBeInTheDocument()
   })
 })

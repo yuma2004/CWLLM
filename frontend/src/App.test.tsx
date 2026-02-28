@@ -1,41 +1,26 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import React from 'react'
 import App from './App'
+import { clearAuthToken } from './lib/authToken'
 
-vi.mock('./contexts/AuthContext', () => {
-  return {
-    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    useAuth: () => ({
-      user: null,
-      login: vi.fn(async () => {}),
-      logout: vi.fn(async () => {}),
-      isLoading: false,
-      isAuthenticated: false,
-    }),
-  }
-})
+describe('アプリケーションルーティング', () => {
+  beforeEach(() => {
+    clearAuthToken()
+    window.history.pushState({}, '', '/')
+  })
 
-const mockFetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-globalThis.fetch = mockFetch as unknown as typeof fetch
+  afterEach(() => {
+    clearAuthToken()
+  })
 
-describe('App', () => {
-  it('renders login page when not authenticated', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      text: async () => '',
-    } as Response)
-
+  it('未認証の状態で保護ページへアクセスするとログイン画面を表示する', async () => {
     render(
       <BrowserRouter>
         <App />
       </BrowserRouter>
     )
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'ログイン' })).toBeInTheDocument()
-    })
+    expect(await screen.findByRole('button', { name: 'ログイン' })).toBeInTheDocument()
   })
 })

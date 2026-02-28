@@ -6,8 +6,8 @@ import {
   validateProjectUpdateForm,
 } from './detailPayloads'
 
-describe('project detail payload helpers', () => {
-  it('validates project update form', () => {
+describe('案件詳細ペイロードヘルパー', () => {
+  it('案件更新フォームの必須項目を検証する', () => {
     expect(
       validateProjectUpdateForm({
         name: '',
@@ -32,7 +32,7 @@ describe('project detail payload helpers', () => {
     ).toBeNull()
   })
 
-  it('builds project update payload', () => {
+  it('案件更新ペイロードを生成する', () => {
     expect(
       buildProjectUpdatePayload({
         name: '  Project A  ',
@@ -54,7 +54,7 @@ describe('project detail payload helpers', () => {
     })
   })
 
-  it('builds wholesale create payload', () => {
+  it('卸作成ペイロードを生成する', () => {
     expect(
       buildWholesaleCreatePayload('project-1', {
         companyId: 'company-1',
@@ -73,7 +73,7 @@ describe('project detail payload helpers', () => {
     })
   })
 
-  it('builds wholesale update payload', () => {
+  it('卸更新ペイロードを生成する', () => {
     expect(
       buildWholesaleUpdatePayload({
         status: 'closed',

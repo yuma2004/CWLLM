@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDebouncedValue } from './useDebouncedValue'
 
-describe('useDebouncedValue', () => {
+describe('useDebouncedValueフック', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -11,7 +11,7 @@ describe('useDebouncedValue', () => {
     vi.useRealTimers()
   })
 
-  it('returns latest value after delay', () => {
+  it('指定した遅延後に最新値へ更新する', () => {
     const { result, rerender } = renderHook(
       ({ value, delayMs }) => useDebouncedValue(value, delayMs),
       { initialProps: { value: 'alpha', delayMs: 200 } }
@@ -33,7 +33,7 @@ describe('useDebouncedValue', () => {
     expect(result.current).toBe('beta')
   })
 
-  it('cancels older timer when value changes quickly', () => {
+  it('短時間に値が変化した場合は古いタイマーをキャンセルする', () => {
     const { result, rerender } = renderHook(
       ({ value }) => useDebouncedValue(value, 100),
       { initialProps: { value: 'first' } }

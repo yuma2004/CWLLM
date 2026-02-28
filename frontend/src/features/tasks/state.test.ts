@@ -6,19 +6,19 @@ import {
   validateBulkTaskUpdateInput,
 } from './state'
 
-describe('tasks state helpers', () => {
-  it('toggles individual selection', () => {
+describe('タスク状態ヘルパー', () => {
+  it('単一タスクの選択状態を切り替える', () => {
     expect(toggleTaskSelection([], 't1')).toEqual(['t1'])
     expect(toggleTaskSelection(['t1', 't2'], 't1')).toEqual(['t2'])
   })
 
-  it('toggles select all', () => {
+  it('全選択の状態を切り替える', () => {
     const tasks = [{ id: 't1' }, { id: 't2' }]
     expect(toggleSelectAllTaskIds(false, tasks)).toEqual(['t1', 't2'])
     expect(toggleSelectAllTaskIds(true, tasks)).toEqual([])
   })
 
-  it('validates bulk update input', () => {
+  it('一括更新入力を検証する', () => {
     expect(validateBulkTaskUpdateInput([], '', '', false)).toEqual({
       ok: false,
       reason: 'missing-task-ids',
@@ -30,7 +30,7 @@ describe('tasks state helpers', () => {
     expect(validateBulkTaskUpdateInput(['t1'], 'done', '', false)).toEqual({ ok: true })
   })
 
-  it('builds bulk update payload', () => {
+  it('一括更新ペイロードを生成する', () => {
     expect(buildBulkTaskUpdatePayload(['t1'], 'done', '', false)).toEqual({
       taskIds: ['t1'],
       status: 'done',
