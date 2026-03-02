@@ -56,7 +56,7 @@ export const listCompanyMessagesHandler = async (
   )
 
   if (page === 1) {
-    const userId = (request.user as { userId?: string } | undefined)?.userId
+    const userId = request.user?.userId
     void enqueueOnDemandRoomSync(request.params.id, userId, request.log).catch((err) => {
       request.log.warn({ err }, 'Chatwork on-demand sync failed to enqueue')
     })

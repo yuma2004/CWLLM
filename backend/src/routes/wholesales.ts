@@ -1,4 +1,6 @@
 import { FastifyInstance } from 'fastify'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { requireAuth, requireWriteAccess } from '../middleware/rbac'
 import {
   createWholesaleHandler,
@@ -16,53 +18,133 @@ import type {
   WholesaleNegotiationCreateBody,
   WholesaleUpdateBody,
 } from './wholesales.schemas'
+import {
+  companyWholesalesResponseSchema,
+  wholesaleCreateBodySchema,
+  wholesaleListQuerySchema,
+  wholesaleListResponseSchema,
+  wholesaleNegotiationCreateBodySchema,
+  wholesaleNegotiationResponseSchema,
+  wholesaleNegotiationsResponseSchema,
+  wholesaleParamsSchema,
+  wholesaleResponseSchema,
+  wholesaleUpdateBodySchema,
+} from './wholesales.schemas'
 
 export async function wholesaleRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Querystring: WholesaleListQuery }>(
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
+
+  app.get<{ Querystring: WholesaleListQuery }>(
     '/wholesales',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        querystring: wholesaleListQuerySchema,
+        response: {
+          200: wholesaleListResponseSchema,
+        },
+      },
+    },
     listWholesalesHandler
   )
 
-  fastify.post<{ Body: WholesaleCreateBody }>(
+  app.post<{ Body: WholesaleCreateBody }>(
     '/wholesales',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        body: wholesaleCreateBodySchema,
+        response: {
+          201: wholesaleResponseSchema,
+        },
+      },
+    },
     createWholesaleHandler
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/wholesales/:id',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        params: wholesaleParamsSchema,
+        response: {
+          200: wholesaleResponseSchema,
+        },
+      },
+    },
     getWholesaleHandler
   )
 
-  fastify.patch<{ Params: { id: string }; Body: WholesaleUpdateBody }>(
+  app.patch<{ Params: { id: string }; Body: WholesaleUpdateBody }>(
     '/wholesales/:id',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        params: wholesaleParamsSchema,
+        body: wholesaleUpdateBodySchema,
+        response: {
+          200: wholesaleResponseSchema,
+        },
+      },
+    },
     updateWholesaleHandler
   )
 
-  fastify.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string } }>(
     '/wholesales/:id',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        params: wholesaleParamsSchema,
+        response: {
+          204: z.undefined(),
+        },
+      },
+    },
     deleteWholesaleHandler
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/companies/:id/wholesales',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        params: wholesaleParamsSchema,
+        response: {
+          200: companyWholesalesResponseSchema,
+        },
+      },
+    },
     listCompanyWholesalesHandler
   )
 
-  fastify.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string } }>(
     '/wholesales/:id/negotiations',
-    { preHandler: requireAuth() },
+    {
+      preHandler: requireAuth(),
+      schema: {
+        params: wholesaleParamsSchema,
+        response: {
+          200: wholesaleNegotiationsResponseSchema,
+        },
+      },
+    },
     listWholesaleNegotiationsHandler
   )
 
-  fastify.post<{ Params: { id: string }; Body: WholesaleNegotiationCreateBody }>(
+  app.post<{ Params: { id: string }; Body: WholesaleNegotiationCreateBody }>(
     '/wholesales/:id/negotiations',
-    { preHandler: requireWriteAccess() },
+    {
+      preHandler: requireWriteAccess(),
+      schema: {
+        params: wholesaleParamsSchema,
+        body: wholesaleNegotiationCreateBodySchema,
+        response: {
+          201: wholesaleNegotiationResponseSchema,
+        },
+      },
+    },
     createWholesaleNegotiationHandler
   )
 }

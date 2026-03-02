@@ -26,62 +26,59 @@ const CREATE_TARGET_OPTIONS = [
 
 function Tasks() {
   const {
-    canWrite,
-    isAdmin,
-    taskScope,
-    searchInputRef,
-    createTitleRef,
-    createCompanyRef,
-    filters,
-    setFilters,
-    hasActiveFilters,
-    pagination,
-    setExtraParams,
-    viewMode,
-    selectedIds,
-    bulkStatus,
-    setBulkStatus,
-    bulkDueDate,
-    setBulkDueDate,
-    clearBulkDueDate,
-    setClearBulkDueDate,
-    deleteTarget,
-    setDeleteTarget,
-    createForm,
-    setCreateForm,
-    isCreateOpen,
-    setIsCreateOpen,
-    createFieldErrors,
-    setCreateFieldErrors,
-    createError,
-    setCreateError,
-    toast,
-    clearToast,
-    tasks,
-    userOptions,
-    hasBulkActions,
-    isLoadingTasks,
-    error,
-    setError,
-    isBulkUpdating,
-    isDeleting,
-    isCreating,
-    allSelected,
-    handleSearchSubmit,
-    handleStatusChange,
-    handleDueDateChange,
-    handleAssigneeChange,
-    handleCreateTask,
-    handleBulkUpdate,
-    handleDelete,
-    toggleSelectAll,
-    toggleSelected,
-    handlePageChange,
-    handlePageSizeChange,
-    handleClearFilter,
-    handleClearAllFilters,
-    handleScrollToCreate,
-    handleScopeChange,
+    permissions: { canWrite, isAdmin },
+    refs: { searchInputRef, createTitleRef, createCompanyRef },
+    scope: { taskScope, handleScopeChange },
+    filters: {
+      filters,
+      setFilters,
+      hasActiveFilters,
+      handleSearchSubmit,
+      handleClearFilter,
+      handleClearAllFilters,
+    },
+    view: {
+      viewMode,
+      setViewMode,
+      pagination,
+      handlePageChange,
+      handlePageSizeChange,
+    },
+    data: { tasks, userOptions, isLoadingTasks, error, setError },
+    selection: {
+      selectedIds,
+      bulkStatus,
+      setBulkStatus,
+      bulkDueDate,
+      setBulkDueDate,
+      clearBulkDueDate,
+      setClearBulkDueDate,
+      allSelected,
+      toggleSelectAll,
+      toggleSelected,
+      hasBulkActions,
+    },
+    createPanel: {
+      createForm,
+      setCreateForm,
+      isCreateOpen,
+      setIsCreateOpen,
+      createFieldErrors,
+      setCreateFieldErrors,
+      createError,
+      setCreateError,
+      isCreating,
+      handleCreateTask,
+    },
+    deletion: { deleteTarget, setDeleteTarget, handleDelete, isDeleting },
+    taskActions: {
+      handleStatusChange,
+      handleDueDateChange,
+      handleAssigneeChange,
+      handleBulkUpdate,
+      isBulkUpdating,
+    },
+    toast: { toast, clearToast },
   } = useTasksPage()
   return (
     <div className="space-y-4">
@@ -123,7 +120,7 @@ function Tasks() {
         <div className="inline-flex rounded-full border border-notion-border bg-notion-bg p-1 text-xs font-semibold text-notion-text-secondary shadow-sm">
           <button
             type="button"
-            onClick={() => setExtraParams((prev) => ({ ...prev, view: 'list' }))}
+            onClick={() => setViewMode('list')}
             aria-pressed={viewMode === 'list'}
             className={cn(
               'rounded-full px-3 py-1',
@@ -134,7 +131,7 @@ function Tasks() {
           </button>
           <button
             type="button"
-            onClick={() => setExtraParams((prev) => ({ ...prev, view: 'kanban' }))}
+            onClick={() => setViewMode('kanban')}
             aria-pressed={viewMode === 'kanban'}
             className={cn(
               'rounded-full px-3 py-1',
@@ -290,7 +287,7 @@ function Tasks() {
               canWrite ? (
                 <button
                   type="button"
-                  onClick={handleScrollToCreate}
+                  onClick={() => setIsCreateOpen(true)}
                   className="text-sm font-semibold text-notion-accent hover:text-notion-accent/80"
                 >
                   {TASK_STRINGS.actions.create}
@@ -465,8 +462,6 @@ function Tasks() {
 }
 
 export default Tasks
-
-
 
 
 

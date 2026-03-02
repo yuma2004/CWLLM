@@ -5,21 +5,12 @@ import { useFetch, useMutation } from '../../hooks/useApi'
 import { useToast } from '../../hooks/useToast'
 import { createSearchShortcut, useKeyboardShortcut } from '../../hooks/useKeyboardShortcut'
 import { useListPage } from '../../hooks/useListPage'
-import { toErrorMessage } from '../../utils/errorState'
 import type { Task, TasksFilters, User } from '../../types'
 import { apiRoutes } from '../../lib/apiRoutes'
 import { TASK_STRINGS } from '../../strings/tasks'
-import {
-  buildTaskCreatePayload,
-  type TaskCreateFormState,
-  validateTaskCreateForm,
-} from './createForm'
-import {
-  buildBulkTaskUpdatePayload,
-  toggleSelectAllTaskIds,
-  toggleTaskSelection,
-  validateBulkTaskUpdateInput,
-} from './state'
+import { buildBulkTaskUpdatePayload, validateBulkTaskUpdateInput } from './state'
+import { useTaskCreatePanel } from './useTaskCreatePanel'
+import { useTaskSelection } from './useTaskSelection'
 
 const defaultFilters: TasksFilters = {
   q: '',
@@ -30,18 +21,13 @@ const defaultFilters: TasksFilters = {
   dueTo: '',
 }
 
-export const CREATE_TARGET_OPTIONS = [
-  { value: 'company', label: 'Company' },
-  { value: 'general', label: 'General' },
-] as const
+export type TaskScope = 'mine' | 'all' | 'user'
 
 export const useTasksPage = () => {
   const { canWrite, isAdmin } = usePermissions()
   const { user } = useAuth()
-  const [taskScope, setTaskScope] = useState<'mine' | 'all' | 'user'>('mine')
+  const [taskScope, setTaskScope] = useState<TaskScope>('mine')
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const createTitleRef = useRef<HTMLInputElement>(null)
-  const createCompanyRef = useRef<HTMLInputElement>(null)
 
   const buildTaskUrl = useMemo(
     () => (queryString: string) =>
@@ -85,38 +71,8 @@ export const useTasksPage = () => {
   })
 
   const viewMode = extraParams.view === 'kanban' ? 'kanban' : 'list'
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [bulkStatus, setBulkStatus] = useState('')
-  const [bulkDueDate, setBulkDueDate] = useState('')
-  const [clearBulkDueDate, setClearBulkDueDate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
-  const [createForm, setCreateForm] = useState<TaskCreateFormState>({
-    targetType: 'company',
-    title: '',
-    description: '',
-    dueDate: '',
-    companyId: '',
-    assigneeId: '',
-  })
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [createFieldErrors, setCreateFieldErrors] = useState<{
-    title?: string
-    companyId?: string
-  }>({})
-  const [createError, setCreateError] = useState('')
   const { toast, showToast, clearToast } = useToast()
-
-  const { mutate: createTask, isLoading: isCreating } = useMutation<
-    { task: Task },
-    {
-      targetType: string
-      targetId: string
-      title: string
-      description?: string
-      dueDate?: string
-      assigneeId?: string
-    }
-  >(apiRoutes.tasks.base(), 'POST')
 
   const { mutate: updateTaskStatus } = useMutation<{ task: Task }, { status: string }>(
     apiRoutes.tasks.base(),
@@ -143,22 +99,11 @@ export const useTasksPage = () => {
     cacheTimeMs: 30_000,
   })
   const userOptions = useMemo(() => usersData?.users ?? [], [usersData?.users])
-
   const tasks = useMemo(() => tasksData?.items ?? [], [tasksData])
-  const hasBulkActions = canWrite && selectedIds.length > 0
-  const isCreateDirty = canWrite
-    ? Boolean(
-        createForm.title.trim() ||
-          createForm.description.trim() ||
-          createForm.dueDate ||
-          createForm.companyId ||
-          createForm.assigneeId
-      )
-    : false
 
-  useEffect(() => {
-    setSelectedIds([])
-  }, [tasksData?.items])
+  const selection = useTaskSelection(tasks)
+  const createPanel = useTaskCreatePanel({ canWrite, refetchTasks, showToast })
+  const hasBulkActions = canWrite && selection.selectedIds.length > 0
 
   useEffect(() => {
     if (!isAdmin && taskScope !== 'mine') {
@@ -183,24 +128,6 @@ export const useTasksPage = () => {
       setFilters((prev) => ({ ...prev, assigneeId: fallback.id }))
     }
   }, [filters.assigneeId, isAdmin, setFilters, taskScope, user?.id, userOptions])
-
-  useEffect(() => {
-    if (!isCreateDirty) return undefined
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [isCreateDirty])
-
-  useEffect(() => {
-    if (!isCreateOpen) return
-    const frameId = window.requestAnimationFrame(() => {
-      createTitleRef.current?.focus()
-    })
-    return () => window.cancelAnimationFrame(frameId)
-  }, [isCreateOpen])
 
   const shortcuts = useMemo(() => [createSearchShortcut(searchInputRef)], [searchInputRef])
   useKeyboardShortcut(shortcuts)
@@ -305,48 +232,13 @@ export const useTasksPage = () => {
     }
   }
 
-  const handleCreateTask = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setCreateError('')
-    const validationErrors = validateTaskCreateForm(createForm)
-    const nextErrors: { title?: string; companyId?: string } = {
-      ...(validationErrors.title ? { title: TASK_STRINGS.errors.createTitleRequired } : {}),
-      ...(validationErrors.companyId
-        ? { companyId: TASK_STRINGS.errors.createCompanyRequired }
-        : {}),
-    }
-    if (Object.keys(nextErrors).length > 0) {
-      setCreateFieldErrors(nextErrors)
-      if (nextErrors.title) {
-        createTitleRef.current?.focus()
-      } else if (nextErrors.companyId) {
-        createCompanyRef.current?.focus()
-      }
-      return
-    }
-    setCreateFieldErrors({})
-
-    try {
-      await createTask(buildTaskCreatePayload(createForm), {
-        authMode: 'bearer',
-        errorMessage: TASK_STRINGS.errors.create,
-      })
-      showToast(TASK_STRINGS.success.create, 'success')
-      setCreateForm((prev) => ({ ...prev, title: '', description: '', dueDate: '' }))
-      setCreateFieldErrors({})
-      void refetchTasks()
-    } catch (err) {
-      setCreateError(toErrorMessage(err, TASK_STRINGS.errors.create))
-    }
-  }
-
   const handleBulkUpdate = async () => {
     if (!canWrite) return
     const validation = validateBulkTaskUpdateInput(
-      selectedIds,
-      bulkStatus,
-      bulkDueDate,
-      clearBulkDueDate
+      selection.selectedIds,
+      selection.bulkStatus,
+      selection.bulkDueDate,
+      selection.clearBulkDueDate
     )
     if (!validation.ok) {
       setError(
@@ -359,16 +251,13 @@ export const useTasksPage = () => {
     setError('')
     try {
       const payload = buildBulkTaskUpdatePayload(
-        selectedIds,
-        bulkStatus,
-        bulkDueDate,
-        clearBulkDueDate
+        selection.selectedIds,
+        selection.bulkStatus,
+        selection.bulkDueDate,
+        selection.clearBulkDueDate
       )
       await bulkUpdateTasks(payload, { authMode: 'bearer', errorMessage: TASK_STRINGS.errors.bulk })
-      setSelectedIds([])
-      setBulkStatus('')
-      setBulkDueDate('')
-      setClearBulkDueDate(false)
+      selection.resetBulkState()
       void refetchTasks()
       showToast(TASK_STRINGS.success.bulk, 'success')
     } catch (err) {
@@ -393,16 +282,6 @@ export const useTasksPage = () => {
     }
   }
 
-  const allSelected = tasks.length > 0 && selectedIds.length === tasks.length
-
-  const toggleSelectAll = () => {
-    setSelectedIds(toggleSelectAllTaskIds(allSelected, tasks))
-  }
-
-  const toggleSelected = (taskId: string) => {
-    setSelectedIds((prev) => toggleTaskSelection(prev, taskId))
-  }
-
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage)
   }
@@ -419,11 +298,7 @@ export const useTasksPage = () => {
     clearAllFilters()
   }
 
-  const handleScrollToCreate = () => {
-    setIsCreateOpen(true)
-  }
-
-  const handleScopeChange = (nextScope: 'mine' | 'all' | 'user') => {
+  const handleScopeChange = (nextScope: TaskScope) => {
     if (!isAdmin) return
     setTaskScope(nextScope)
     if (nextScope === 'mine' || nextScope === 'all') {
@@ -432,62 +307,67 @@ export const useTasksPage = () => {
     setPage(1)
   }
 
+  const setViewMode = (nextView: 'list' | 'kanban') => {
+    setExtraParams((prev) => ({ ...prev, view: nextView }))
+  }
+
   return {
-    canWrite,
-    isAdmin,
-    taskScope,
-    searchInputRef,
-    createTitleRef,
-    createCompanyRef,
-    filters,
-    setFilters,
-    hasActiveFilters,
-    pagination,
-    setExtraParams,
-    viewMode,
-    selectedIds,
-    bulkStatus,
-    setBulkStatus,
-    bulkDueDate,
-    setBulkDueDate,
-    clearBulkDueDate,
-    setClearBulkDueDate,
-    deleteTarget,
-    setDeleteTarget,
-    createForm,
-    setCreateForm,
-    isCreateOpen,
-    setIsCreateOpen,
-    createFieldErrors,
-    setCreateFieldErrors,
-    createError,
-    setCreateError,
-    toast,
-    clearToast,
-    tasks,
-    userOptions,
-    hasBulkActions,
-    isLoadingTasks,
-    error,
-    setError,
-    isBulkUpdating,
-    isDeleting,
-    isCreating,
-    allSelected,
-    handleSearchSubmit,
-    handleStatusChange,
-    handleDueDateChange,
-    handleAssigneeChange,
-    handleCreateTask,
-    handleBulkUpdate,
-    handleDelete,
-    toggleSelectAll,
-    toggleSelected,
-    handlePageChange,
-    handlePageSizeChange,
-    handleClearFilter,
-    handleClearAllFilters,
-    handleScrollToCreate,
-    handleScopeChange,
+    permissions: {
+      canWrite,
+      isAdmin,
+    },
+    refs: {
+      searchInputRef,
+      createTitleRef: createPanel.createTitleRef,
+      createCompanyRef: createPanel.createCompanyRef,
+    },
+    scope: {
+      taskScope,
+      handleScopeChange,
+    },
+    filters: {
+      filters,
+      setFilters,
+      hasActiveFilters,
+      handleSearchSubmit,
+      handleClearFilter,
+      handleClearAllFilters,
+    },
+    view: {
+      viewMode,
+      setViewMode,
+      pagination,
+      handlePageChange,
+      handlePageSizeChange,
+    },
+    data: {
+      tasks,
+      userOptions,
+      isLoadingTasks,
+      error,
+      setError,
+    },
+    selection: {
+      ...selection,
+      hasBulkActions,
+    },
+    createPanel,
+    deletion: {
+      deleteTarget,
+      setDeleteTarget,
+      handleDelete,
+      isDeleting,
+    },
+    taskActions: {
+      handleStatusChange,
+      handleDueDateChange,
+      handleAssigneeChange,
+      handleBulkUpdate,
+      isBulkUpdating,
+    },
+    toast: {
+      toast,
+      clearToast,
+    },
   }
 }

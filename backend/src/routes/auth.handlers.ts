@@ -1,6 +1,5 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import bcrypt from 'bcryptjs'
-import { JWTUser } from '../types/auth'
 import { env } from '../config/env'
 import { buildErrorPayload, prisma } from '../utils'
 import type { LoginBody } from './auth.schemas'
@@ -93,7 +92,7 @@ export const logoutHandler = async (request: FastifyRequest, reply: FastifyReply
 export const meHandler = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
     await request.jwtVerify()
-    const { userId } = request.user as JWTUser
+    const { userId } = request.user
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

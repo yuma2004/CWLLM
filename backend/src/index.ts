@@ -15,7 +15,6 @@ import {
 import { registerRoutes } from './routes'
 import { env } from './config/env'
 import { normalizeErrorPayload } from './utils/errors'
-import { JWTUser } from './types/auth'
 import { closeJobQueue, initJobQueue } from './services/jobQueue'
 import { startChatworkAutoSync, stopChatworkAutoSync } from './services/chatworkScheduler'
 import { GLOBAL_PRISMA_ERROR_MAP, mapPrismaError, prisma } from './utils/prisma'
@@ -143,7 +142,7 @@ fastify.addHook('onRequest', async (request, reply) => {
 })
 
 fastify.addHook('onResponse', async (request, reply) => {
-  const user = request.user as JWTUser | undefined
+  const user = request.user
   request.log.info(
     {
       requestId: request.id,
@@ -158,7 +157,7 @@ fastify.addHook('onResponse', async (request, reply) => {
 })
 
 fastify.setErrorHandler((error, request, reply) => {
-  const user = request.user as JWTUser | undefined
+  const user = request.user
   let statusCode = error.statusCode ?? 500
   let message = error.message || 'Request failed'
   const prismaMapped = mapPrismaError(error, {}, GLOBAL_PRISMA_ERROR_MAP)

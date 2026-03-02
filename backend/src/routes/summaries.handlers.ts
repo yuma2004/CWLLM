@@ -1,6 +1,13 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { SummaryType } from '@prisma/client'
-import { isNonEmptyString, parseDate, parseStringArray, prisma } from '../utils'
+import {
+  badRequest,
+  isNonEmptyString,
+  notFound,
+  parseDate,
+  parseStringArray,
+  prisma,
+} from '../utils'
 import type { SummaryCreateBody } from './summaries.schemas'
 
 const normalizeSummaryType = (value?: string) => {
@@ -48,24 +55,24 @@ export const createSummaryHandler = async (
   const sourceLinks = parseStringArray(request.body.sourceLinks)
 
   if (!isNonEmptyString(content)) {
-    return reply.code(400).send({ error: 'content is required' })
+    return reply.code(400).send(badRequest('content is required'))
   }
   if (!periodStart || !periodEnd) {
-    return reply.code(400).send({ error: 'Invalid period' })
+    return reply.code(400).send(badRequest('Invalid period'))
   }
   if (periodStart > periodEnd) {
-    return reply.code(400).send({ error: 'Invalid period range' })
+    return reply.code(400).send(badRequest('Invalid period range'))
   }
   if (request.body.type !== undefined && type === null) {
-    return reply.code(400).send({ error: 'Invalid summary type' })
+    return reply.code(400).send(badRequest('Invalid summary type'))
   }
   if (sourceLinks === null) {
-    return reply.code(400).send({ error: 'sourceLinks must be string array' })
+    return reply.code(400).send(badRequest('sourceLinks must be string array'))
   }
 
   const company = await prisma.company.findUnique({ where: { id: request.params.id } })
   if (!company) {
-    return reply.code(404).send({ error: 'Company not found' })
+    return reply.code(404).send(notFound('Company'))
   }
 
   const summary = await prisma.summary.create({
@@ -88,7 +95,7 @@ export const listSummariesHandler = async (
 ) => {
   const company = await prisma.company.findUnique({ where: { id: request.params.id } })
   if (!company) {
-    return reply.code(404).send({ error: 'Company not found' })
+    return reply.code(404).send(notFound('Company'))
   }
 
   const summaries = await prisma.summary.findMany({
@@ -105,7 +112,7 @@ export const listSummaryCandidatesHandler = async (
 ) => {
   const summary = await prisma.summary.findUnique({ where: { id: request.params.id } })
   if (!summary) {
-    return reply.code(404).send({ error: 'Summary not found' })
+    return reply.code(404).send(notFound('Summary'))
   }
 
   const candidates = extractCandidates(summary.content).map((candidate) => ({

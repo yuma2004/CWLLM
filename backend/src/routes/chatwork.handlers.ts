@@ -185,7 +185,7 @@ export const syncChatworkRoomsHandler = async (
   if (!env.chatworkApiToken) {
     return reply.code(400).send(badRequest('CHATWORK_API_TOKEN is not set'))
   }
-  const userId = (request.user as { userId?: string } | undefined)?.userId
+  const userId = request.user?.userId
   const job = await enqueueChatworkRoomsSync(userId)
   return { jobId: job.id, status: job.status }
 }
@@ -214,7 +214,7 @@ export const syncChatworkMessagesHandler = async (
   if (!env.chatworkApiToken) {
     return reply.code(400).send(badRequest('CHATWORK_API_TOKEN is not set'))
   }
-  const userId = (request.user as { userId?: string } | undefined)?.userId
+  const userId = request.user?.userId
   const job = await enqueueChatworkMessagesSync(request.query.roomId, userId)
   return { jobId: job.id, status: job.status }
 }

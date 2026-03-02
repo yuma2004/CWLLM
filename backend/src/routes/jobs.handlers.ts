@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { Job, JobStatus, Prisma } from '@prisma/client'
 import { cancelJob } from '../services'
-import { prisma } from '../utils'
+import { prisma, requireRequestUser } from '../utils'
 import { JWTUser } from '../types/auth'
 import type { JobListQuery } from './jobs.schemas'
 
@@ -41,9 +41,12 @@ const findJobOrReply = async (jobId: string, reply: FastifyReply) => {
 }
 
 export const listJobsHandler = async (
-  request: FastifyRequest<{ Querystring: JobListQuery }>
+  request: FastifyRequest<{ Querystring: JobListQuery }>,
+  reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser
+  const user = requireRequestUser(request, reply)
+  if (!user) return reply
+
   const isAdmin = user.role === 'admin'
   const { type, status } = request.query
 
@@ -73,7 +76,9 @@ export const getJobHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser
+  const user = requireRequestUser(request, reply)
+  if (!user) return reply
+
   const job = await findJobOrReply(request.params.id, reply)
   if (!job) return reply
   if (!canAccessJob(user, job)) {
@@ -89,7 +94,9 @@ export const cancelJobHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser
+  const user = requireRequestUser(request, reply)
+  if (!user) return reply
+
   const job = await findJobOrReply(request.params.id, reply)
   if (!job) return reply
   if (!canAccessJob(user, job)) {

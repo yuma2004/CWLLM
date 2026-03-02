@@ -1,6 +1,5 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { FeedbackType } from '@prisma/client'
-import { JWTUser } from '../types/auth'
 import {
   badRequest,
   forbidden,
@@ -8,7 +7,7 @@ import {
   isNonEmptyString,
   notFound,
   prisma,
-  unauthorized,
+  requireRequestUser,
 } from '../utils'
 import { FeedbackCreateBody, FeedbackListQuery, FeedbackUpdateBody } from './feedback.schemas'
 
@@ -27,10 +26,8 @@ export const createFeedbackHandler = async (
   request: FastifyRequest<{ Body: FeedbackCreateBody }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
-  if (!userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
 
   const trimmedMessage = trimValue(request.body.message)
   if (!isNonEmptyString(trimmedMessage)) {
@@ -44,7 +41,7 @@ export const createFeedbackHandler = async (
   try {
     const feedback = await prisma.feedback.create({
       data: {
-        userId,
+        userId: user.userId,
         type,
         title: emptyStringToNull(trimmedTitle),
         message: trimmedMessage,
@@ -62,10 +59,8 @@ export const listFeedbackHandler = async (
   request: FastifyRequest<{ Querystring: FeedbackListQuery }>,
   reply: FastifyReply
 ) => {
-  const userId = (request.user as JWTUser | undefined)?.userId
-  if (!userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
 
   const type = request.query.type ?? FeedbackType.improvement
 
@@ -90,10 +85,8 @@ export const updateFeedbackHandler = async (
   request: FastifyRequest<{ Params: { id: string }; Body: FeedbackUpdateBody }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
 
   const feedbackId = request.params.id
 

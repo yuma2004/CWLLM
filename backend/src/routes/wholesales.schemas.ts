@@ -1,6 +1,11 @@
 import { DealStatus, WholesaleStatus } from '@prisma/client'
 import { z } from 'zod'
-import { idParamsSchema, paginationQuerySchema } from './shared/schemas'
+import {
+  apiErrorSchema,
+  idParamsSchema,
+  paginationQuerySchema,
+  paginationSchema,
+} from './shared/schemas'
 
 const optionalNumberSchema = z.preprocess(
   (value) => (value === null ? undefined : value),
@@ -67,8 +72,8 @@ export const wholesaleListQuerySchema = z
   .object({
     projectId: z.string().optional(),
     companyId: z.string().optional(),
-    status: z.nativeEnum(WholesaleStatus).optional(),
-    dealStatus: z.nativeEnum(DealStatus).optional(),
+    status: z.string().optional(),
+    dealStatus: z.string().optional(),
     ownerId: z.string().optional(),
     unitPriceMin: z.string().optional(),
     unitPriceMax: z.string().optional(),
@@ -83,10 +88,10 @@ export const wholesaleCreateBodySchema = z.object({
   conditions: optionalStringSchema,
   unitPrice: optionalNumberSchema,
   margin: optionalNumberSchema,
-  status: z.nativeEnum(WholesaleStatus).optional(),
+  status: z.string().optional(),
   agreedDate: optionalStringSchema,
   ownerId: optionalStringSchema,
-  dealStatus: z.nativeEnum(DealStatus).optional(),
+  dealStatus: z.string().optional(),
   proposedUnitPrice: optionalNumberSchema,
   agreedUnitPrice: optionalNumberSchema,
   nextActionAt: optionalStringSchema,
@@ -99,10 +104,10 @@ export const wholesaleUpdateBodySchema = z.object({
   conditions: z.string().nullable().optional(),
   unitPrice: z.number().nullable().optional(),
   margin: z.number().nullable().optional(),
-  status: z.nativeEnum(WholesaleStatus).optional(),
+  status: z.string().optional(),
   agreedDate: z.string().nullable().optional(),
   ownerId: z.string().nullable().optional(),
-  dealStatus: z.nativeEnum(DealStatus).optional(),
+  dealStatus: z.string().optional(),
   proposedUnitPrice: z.number().nullable().optional(),
   agreedUnitPrice: z.number().nullable().optional(),
   nextActionAt: z.string().nullable().optional(),
@@ -116,3 +121,45 @@ export const wholesaleNegotiationCreateBodySchema = z.object({
   note: optionalStringSchema,
   actionAt: optionalStringSchema,
 })
+
+export const wholesaleSchema = z
+  .object({
+    id: z.string(),
+  })
+  .passthrough()
+
+export const wholesaleNegotiationSchema = z
+  .object({
+    id: z.string(),
+  })
+  .passthrough()
+
+export const wholesaleResponseSchema = z.object({ wholesale: wholesaleSchema }).passthrough()
+
+export const wholesaleListResponseSchema = z
+  .object({
+    items: z.array(wholesaleSchema),
+    pagination: paginationSchema,
+  })
+  .passthrough()
+
+export const wholesaleNegotiationsResponseSchema = z
+  .object({
+    negotiations: z.array(wholesaleNegotiationSchema),
+  })
+  .passthrough()
+
+export const wholesaleNegotiationResponseSchema = z
+  .object({ negotiation: wholesaleNegotiationSchema })
+  .passthrough()
+
+export const companyWholesalesResponseSchema = z
+  .object({ wholesales: z.array(wholesaleSchema) })
+  .passthrough()
+
+export const wholesaleErrorResponses = {
+  400: apiErrorSchema,
+  401: apiErrorSchema,
+  404: apiErrorSchema,
+  409: apiErrorSchema,
+} as const

@@ -11,9 +11,8 @@ import {
   parseDate,
   parsePagination,
   prisma,
-  unauthorized,
+  requireRequestUser,
 } from '../utils'
-import { JWTUser } from '../types/auth'
 import type {
   NoteCreateBody,
   NoteListQuery,
@@ -293,10 +292,8 @@ export const createTaskFromNoteHandler = async (
   request: FastifyRequest<{ Params: { id: string }; Body: NoteToTaskBody }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
 
   const { title, description, assigneeId } = request.body
   const status = normalizeTaskStatus(request.body.status)

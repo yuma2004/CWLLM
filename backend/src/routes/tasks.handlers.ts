@@ -1,4 +1,4 @@
-﻿import { FastifyReply, FastifyRequest } from 'fastify'
+import { FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma, TaskStatus, TargetType } from '@prisma/client'
 import {
   badRequest,
@@ -9,9 +9,8 @@ import {
   parseDate,
   parsePagination,
   prisma,
-  unauthorized,
+  requireRequestUser,
 } from '../utils'
-import { JWTUser } from '../types/auth'
 import {
   buildTaskOwnershipFilter,
   canManageAllTasks,
@@ -36,18 +35,20 @@ import {
 const normalizeStatus = createEnumNormalizer(new Set(Object.values(TaskStatus)))
 const normalizeTargetType = createEnumNormalizer(new Set(Object.values(TargetType)))
 
-const listTasksForTarget = async (
-  targetType: TargetType,
-  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
-  reply: FastifyReply
+type TaskListRequest = FastifyRequest<{ Querystring: TaskListQuery }>
+
+const resolveTaskListContext = (
+  request: TaskListRequest,
+  reply: FastifyReply,
+  options?: { targetType?: TargetType; targetId?: string }
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return null
+
   const filters = parseTaskListFilters(request.query)
   if (!filters.ok) {
-    return reply.code(400).send(badRequest(filters.error))
+    void reply.code(400).send(badRequest(filters.error))
+    return null
   }
 
   const { page, pageSize, skip } = parsePagination(
@@ -58,47 +59,42 @@ const listTasksForTarget = async (
   const assigneeId = resolveTaskAssigneeFilter(user, request.query.assigneeId)
   const where = buildTaskWhere(filters, {
     assigneeId,
+    targetType: options?.targetType ?? filters.targetType,
+    targetId: options?.targetId ?? request.query.targetId,
+  })
+
+  return { page, pageSize, skip, where }
+}
+
+const listTasksForTarget = async (
+  targetType: TargetType,
+  request: FastifyRequest<{ Params: { id: string }; Querystring: TaskListQuery }>,
+  reply: FastifyReply
+) => {
+  const context = resolveTaskListContext(request, reply, {
     targetType,
     targetId: request.params.id,
   })
-  return listTasks(where, page, pageSize, skip)
+  if (!context) return
+  return listTasks(context.where, context.page, context.pageSize, context.skip)
 }
 
 export const listTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
-  const filters = parseTaskListFilters(request.query)
-  if (!filters.ok) {
-    return reply.code(400).send(badRequest(filters.error))
-  }
-
-  const { page, pageSize, skip } = parsePagination(
-    request.query.page,
-    request.query.pageSize
-  )
-
-  const assigneeId = resolveTaskAssigneeFilter(user, request.query.assigneeId)
-  const where = buildTaskWhere(filters, {
-    assigneeId,
-    targetType: filters.targetType,
-    targetId: request.query.targetId,
-  })
-  return listTasks(where, page, pageSize, skip)
+  const context = resolveTaskListContext(request, reply)
+  if (!context) return
+  return listTasks(context.where, context.page, context.pageSize, context.skip)
 }
 
 export const getTaskHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
+
   const where: Prisma.TaskWhereInput = { id: request.params.id }
   if (!canManageAllTasks(user)) {
     where.assigneeId = user.userId
@@ -118,10 +114,9 @@ export const createTaskHandler = async (
   reply: FastifyReply
 ) => {
   const { targetId, title, description, assigneeId } = request.body
-  const userId = (request.user as JWTUser | undefined)?.userId
-  if (!userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
+
   const status = normalizeStatus(request.body.status)
   const normalizedTargetType = normalizeTargetType(request.body.targetType)
 
@@ -161,7 +156,7 @@ export const createTaskHandler = async (
         title: title.trim(),
         description,
         dueDate: dueDate ?? undefined,
-        assigneeId: assigneeId ?? userId,
+        assigneeId: assigneeId ?? user.userId,
         status: status ?? 'todo',
       },
     })
@@ -177,10 +172,9 @@ export const updateTaskHandler = async (
   reply: FastifyReply
 ) => {
   const { title, description, assigneeId } = request.body
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
+
   const status = normalizeStatus(request.body.status)
 
   if (title !== undefined && !isNonEmptyString(title)) {
@@ -234,10 +228,9 @@ export const bulkUpdateTasksHandler = async (
   reply: FastifyReply
 ) => {
   const { taskIds, assigneeId } = request.body
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
+
   const status = normalizeStatus(request.body.status)
   if (!Array.isArray(taskIds) || taskIds.length === 0) {
     return reply.code(400).send(badRequest('taskIds is required'))
@@ -287,10 +280,9 @@ export const deleteTaskHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
+  const user = requireRequestUser(request, reply)
+  if (!user) return
+
   const existing = await prisma.task.findFirst({
     where: {
       id: request.params.id,
@@ -314,27 +306,9 @@ export const listMyTasksHandler = async (
   request: FastifyRequest<{ Querystring: TaskListQuery }>,
   reply: FastifyReply
 ) => {
-  const user = request.user as JWTUser | undefined
-  if (!user?.userId) {
-    return reply.code(401).send(unauthorized())
-  }
-  const filters = parseTaskListFilters(request.query)
-  if (!filters.ok) {
-    return reply.code(400).send(badRequest(filters.error))
-  }
-
-  const { page, pageSize, skip } = parsePagination(
-    request.query.page,
-    request.query.pageSize
-  )
-
-  const assigneeId = resolveTaskAssigneeFilter(user, request.query.assigneeId)
-  const where = buildTaskWhere(filters, {
-    assigneeId,
-    targetType: filters.targetType,
-    targetId: request.query.targetId,
-  })
-  return listTasks(where, page, pageSize, skip)
+  const context = resolveTaskListContext(request, reply)
+  if (!context) return
+  return listTasks(context.where, context.page, context.pageSize, context.skip)
 }
 
 export const listCompanyTasksHandler = async (
@@ -357,6 +331,3 @@ export const listWholesaleTasksHandler = async (
 ) => {
   return listTasksForTarget('wholesale', request, reply)
 }
-
-
-
